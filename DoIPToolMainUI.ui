@@ -230,7 +230,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButton_2">
+          <widget class="QPushButton" name="pushButton_EditConfig">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -323,7 +323,7 @@
      <x>0</x>
      <y>0</y>
      <width>803</width>
-     <height>33</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>

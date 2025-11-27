@@ -1,3 +1,4 @@
+import logging.handlers
 import sys
 
 import udsoncan
@@ -15,11 +16,38 @@ from udsoncan.services import *
 from DoIPToolMainUI import Ui_MainWindow
 from UDSOnIP import QUDSOnIPClient
 
-udsoncan.setup_logging()
+# udsoncan.setup_logging()
+
+
+logger = logging.getLogger()  # 通常使用模块名作为 Logger 的名字
+logger.setLevel(logging.DEBUG)  # 设置 Logger 的最低日志级别为 DEBUG
+
+
+# 设置日志文件最大大小（字节）和轮转数量
+LOG_FILE = 'DoIP_Client.log'
+LOG_MAX_SIZE = 10 * 1024 * 1024  # 10MB
+LOG_BACKUP_COUNT = 5  # 保留 5 个轮转的日志文件
+
+# 创建一个 RotatingFileHandler，将日志输出到文件
+file_handler = logging.handlers.RotatingFileHandler(
+    LOG_FILE,
+    maxBytes=LOG_MAX_SIZE,
+    backupCount=LOG_BACKUP_COUNT,
+    encoding='utf-8'  # 建议指定编码
+)
+
+# 创建一个 StreamHandler，将日志输出到控制台
+console_handler = logging.StreamHandler()
 
 
 
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 
+console_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 class MainWindow(QMainWindow, Ui_MainWindow):
     """
     自定义的主窗口类，继承了 QMainWindow（Qt主窗口行为）
@@ -31,13 +59,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 1. 调用生成的 setupUi 方法
         # 这将初始化所有界面元素（按钮、标签等）
         self.setupUi(self)
-        self.ecu_ip = '172.16.104.70'
-        self.client_ip_address = '172.16.104.54'
-        self.ecu_logical_address = 0x773
+        self.ecu_ip = '127.0.0.1'
+        self.client_ip = '127.0.0.1'
+        self.client_logical_address = 101
+        self.ecu_logical_address = 200
         self.uds_on_ip_client_thread = QThread()
         self.uds_on_ip_client = QUDSOnIPClient(ecu_ip_address=self.ecu_ip,
-                                               client_ip_address=self.client_ip_address,
-                                               ecu_logical_address=self.ecu_logical_address)
+                                               client_ip_address=self.client_ip,
+                                               ecu_logical_address=self.ecu_logical_address,
+                                               client_logical_address=self.client_logical_address)
         self.uds_on_ip_client.moveToThread(self.uds_on_ip_client_thread)
 
         self.ui_signal_connect_to_slot()
@@ -45,14 +75,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.uds_on_ip_client_thread.start()
 
+    # UI信号连接到槽函数
     def ui_signal_connect_to_slot(self):
         self.pushButton_ConnectDoIP.clicked.connect(self.uds_on_ip_client.change_doip_connect_state)
+        self.pushButton_SendDoIP.clicked.connect(self.uds_on_ip_client.send)
 
+    # QUDSOnIPClient中的信号连接到槽函数
     def uds_on_ip_client_signal_connect_to_slot(self):
-        self.uds_on_ip_client.doip_connect_state.connect(self.print_doip_state)
+        self.uds_on_ip_client.doip_connect_state.connect(self._doip_connect_state)
 
-    def print_doip_state(self, state: bool):
-        print(state)
+    def _doip_connect_state(self, state: bool):
+        if state:
+            self.pushButton_ConnectDoIP.setText('已连接')
+        else:
+            self.pushButton_ConnectDoIP.setText('连接')
 
 
 
@@ -82,16 +118,16 @@ if __name__ == "__main__":
 
 
 
-
-
-# ecu_ip = '172.16.104.70'
-# client_ip_address = '172.16.104.54'
-# ecu_logical_address = 0x773
+#
+#
+# ecu_ip = '127.0.0.1'
+# client_ip_address = '127.0.0.1'
+# ecu_logical_address = 200
 # print('a')
 # DoIP_Client = DoIPClient(ecu_ip_address=ecu_ip,
 #                          ecu_logical_address=ecu_logical_address,
 #                          client_ip_address=client_ip_address,
-#                          client_logical_address=0x7e2,
+#                          client_logical_address=100,
 #                          vm_specific=0)
 # print('b')
 # conn = DoIPClientUDSConnector(DoIP_Client)

@@ -15,10 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox, QHBoxLayout,
-    QLabel, QLineEdit, QMainWindow, QMenuBar,
-    QPlainTextEdit, QPushButton, QSizePolicy, QSpacerItem,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGroupBox,
+    QHBoxLayout, QLabel, QLineEdit, QMainWindow,
+    QMenuBar, QPlainTextEdit, QPushButton, QSizePolicy,
+    QSpacerItem, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -51,7 +51,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout.setStretch(1, 3)
         self.pushButton = QPushButton(self.centralwidget)
         self.pushButton.setObjectName(u"pushButton")
-        self.pushButton.setGeometry(QRect(624, 480, 131, 23))
+        self.pushButton.setGeometry(QRect(680, 480, 75, 23))
         self.pushButton.setFont(font)
         self.layoutWidget1 = QWidget(self.centralwidget)
         self.layoutWidget1.setObjectName(u"layoutWidget1")
@@ -133,14 +133,14 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_6.addWidget(self.comboBox_ChooseConfig)
 
-        self.pushButton_2 = QPushButton(self.groupBox)
-        self.pushButton_2.setObjectName(u"pushButton_2")
-        sizePolicy.setHeightForWidth(self.pushButton_2.sizePolicy().hasHeightForWidth())
-        self.pushButton_2.setSizePolicy(sizePolicy)
-        self.pushButton_2.setMaximumSize(QSize(50, 16777215))
-        self.pushButton_2.setFont(font)
+        self.pushButton_EditConfig = QPushButton(self.groupBox)
+        self.pushButton_EditConfig.setObjectName(u"pushButton_EditConfig")
+        sizePolicy.setHeightForWidth(self.pushButton_EditConfig.sizePolicy().hasHeightForWidth())
+        self.pushButton_EditConfig.setSizePolicy(sizePolicy)
+        self.pushButton_EditConfig.setMaximumSize(QSize(50, 16777215))
+        self.pushButton_EditConfig.setFont(font)
 
-        self.horizontalLayout_6.addWidget(self.pushButton_2)
+        self.horizontalLayout_6.addWidget(self.pushButton_EditConfig)
 
 
         self.horizontalLayout_7.addLayout(self.horizontalLayout_6)
@@ -148,11 +148,6 @@ class Ui_MainWindow(object):
         self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_7.addItem(self.horizontalSpacer_2)
-
-        self.label_2 = QLabel(self.groupBox)
-        self.label_2.setObjectName(u"label_2")
-
-        self.horizontalLayout_7.addWidget(self.label_2)
 
         self.pushButton_ConnectDoIP = QPushButton(self.groupBox)
         self.pushButton_ConnectDoIP.setObjectName(u"pushButton_ConnectDoIP")
@@ -164,17 +159,21 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_7.setStretch(0, 3)
         self.horizontalLayout_7.setStretch(1, 1)
-        self.horizontalLayout_7.setStretch(3, 1)
+        self.horizontalLayout_7.setStretch(2, 1)
 
         self.verticalLayout.addLayout(self.horizontalLayout_7)
 
         self.plainTextEdit_DataDisplay = QPlainTextEdit(self.centralwidget)
         self.plainTextEdit_DataDisplay.setObjectName(u"plainTextEdit_DataDisplay")
         self.plainTextEdit_DataDisplay.setGeometry(QRect(20, 180, 471, 171))
+        self.label_2 = QLabel(self.centralwidget)
+        self.label_2.setObjectName(u"label_2")
+        self.label_2.setGeometry(QRect(460, 400, 62, 18))
+        self.label_2.setFrameShape(QFrame.Shape.NoFrame)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 803, 33))
+        self.menubar.setGeometry(QRect(0, 0, 803, 22))
         MainWindow.setMenuBar(self.menubar)
 
         self.retranslateUi(MainWindow)
@@ -190,8 +189,8 @@ class Ui_MainWindow(object):
         self.groupBox.setTitle("")
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Tester IP", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"\u914d\u7f6e", None))
-        self.pushButton_2.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
         self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("MainWindow", u"\u8fde\u63a5", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
     # retranslateUi
 

@@ -15,16 +15,16 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGridLayout,
-    QHBoxLayout, QLabel, QLineEdit, QMainWindow,
-    QMenuBar, QPlainTextEdit, QPushButton, QSizePolicy,
-    QSpacerItem, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
+    QGridLayout, QHBoxLayout, QLabel, QLineEdit,
+    QMainWindow, QMenuBar, QPlainTextEdit, QPushButton,
+    QSizePolicy, QSpacerItem, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(803, 575)
+        MainWindow.resize(867, 575)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.layoutWidget = QWidget(self.centralwidget)
@@ -87,58 +87,17 @@ class Ui_MainWindow(object):
         self.gridLayout_2 = QGridLayout(self.gridLayoutWidget_2)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
-        self.comboBox_TesterIP = QComboBox(self.gridLayoutWidget_2)
-        self.comboBox_TesterIP.setObjectName(u"comboBox_TesterIP")
+        self.comboBox_ChooseConfig = QComboBox(self.gridLayoutWidget_2)
+        self.comboBox_ChooseConfig.setObjectName(u"comboBox_ChooseConfig")
         sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.comboBox_TesterIP.sizePolicy().hasHeightForWidth())
-        self.comboBox_TesterIP.setSizePolicy(sizePolicy1)
-        self.comboBox_TesterIP.setMinimumSize(QSize(120, 0))
-        self.comboBox_TesterIP.setFont(font)
+        sizePolicy1.setHeightForWidth(self.comboBox_ChooseConfig.sizePolicy().hasHeightForWidth())
+        self.comboBox_ChooseConfig.setSizePolicy(sizePolicy1)
+        self.comboBox_ChooseConfig.setMinimumSize(QSize(150, 0))
+        self.comboBox_ChooseConfig.setFont(font)
 
-        self.gridLayout_2.addWidget(self.comboBox_TesterIP, 0, 1, 1, 1)
-
-        self.pushButton_EditConfig = QPushButton(self.gridLayoutWidget_2)
-        self.pushButton_EditConfig.setObjectName(u"pushButton_EditConfig")
-        sizePolicy.setHeightForWidth(self.pushButton_EditConfig.sizePolicy().hasHeightForWidth())
-        self.pushButton_EditConfig.setSizePolicy(sizePolicy)
-        self.pushButton_EditConfig.setMaximumSize(QSize(50, 16777215))
-        self.pushButton_EditConfig.setFont(font)
-
-        self.gridLayout_2.addWidget(self.pushButton_EditConfig, 1, 2, 1, 1)
-
-        self.label_5 = QLabel(self.gridLayoutWidget_2)
-        self.label_5.setObjectName(u"label_5")
-        sizePolicy.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
-        self.label_5.setSizePolicy(sizePolicy)
-        self.label_5.setMinimumSize(QSize(60, 0))
-        self.label_5.setFont(font)
-
-        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
-
-        self.pushButton_ConnectDoIP = QPushButton(self.gridLayoutWidget_2)
-        self.pushButton_ConnectDoIP.setObjectName(u"pushButton_ConnectDoIP")
-        sizePolicy.setHeightForWidth(self.pushButton_ConnectDoIP.sizePolicy().hasHeightForWidth())
-        self.pushButton_ConnectDoIP.setSizePolicy(sizePolicy)
-        self.pushButton_ConnectDoIP.setMaximumSize(QSize(50, 16777215))
-        self.pushButton_ConnectDoIP.setFont(font)
-
-        self.gridLayout_2.addWidget(self.pushButton_ConnectDoIP, 0, 4, 1, 1)
-
-        self.label_3 = QLabel(self.gridLayoutWidget_2)
-        self.label_3.setObjectName(u"label_3")
-
-        self.gridLayout_2.addWidget(self.label_3, 1, 4, 1, 1)
-
-        self.pushButton_RefreshIP = QPushButton(self.gridLayoutWidget_2)
-        self.pushButton_RefreshIP.setObjectName(u"pushButton_RefreshIP")
-        sizePolicy.setHeightForWidth(self.pushButton_RefreshIP.sizePolicy().hasHeightForWidth())
-        self.pushButton_RefreshIP.setSizePolicy(sizePolicy)
-        self.pushButton_RefreshIP.setMaximumSize(QSize(50, 16777215))
-        self.pushButton_RefreshIP.setFont(font)
-
-        self.gridLayout_2.addWidget(self.pushButton_RefreshIP, 0, 2, 1, 1)
+        self.gridLayout_2.addWidget(self.comboBox_ChooseConfig, 1, 1, 1, 1)
 
         self.label_6 = QLabel(self.gridLayoutWidget_2)
         self.label_6.setObjectName(u"label_6")
@@ -149,28 +108,80 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2.addWidget(self.label_6, 1, 0, 1, 1)
 
-        self.comboBox_ChooseConfig = QComboBox(self.gridLayoutWidget_2)
-        self.comboBox_ChooseConfig.setObjectName(u"comboBox_ChooseConfig")
-        sizePolicy1.setHeightForWidth(self.comboBox_ChooseConfig.sizePolicy().hasHeightForWidth())
-        self.comboBox_ChooseConfig.setSizePolicy(sizePolicy1)
-        self.comboBox_ChooseConfig.setMinimumSize(QSize(120, 0))
-        self.comboBox_ChooseConfig.setFont(font)
-
-        self.gridLayout_2.addWidget(self.comboBox_ChooseConfig, 1, 1, 1, 1)
-
         self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.gridLayout_2.addItem(self.horizontalSpacer_2, 1, 3, 1, 1)
+        self.gridLayout_2.addItem(self.horizontalSpacer_2, 1, 4, 1, 1)
+
+        self.pushButton_RefreshIP = QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_RefreshIP.setObjectName(u"pushButton_RefreshIP")
+        sizePolicy.setHeightForWidth(self.pushButton_RefreshIP.sizePolicy().hasHeightForWidth())
+        self.pushButton_RefreshIP.setSizePolicy(sizePolicy)
+        self.pushButton_RefreshIP.setMaximumSize(QSize(50, 16777215))
+        self.pushButton_RefreshIP.setFont(font)
+
+        self.gridLayout_2.addWidget(self.pushButton_RefreshIP, 0, 2, 1, 1)
+
+        self.pushButton_ConnectDoIP = QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_ConnectDoIP.setObjectName(u"pushButton_ConnectDoIP")
+        sizePolicy.setHeightForWidth(self.pushButton_ConnectDoIP.sizePolicy().hasHeightForWidth())
+        self.pushButton_ConnectDoIP.setSizePolicy(sizePolicy)
+        self.pushButton_ConnectDoIP.setMaximumSize(QSize(50, 16777215))
+        self.pushButton_ConnectDoIP.setFont(font)
+
+        self.gridLayout_2.addWidget(self.pushButton_ConnectDoIP, 0, 5, 1, 1)
+
+        self.label_5 = QLabel(self.gridLayoutWidget_2)
+        self.label_5.setObjectName(u"label_5")
+        sizePolicy.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
+        self.label_5.setSizePolicy(sizePolicy)
+        self.label_5.setMinimumSize(QSize(60, 0))
+        self.label_5.setFont(font)
+
+        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
+
+        self.comboBox_TesterIP = QComboBox(self.gridLayoutWidget_2)
+        self.comboBox_TesterIP.setObjectName(u"comboBox_TesterIP")
+        sizePolicy1.setHeightForWidth(self.comboBox_TesterIP.sizePolicy().hasHeightForWidth())
+        self.comboBox_TesterIP.setSizePolicy(sizePolicy1)
+        self.comboBox_TesterIP.setMinimumSize(QSize(150, 0))
+        self.comboBox_TesterIP.setFont(font)
+        self.comboBox_TesterIP.setLabelDrawingMode(QComboBox.LabelDrawingMode.UseStyle)
+
+        self.gridLayout_2.addWidget(self.comboBox_TesterIP, 0, 1, 1, 1)
+
+        self.label_3 = QLabel(self.gridLayoutWidget_2)
+        self.label_3.setObjectName(u"label_3")
+
+        self.gridLayout_2.addWidget(self.label_3, 1, 5, 1, 1)
+
+        self.pushButton_EditConfig = QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_EditConfig.setObjectName(u"pushButton_EditConfig")
+        sizePolicy.setHeightForWidth(self.pushButton_EditConfig.sizePolicy().hasHeightForWidth())
+        self.pushButton_EditConfig.setSizePolicy(sizePolicy)
+        self.pushButton_EditConfig.setMaximumSize(QSize(50, 16777215))
+        self.pushButton_EditConfig.setFont(font)
+
+        self.gridLayout_2.addWidget(self.pushButton_EditConfig, 1, 2, 1, 1)
+
+        self.checkBox_AotuReconnect = QCheckBox(self.gridLayoutWidget_2)
+        self.checkBox_AotuReconnect.setObjectName(u"checkBox_AotuReconnect")
+        sizePolicy.setHeightForWidth(self.checkBox_AotuReconnect.sizePolicy().hasHeightForWidth())
+        self.checkBox_AotuReconnect.setSizePolicy(sizePolicy)
+        self.checkBox_AotuReconnect.setChecked(True)
+        self.checkBox_AotuReconnect.setAutoRepeat(False)
+
+        self.gridLayout_2.addWidget(self.checkBox_AotuReconnect, 0, 3, 1, 1)
 
         self.gridLayout_2.setColumnStretch(0, 1)
         self.gridLayout_2.setColumnStretch(1, 2)
         self.gridLayout_2.setColumnStretch(2, 1)
-        self.gridLayout_2.setColumnStretch(3, 4)
-        self.gridLayout_2.setColumnStretch(4, 1)
+        self.gridLayout_2.setColumnStretch(3, 1)
+        self.gridLayout_2.setColumnStretch(4, 3)
+        self.gridLayout_2.setColumnStretch(5, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 803, 33))
+        self.menubar.setGeometry(QRect(0, 0, 867, 33))
         MainWindow.setMenuBar(self.menubar)
 
         self.retranslateUi(MainWindow)
@@ -184,11 +195,12 @@ class Ui_MainWindow(object):
         self.pushButton.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
         self.pushButton_SendDoIP.setText(QCoreApplication.translate("MainWindow", u"Send", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
-        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Tester IP", None))
-        self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("MainWindow", u"\u8fde\u63a5", None))
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.pushButton_RefreshIP.setText(QCoreApplication.translate("MainWindow", u"\u5237\u65b0", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"\u914d\u7f6e", None))
+        self.pushButton_RefreshIP.setText(QCoreApplication.translate("MainWindow", u"\u5237\u65b0", None))
+        self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("MainWindow", u"\u8fde\u63a5", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Tester IP", None))
+        self.label_3.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
+        self.checkBox_AotuReconnect.setText(QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
     # retranslateUi
 

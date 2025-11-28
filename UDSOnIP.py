@@ -89,10 +89,10 @@ class QUDSOnIPClient(QObject):
                 error_message = f'uds client 创建失败'
                 self.info_signal.emit(f"{error_message},{e}")
 
-    def send(self):
+    def send_payload(self, payload: bytes):
         if self.uds_on_ip_client:
             try:
-                req = Request.from_payload(b'\x10\x01')
+                req = Request.from_payload(payload)
                 self.uds_on_ip_client.send_request(req)
             except Exception as e:
                 self.error_signal.emit(e)

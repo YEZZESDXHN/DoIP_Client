@@ -25,6 +25,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     和 Ui_MainWindow（界面元素定义）。
     """
     connect_or_disconnect_doip_signal = Signal()
+    doip_send_raw_payload_signal = Signal(bytes)
 
     def __init__(self):
         super().__init__()
@@ -34,10 +35,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.uds_on_ip_client = None
         self.uds_on_ip_client_thread = None
         self.setupUi(self)
-        # self.ecu_ip = '127.0.0.1'
-        # self.client_ip = '127.0.0.1'
-        # self.client_logical_address = 101
-        # self.ecu_logical_address = 200
         self.ip_list = []
         self.ecu_ip_address = '172.16.104.70'
         self.client_ip_address = '172.16.104.54'
@@ -49,7 +46,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.activation_type = RoutingActivationRequest.ActivationType.Default
         self.protocol_version = 0x02
         self.use_secure = False
-        self.auto_reconnect_tcp = False
+        self.auto_reconnect_tcp = True
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
 
@@ -69,12 +66,37 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # UI信号连接到槽函数
     def ui_signal_connect_to_slot(self):
         self.pushButton_ConnectDoIP.clicked.connect(self.change_doip_connect_state)
-        self.pushButton_SendDoIP.clicked.connect(self.uds_on_ip_client.send)
+        self.pushButton_SendDoIP.clicked.connect(self.send_raw_doip_payload)
         self.pushButton_EditConfig.clicked.connect(self.open_edit_config_panel)
         self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
+        self.checkBox_AotuReconnect.stateChanged.connect(self.set_auto_reconnect_tcp)
 
         self.connect_or_disconnect_doip_signal.connect(self.uds_on_ip_client.change_doip_connect_state)
+        self.doip_send_raw_payload_signal.connect(self.uds_on_ip_client.send_payload)
 
+
+    def set_auto_reconnect_tcp(self,state):
+        if state:
+            self.auto_reconnect_tcp = True
+        else:
+            self.auto_reconnect_tcp = False
+
+    # 获取发送数据窗口的hex,转换为bytes，通过信号与槽的机制传递给DoIP Client并发送出去
+    @Slot()
+    def send_raw_doip_payload(self):
+        hex_str = self.lineEdit_DoIPRawDate.text()
+        if hex_str:
+            try:
+                byte_data = bytes.fromhex(hex_str)
+                self.doip_send_raw_payload_signal.emit(byte_data)
+            except Exception as e:
+                logger.exception(e)
+        else:
+            logger.warning("未输入数据")
+
+
+
+    # 连接或断开DoIP
     def change_doip_connect_state(self):
         self.uds_on_ip_client.ecu_ip_address = self.ecu_ip_address
         self.uds_on_ip_client.ecu_logical_address = self.ecu_logical_address

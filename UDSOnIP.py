@@ -10,57 +10,34 @@ from udsoncan import ClientConfig, Request
 from udsoncan.client import Client
 from udsoncan.configs import default_client_config
 
-logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
-# console_handler = logging.StreamHandler()
-#
-#
-#
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
-#
-# console_handler.setFormatter(formatter)
-#
-# logger.addHandler(console_handler)
-logger.info('test0')
+logger = logging.getLogger('UDSOnIPClient.' + __name__)
+
+
 class QUDSOnIPClient(QObject):
     error_signal = Signal(str)
     info_signal = Signal(str)
 
     doip_connect_state = Signal(bool)
 
-    def __init__(
-            self,
-            ecu_ip_address,
-            ecu_logical_address,
-            tcp_port=TCP_DATA_UNSECURED,
-            udp_port=UDP_DISCOVERY,
-            activation_type=RoutingActivationRequest.ActivationType.Default,
-            protocol_version=0x02,
-            client_logical_address=0x0E00,
-            client_ip_address=None,
-            use_secure=False,
-            auto_reconnect_tcp=False,
-            vm_specific=None,
-            request_timeout: Optional[float] = None,
-            config: ClientConfig = default_client_config,
-    ):
+    def __init__(self):
         super().__init__()
         self._doip_client = None
         self.uds_on_ip_client = None
-        self._ecu_logical_address = ecu_logical_address
-        self._client_logical_address = client_logical_address
-        self._client_ip_address = client_ip_address
-        self._use_secure = use_secure
-        self._ecu_ip_address = ecu_ip_address
-        self._tcp_port = tcp_port
-        self._udp_port = udp_port
-        self._activation_type = activation_type
-        self._protocol_version = protocol_version
-        self._auto_reconnect_tcp = auto_reconnect_tcp
-        self._vm_specific = vm_specific
-        self._uds_request_timeout = request_timeout
-        self._uds_config = config
-        logger.info('test')
+
+        self.ecu_ip_address = None
+        self.ecu_logical_address = None
+        self.tcp_port = TCP_DATA_UNSECURED
+        self.udp_port = UDP_DISCOVERY
+        self.activation_type = RoutingActivationRequest.ActivationType.Default
+        self.protocol_version = 0x02
+        self.client_logical_address = 0x0E00
+        self.client_ip_address = None
+        self.use_secure = False
+        self.auto_reconnect_tcp = False
+        self.vm_specific = None
+
+        self.uds_request_timeout: Optional[float] = None
+        self.uds_config: ClientConfig = default_client_config
 
     @Slot()
     def change_doip_connect_state(self):
@@ -72,21 +49,20 @@ class QUDSOnIPClient(QObject):
         else:
             self.connect_doip()
 
-
     def connect_doip(self):
         _doip_client = None
         try:
-            self._doip_client = DoIPClient(ecu_logical_address=self._ecu_logical_address,
-                                           client_logical_address=self._client_logical_address,
-                                           client_ip_address=self._client_ip_address,
-                                           use_secure=self._use_secure,
-                                           ecu_ip_address=self._ecu_ip_address,
-                                           tcp_port=self._tcp_port,
-                                           udp_port=self._udp_port,
-                                           activation_type=self._activation_type,
-                                           protocol_version=self._protocol_version,
-                                           auto_reconnect_tcp=self._auto_reconnect_tcp,
-                                           vm_specific=self._vm_specific,
+            self._doip_client = DoIPClient(ecu_logical_address=self.ecu_logical_address,
+                                           client_logical_address=self.client_logical_address,
+                                           client_ip_address=self.client_ip_address,
+                                           use_secure=self.use_secure,
+                                           ecu_ip_address=self.ecu_ip_address,
+                                           tcp_port=self.tcp_port,
+                                           udp_port=self.udp_port,
+                                           activation_type=self.activation_type,
+                                           protocol_version=self.protocol_version,
+                                           auto_reconnect_tcp=self.auto_reconnect_tcp,
+                                           vm_specific=self.vm_specific,
                                            )
             self.doip_connect_state.emit(True)
             info_message = f'DoIP连接成功'
@@ -94,20 +70,37 @@ class QUDSOnIPClient(QObject):
             self.info_signal.emit(info_message)
         except Exception as e:
             error_message = f"DoIP连接失败:{e}"
-            logger.error(error_message, exc_info=True)
+            logger.exception(e)
             self.doip_connect_state.emit(False)
             self.error_signal.emit(error_message)
             return
         if self._doip_client:
-            _conn = DoIPClientUDSConnector(self._doip_client)
-            self.uds_on_ip_client = Client(_conn, request_timeout=self._uds_request_timeout,
-                                           config=self._uds_config)
-            self.uds_on_ip_client.open()
+            try:
+                _conn = DoIPClientUDSConnector(self._doip_client)
+                self.uds_on_ip_client = Client(_conn, request_timeout=self.uds_request_timeout,
+                                               config=self.uds_config)
+                self.uds_on_ip_client.open()
+            except Exception as e:
+                self._doip_client = None
+                self.uds_on_ip_client = None
+
+                self.doip_connect_state.emit(False)
+                logger.exception(e)
+                error_message = f'uds client 创建失败'
+                self.info_signal.emit(f"{error_message},{e}")
 
     def send(self):
         if self.uds_on_ip_client:
-            req = Request.from_payload(b'\x10\x01')
-            self.uds_on_ip_client.send_request(req)
+            try:
+                req = Request.from_payload(b'\x10\x01')
+                self.uds_on_ip_client.send_request(req)
+            except Exception as e:
+                self.error_signal.emit(e)
+                self.doip_connect_state.emit(False)
+                self._doip_client = None
+                self.uds_on_ip_client = None
+
+                logger.exception(e)
         else:
             info_message = f'DoIP未连接，将进行自动连接'
             logger.info(info_message)
@@ -122,11 +115,7 @@ def main():
     client_ip_address = '127.0.0.1'
     client_logical_address = 100
     ecu_logical_address = 200
-    uds_client = QUDSOnIPClient(ecu_ip_address=ecu_ip,
-                                ecu_logical_address=ecu_logical_address,
-                                client_ip_address=client_ip_address,
-                                client_logical_address=client_logical_address,
-                                vm_specific=0)
+    uds_client = QUDSOnIPClient()
     uds_client.connect_doip()
     uds_client.send()
 

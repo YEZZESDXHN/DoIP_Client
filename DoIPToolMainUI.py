@@ -15,10 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGroupBox,
+from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGridLayout,
     QHBoxLayout, QLabel, QLineEdit, QMainWindow,
     QMenuBar, QPlainTextEdit, QPushButton, QSizePolicy,
-    QSpacerItem, QVBoxLayout, QWidget)
+    QSpacerItem, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -74,25 +74,20 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_8.addWidget(self.pushButton_SendDoIP)
 
-        self.groupBox = QGroupBox(self.centralwidget)
-        self.groupBox.setObjectName(u"groupBox")
-        self.groupBox.setGeometry(QRect(20, 10, 469, 92))
-        self.groupBox.setMinimumSize(QSize(0, 92))
-        self.groupBox.setMaximumSize(QSize(16777215, 92))
-        self.verticalLayout = QVBoxLayout(self.groupBox)
-        self.verticalLayout.setObjectName(u"verticalLayout")
-        self.horizontalLayout_5 = QHBoxLayout()
-        self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
-        self.label_5 = QLabel(self.groupBox)
-        self.label_5.setObjectName(u"label_5")
-        sizePolicy.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
-        self.label_5.setSizePolicy(sizePolicy)
-        self.label_5.setMinimumSize(QSize(60, 0))
-        self.label_5.setFont(font)
-
-        self.horizontalLayout_5.addWidget(self.label_5)
-
-        self.comboBox_TesterIP = QComboBox(self.groupBox)
+        self.plainTextEdit_DataDisplay = QPlainTextEdit(self.centralwidget)
+        self.plainTextEdit_DataDisplay.setObjectName(u"plainTextEdit_DataDisplay")
+        self.plainTextEdit_DataDisplay.setGeometry(QRect(20, 180, 471, 171))
+        self.label_2 = QLabel(self.centralwidget)
+        self.label_2.setObjectName(u"label_2")
+        self.label_2.setGeometry(QRect(460, 400, 62, 18))
+        self.label_2.setFrameShape(QFrame.Shape.NoFrame)
+        self.gridLayoutWidget_2 = QWidget(self.centralwidget)
+        self.gridLayoutWidget_2.setObjectName(u"gridLayoutWidget_2")
+        self.gridLayoutWidget_2.setGeometry(QRect(20, 10, 751, 80))
+        self.gridLayout_2 = QGridLayout(self.gridLayoutWidget_2)
+        self.gridLayout_2.setObjectName(u"gridLayout_2")
+        self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
+        self.comboBox_TesterIP = QComboBox(self.gridLayoutWidget_2)
         self.comboBox_TesterIP.setObjectName(u"comboBox_TesterIP")
         sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         sizePolicy1.setHorizontalStretch(0)
@@ -102,78 +97,80 @@ class Ui_MainWindow(object):
         self.comboBox_TesterIP.setMinimumSize(QSize(120, 0))
         self.comboBox_TesterIP.setFont(font)
 
-        self.horizontalLayout_5.addWidget(self.comboBox_TesterIP)
+        self.gridLayout_2.addWidget(self.comboBox_TesterIP, 0, 1, 1, 1)
 
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_5.addItem(self.horizontalSpacer)
-
-
-        self.verticalLayout.addLayout(self.horizontalLayout_5)
-
-        self.horizontalLayout_7 = QHBoxLayout()
-        self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
-        self.horizontalLayout_6 = QHBoxLayout()
-        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
-        self.label_6 = QLabel(self.groupBox)
-        self.label_6.setObjectName(u"label_6")
-        sizePolicy.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
-        self.label_6.setSizePolicy(sizePolicy)
-        self.label_6.setMinimumSize(QSize(60, 0))
-        self.label_6.setFont(font)
-
-        self.horizontalLayout_6.addWidget(self.label_6)
-
-        self.comboBox_ChooseConfig = QComboBox(self.groupBox)
-        self.comboBox_ChooseConfig.setObjectName(u"comboBox_ChooseConfig")
-        sizePolicy1.setHeightForWidth(self.comboBox_ChooseConfig.sizePolicy().hasHeightForWidth())
-        self.comboBox_ChooseConfig.setSizePolicy(sizePolicy1)
-        self.comboBox_ChooseConfig.setMinimumSize(QSize(120, 0))
-        self.comboBox_ChooseConfig.setFont(font)
-
-        self.horizontalLayout_6.addWidget(self.comboBox_ChooseConfig)
-
-        self.pushButton_EditConfig = QPushButton(self.groupBox)
+        self.pushButton_EditConfig = QPushButton(self.gridLayoutWidget_2)
         self.pushButton_EditConfig.setObjectName(u"pushButton_EditConfig")
         sizePolicy.setHeightForWidth(self.pushButton_EditConfig.sizePolicy().hasHeightForWidth())
         self.pushButton_EditConfig.setSizePolicy(sizePolicy)
         self.pushButton_EditConfig.setMaximumSize(QSize(50, 16777215))
         self.pushButton_EditConfig.setFont(font)
 
-        self.horizontalLayout_6.addWidget(self.pushButton_EditConfig)
+        self.gridLayout_2.addWidget(self.pushButton_EditConfig, 1, 2, 1, 1)
 
+        self.label_5 = QLabel(self.gridLayoutWidget_2)
+        self.label_5.setObjectName(u"label_5")
+        sizePolicy.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
+        self.label_5.setSizePolicy(sizePolicy)
+        self.label_5.setMinimumSize(QSize(60, 0))
+        self.label_5.setFont(font)
 
-        self.horizontalLayout_7.addLayout(self.horizontalLayout_6)
+        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
 
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_7.addItem(self.horizontalSpacer_2)
-
-        self.pushButton_ConnectDoIP = QPushButton(self.groupBox)
+        self.pushButton_ConnectDoIP = QPushButton(self.gridLayoutWidget_2)
         self.pushButton_ConnectDoIP.setObjectName(u"pushButton_ConnectDoIP")
         sizePolicy.setHeightForWidth(self.pushButton_ConnectDoIP.sizePolicy().hasHeightForWidth())
         self.pushButton_ConnectDoIP.setSizePolicy(sizePolicy)
+        self.pushButton_ConnectDoIP.setMaximumSize(QSize(50, 16777215))
         self.pushButton_ConnectDoIP.setFont(font)
 
-        self.horizontalLayout_7.addWidget(self.pushButton_ConnectDoIP)
+        self.gridLayout_2.addWidget(self.pushButton_ConnectDoIP, 0, 4, 1, 1)
 
-        self.horizontalLayout_7.setStretch(0, 3)
-        self.horizontalLayout_7.setStretch(1, 1)
-        self.horizontalLayout_7.setStretch(2, 1)
+        self.label_3 = QLabel(self.gridLayoutWidget_2)
+        self.label_3.setObjectName(u"label_3")
 
-        self.verticalLayout.addLayout(self.horizontalLayout_7)
+        self.gridLayout_2.addWidget(self.label_3, 1, 4, 1, 1)
 
-        self.plainTextEdit_DataDisplay = QPlainTextEdit(self.centralwidget)
-        self.plainTextEdit_DataDisplay.setObjectName(u"plainTextEdit_DataDisplay")
-        self.plainTextEdit_DataDisplay.setGeometry(QRect(20, 180, 471, 171))
-        self.label_2 = QLabel(self.centralwidget)
-        self.label_2.setObjectName(u"label_2")
-        self.label_2.setGeometry(QRect(460, 400, 62, 18))
-        self.label_2.setFrameShape(QFrame.Shape.NoFrame)
+        self.pushButton_RefreshIP = QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_RefreshIP.setObjectName(u"pushButton_RefreshIP")
+        sizePolicy.setHeightForWidth(self.pushButton_RefreshIP.sizePolicy().hasHeightForWidth())
+        self.pushButton_RefreshIP.setSizePolicy(sizePolicy)
+        self.pushButton_RefreshIP.setMaximumSize(QSize(50, 16777215))
+        self.pushButton_RefreshIP.setFont(font)
+
+        self.gridLayout_2.addWidget(self.pushButton_RefreshIP, 0, 2, 1, 1)
+
+        self.label_6 = QLabel(self.gridLayoutWidget_2)
+        self.label_6.setObjectName(u"label_6")
+        sizePolicy.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
+        self.label_6.setSizePolicy(sizePolicy)
+        self.label_6.setMinimumSize(QSize(60, 0))
+        self.label_6.setFont(font)
+
+        self.gridLayout_2.addWidget(self.label_6, 1, 0, 1, 1)
+
+        self.comboBox_ChooseConfig = QComboBox(self.gridLayoutWidget_2)
+        self.comboBox_ChooseConfig.setObjectName(u"comboBox_ChooseConfig")
+        sizePolicy1.setHeightForWidth(self.comboBox_ChooseConfig.sizePolicy().hasHeightForWidth())
+        self.comboBox_ChooseConfig.setSizePolicy(sizePolicy1)
+        self.comboBox_ChooseConfig.setMinimumSize(QSize(120, 0))
+        self.comboBox_ChooseConfig.setFont(font)
+
+        self.gridLayout_2.addWidget(self.comboBox_ChooseConfig, 1, 1, 1, 1)
+
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayout_2.addItem(self.horizontalSpacer_2, 1, 3, 1, 1)
+
+        self.gridLayout_2.setColumnStretch(0, 1)
+        self.gridLayout_2.setColumnStretch(1, 2)
+        self.gridLayout_2.setColumnStretch(2, 1)
+        self.gridLayout_2.setColumnStretch(3, 4)
+        self.gridLayout_2.setColumnStretch(4, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 803, 22))
+        self.menubar.setGeometry(QRect(0, 0, 803, 33))
         MainWindow.setMenuBar(self.menubar)
 
         self.retranslateUi(MainWindow)
@@ -186,11 +183,12 @@ class Ui_MainWindow(object):
         self.label.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.pushButton.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
         self.pushButton_SendDoIP.setText(QCoreApplication.translate("MainWindow", u"Send", None))
-        self.groupBox.setTitle("")
-        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Tester IP", None))
-        self.label_6.setText(QCoreApplication.translate("MainWindow", u"\u914d\u7f6e", None))
-        self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
-        self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("MainWindow", u"\u8fde\u63a5", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Tester IP", None))
+        self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("MainWindow", u"\u8fde\u63a5", None))
+        self.label_3.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.pushButton_RefreshIP.setText(QCoreApplication.translate("MainWindow", u"\u5237\u65b0", None))
+        self.label_6.setText(QCoreApplication.translate("MainWindow", u"\u914d\u7f6e", None))
     # retranslateUi
 

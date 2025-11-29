@@ -3,7 +3,7 @@ import logging
 
 from PySide6.QtCore import Signal, Slot, QAbstractTableModel, Qt, QModelIndex
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QMessageBox, QWidget, QTableView, QVBoxLayout, QScrollBar
 
 from DoIPConfigUI import Ui_Dialog
 from utils import hex_str_to_int
@@ -165,9 +165,65 @@ class DoIPTraceTableModel(QAbstractTableModel):
         # 通知 Qt 模型：插入行完成
         self.endInsertRows()
 
-    # 可选：重写表头方法，让 QTableView 显示列名
+    # 重写表头方法，让 QTableView 显示列名
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
             if 0 <= section < len(self._headers):
                 return self._headers[section]
         return None
+
+
+class DoIPTraceTableView(QTableView):
+    """DoIP追踪表格，直接继承QTableView"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # 自动滚动开关：默认开启
+        self._auto_scroll = True
+        # 初始化表格模型
+        self.trace_model = DoIPTraceTableModel()
+        # 初始化表格属性
+        self._init_ui()
+        # 绑定滚动条监听
+        self._bind_scroll_listener()
+
+    def _init_ui(self):
+        """初始化表格的UI属性"""
+        self.setSelectionBehavior(self.SelectionBehavior.SelectRows)
+        self.setAlternatingRowColors(True)
+        self.setModel(self.trace_model)  # 设置模型
+
+    def _bind_scroll_listener(self):
+        """绑定滚动条的信号，监听滚动状态"""
+        scroll_bar: QScrollBar = self.verticalScrollBar()
+        scroll_bar.valueChanged.connect(self._on_scroll_value_changed)
+
+    @Slot(int)
+    def _on_scroll_value_changed(self, value: int):
+        """根据滚动条位置更新自动滚动状态"""
+        scroll_bar = self.verticalScrollBar()
+        max_value = scroll_bar.maximum()
+        self._auto_scroll = (value == max_value)
+        if self._auto_scroll:
+            logger.debug("表格滚动到最底部，开启自动滚动")
+        else:
+            logger.debug("用户滚动到旧数据，关闭自动滚动")
+
+    def _scroll_to_bottom(self):
+        """强制滚动到表格底部"""
+        self.scrollToBottom()
+
+    def add_trace_data(self, data: list):
+        """对外暴露的接口：添加追踪数据到表格"""
+        self.trace_model.append_trace_data(data)
+        # 若开启自动滚动，滚动到底部
+        if self._auto_scroll:
+            self._scroll_to_bottom()
+
+    def clear_trace_data(self):
+        """对外暴露的接口：清空表格数据"""
+        self.trace_model.clear()  # 需确保模型有clear方法
+
+    @property
+    def auto_scroll(self) -> bool:
+        """获取自动滚动状态"""
+        return self._auto_scroll

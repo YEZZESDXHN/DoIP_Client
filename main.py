@@ -1,16 +1,15 @@
 import logging.config
 import sys
-from datetime import datetime
 from typing import Optional
 
 from PySide6.QtCore import QThread, Slot, Signal
-from PySide6.QtWidgets import QMainWindow, QApplication, QTableView, QScrollBar
+from PySide6.QtWidgets import QMainWindow, QApplication, QHBoxLayout
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
-from ui_custom import DoIPConfigPanel, DoIPTraceTableModel
+from ui_custom import DoIPConfigPanel, DoIPTraceTableView
 from DoIPToolMainUI import Ui_MainWindow
 from UDSOnIP import QUDSOnIPClient
 from utils import get_ethernet_ips
@@ -30,12 +29,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def __init__(self):
         super().__init__()
-
         # 1. 调用生成的 setupUi 方法
         # 这将初始化所有界面元素（按钮、标签等）
+        self.setupUi(self)
+
         self.uds_on_ip_client = None
         self.uds_on_ip_client_thread = None
-        self.setupUi(self)
+
         self.ip_list = []
         self.ecu_ip_address = '172.16.104.70'
         self.client_ip_address = None
@@ -50,9 +50,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.auto_reconnect_tcp = True
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
-
-        # 自动滚动开关：默认开启（显示最新数据）
-        self._auto_scroll: bool = True
 
         self._init_ui()
         self._init_doip_client()
@@ -75,19 +72,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _init_ui(self):
         """初始化界面组件属性"""
         # 设置表格属性：整行选中、隔行变色、允许排序
-        trace_table = self.tableView_DoIPTrace
-        trace_table.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
-        trace_table.setAlternatingRowColors(True)
-        # trace_table.setSortingEnabled(True)
+        self._auto_replace_table(self.tableView_DoIPTrace, DoIPTraceTableView(self.tableView_DoIPTrace.parent()))
 
-        # 初始化表格模型
-        self.trace_model = DoIPTraceTableModel()
-        trace_table.setModel(self.trace_model)
+    def _auto_replace_table(self, old_table, new_table):
+        """自动获取表格的父控件和布局，替换为自定义表格（核心工具方法）"""
+        # 获取表格的直接父控件
+        parent_widget = old_table.parent()
+        if not parent_widget:
+            logger.error("表格无父控件，替换失败")
+            return
+        logger.debug(f"自动获取到表格的直接父控件：{parent_widget.objectName()}")
 
-        # 绑定表格滚动条的信号，监听滚动状态
-        self._bind_scroll_listener()
+        layout = parent_widget.layout()
+        if layout is None:
+            # 自动检测/创建父控件的布局
+            layout = QHBoxLayout(parent_widget)
+            layout.setContentsMargins(0, 0, 0, 0)  # 清除布局边距
+            layout.setSpacing(0)  # 清除控件间的间距
 
+        # 创建自定义表格（指定父控件，确保Qt父子内存管理）
+        layout.addWidget(new_table)
 
+        # 销毁原表格（释放内存，避免泄漏）
+        old_table.deleteLater()
+        logger.debug("原表格已销毁，自定义表格替换完成")
+
+        # 保留原名称：将self.tableView_DoIPTrace指向新表格
+        self.tableView_DoIPTrace = new_table
     def _init_signals(self):
         """初始化所有信号槽连接（统一管理）"""
         # UI组件信号
@@ -119,7 +130,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
 
         self.uds_on_ip_client.doip_connect_state.connect(self._update_doip_connect_state)
-        self.uds_on_ip_client.doip_response.connect(self._add_doip_trace_data)
+        self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace.add_trace_data)
 
     def set_tester_ip(self, index: int):
         if index == 0:
@@ -133,9 +144,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.auto_reconnect_tcp = False
 
-    # 获取发送数据窗口的hex,转换为bytes，通过信号与槽的机制传递给DoIP Client并发送出去
     @Slot()
     def send_raw_doip_payload(self):
+        """获取发送数据窗口的hex,转换为bytes，通过信号与槽的机制传递给DoIP Client并发送出去"""
         hex_str = self.lineEdit_DoIPRawDate.text()
         if hex_str:
             try:
@@ -145,44 +156,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 logger.exception(e)
         else:
             logger.warning("未输入数据")
-
-    # 【新增】绑定表格滚动条的监听事件
-    def _bind_scroll_listener(self) -> None:
-        """绑定表格滚动条的信号，监听用户的滚动操作"""
-        scroll_bar: QScrollBar = self.tableView_DoIPTrace.verticalScrollBar()
-        # 滚动条数值变化时触发（用户手动滚动或自动滚动）
-        scroll_bar.valueChanged.connect(self._on_scroll_value_changed)
-
-    # 【新增】滚动条数值变化的回调
-    def _on_scroll_value_changed(self, value: int) -> None:
-        """根据滚动条位置更新自动滚动开关状态"""
-        scroll_bar: QScrollBar = self.tableView_DoIPTrace.verticalScrollBar()
-        max_value = scroll_bar.maximum()
-        # 若滚动到最底部（最新数据），开启自动滚动；否则关闭
-        self._auto_scroll = (value == max_value)
-        if self._auto_scroll:
-            logger.debug("表格滚动到最底部，开启自动滚动")
-        else:
-            logger.debug("用户滚动到旧数据，关闭自动滚动")
-
-    # 【新增】判断是否滚动到表格底部
-    def _is_scrolled_to_bottom(self) -> bool:
-        """检查表格是否滚动到最底部"""
-        scroll_bar: QScrollBar = self.tableView_DoIPTrace.verticalScrollBar()
-        return scroll_bar.value() == scroll_bar.maximum()
-
-    # 【新增】强制滚动到表格底部
-    def _scroll_to_bottom(self) -> None:
-        """强制将表格滚动到最后一行（最新数据）"""
-        if not self.trace_model:
-            return
-        # 获取模型的最后一行索引
-        last_row = self.trace_model.rowCount() - 1
-        if last_row < 0:
-            return
-        # 滚动到最后一行
-        self.tableView_DoIPTrace.scrollToBottom()
-
 
     def change_doip_connect_state(self):
         """切换DoIP连接状态（连接/断开）"""
@@ -247,15 +220,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 
 
-    def _add_doip_trace_data(self, data: list) -> None:
-        """添加DoIP追踪数据到表格模型"""
-        if self.trace_model:
-            self.trace_model.append_trace_data(data)
-            # 若自动滚动开关开启，添加新数据后滚动到底部
-            if self._auto_scroll:
-                self._scroll_to_bottom()
-        else:
-            logger.warning("追踪表格模型未初始化，无法添加数据")
 
     def _update_doip_connect_state(self, state: bool):
         """更新DoIP连接状态的UI显示"""

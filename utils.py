@@ -93,3 +93,28 @@ def hex_str_to_int(hex_str: str) -> int:
             f"详细原因: {e}"
         )
         raise ValueError(custom_error_msg)
+
+
+def hex_to_ascii(hex_str: str) -> str:
+    """
+    将十六进制字符串转换为ASCII字符串
+    :param hex_str: 十六进制字符串（可含空格/大写，如"48 65 6C"或"48656C"）
+    :return: 转换后的ASCII字符串，无效部分用.替代
+    """
+    # 步骤1：清理输入（移除空格、换行等，转为小写）
+    clean_hex = hex_str.strip().replace(" ", "").replace("\n", "").lower()
+
+    # 步骤2：处理奇数长度的十六进制字符串（补0）
+    if len(clean_hex) % 2 != 0:
+        clean_hex = clean_hex + "0"  # 或在开头补0，根据业务需求
+
+    # 步骤3：十六进制转字节，再转ASCII（非ASCII字节用.替代）
+    try:
+        # 十六进制字符串转字节（如"4865" -> b"He"）
+        byte_data = bytes.fromhex(clean_hex)
+        # 字节转ASCII，非ASCII字符替换为.
+        ascii_str = byte_data.decode("ascii", errors="replace").replace("\ufffd", ".")
+        return ascii_str
+    except ValueError as e:
+        # 无效十六进制格式（如含非0-9/a-f字符）
+        raise ValueError(f"[转换错误: {str(e)}]")

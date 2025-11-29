@@ -9,7 +9,7 @@ from doipclient import DoIPClient
 from doipclient.connectors import DoIPClientUDSConnector
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
-from udsoncan import ClientConfig, Request
+from udsoncan import ClientConfig, Request, Response
 from udsoncan.client import Client
 from udsoncan.configs import default_client_config
 
@@ -74,7 +74,8 @@ class QUDSOnIPClient(QObject):
 
     doip_connect_state = Signal(bool)
 
-    doip_response = Signal(list)
+    doip_request = Signal(dict)
+    doip_response = Signal(dict)
 
     def __init__(self):
         super().__init__()
@@ -96,9 +97,12 @@ class QUDSOnIPClient(QObject):
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
 
+
     @Slot()
     def change_doip_connect_state(self):
+        logger.debug('收到触发DoIP连接状态切换信号')
         if self._doip_client and self.uds_on_ip_client:
+            logger.debug('开始DoIP连接')
             self.uds_on_ip_client.close()
             self._doip_client = None
             self.uds_on_ip_client = None
@@ -157,20 +161,40 @@ class QUDSOnIPClient(QObject):
         if self.uds_on_ip_client:
             try:
                 req = Request.from_payload(payload)
+
+                request_dict = {}
+                request_dict['Time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                request_dict['Dir'] = 'Tx'
+                request_dict['Type'] = req.service.get_name()
+                request_dict['Destination IP'] = self.ecu_ip_address
+                request_dict['Source IP'] = self.client_ip_address
+                request_dict['Data'] = req.get_payload()
+                request_dict['DataLength'] = len(request_dict['Data'])
+                # request_dict['code_name'] = req.code_name
+                # request_dict['uds data'] = req.data
+                self.doip_request.emit(request_dict)
+
                 response = self.uds_on_ip_client.send_request(req)
-                response_list = []
-                response_list.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
-                response_list.append('RX')
-                response_list.append(response.code_name)
-                response_list.append(self.ecu_ip_address)
-                response_list.append(self.client_ip_address)
-                response_list.append(response.original_payload.hex(' '))
-                self.doip_response.emit(response_list)
+                response_dict = {}
+                response_dict['Time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                response_dict['Dir'] = 'Rx'
+                response_dict['Type'] = response.code_name
+                response_dict['Destination IP'] = self.client_ip_address
+                response_dict['Source IP'] = self.ecu_ip_address
+                response_dict['Data'] = response.original_payload
+                response_dict['DataLength'] = len(response_dict['Data'])
+                response_dict['code_name'] = response.code_name
+                response_dict['uds data'] = response.data
+                self.doip_response.emit(response_dict)
             except Exception as e:
+                response_dict = {}
+                self.doip_response.emit(response_dict)
                 self.error_signal.emit(e)
                 logger.exception(e)
         else:
             info_message = f'DoIP未连接'
+            response_dict = {}
+            self.doip_response.emit(response_dict)
             logger.info(info_message)
             self.info_signal.emit(info_message)
 

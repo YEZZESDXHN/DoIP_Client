@@ -1,7 +1,8 @@
 import ipaddress
 import logging
 
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal, Slot, QAbstractTableModel, Qt, QModelIndex
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from DoIPConfigUI import Ui_Dialog
@@ -97,3 +98,76 @@ class DoIPConfigPanel(QDialog, Ui_Dialog):
                   'DUT_ipv4_address': DUT_ipv4_address}
         self.config_signal.emit(config)
         self.accept()
+
+
+
+class DoIPTraceTableModel(QAbstractTableModel):
+    def __init__(self):
+        super().__init__()
+        self.max_rows = 500
+        self._data = []
+        self._headers = ["时间戳", "方向", "类型", "源地址", "目标地址", "Data"]
+
+    def rowCount(self, parent=QModelIndex()) -> int:
+        return len(self._data)
+
+    def columnCount(self, parent=QModelIndex()) -> int:
+        return len(self._headers)
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None  # PySide6直接返回None
+
+        row = index.row()
+        col = index.column()
+
+        # 1. 显示数据
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self._data[row][col]
+
+        # # 2. 单元格背景色（规范写法：返回QColor对象）
+        # elif role == Qt.ItemDataRole.BackgroundRole:
+        #     status = self._data[row][7]
+        #     direction = self._data[row][2]
+        #
+        #     if status == "失败":
+        #         return QColor(Qt.GlobalColor.red)  # 显式引用GlobalColor枚举
+        #     elif direction == "Tx":
+        #         return QColor(Qt.GlobalColor.blue)
+        #     elif direction == "Rx":
+        #         return QColor(Qt.GlobalColor.green)
+
+        # 其他角色返回None
+        return None
+
+    # 用于追加 Trace 数据
+    def append_trace_data(self, trace_row):
+        """
+        向模型中添加一行 DoIP Trace 数据
+        :param trace_row: 列表，长度需与列数一致
+        """
+        if len(trace_row) != len(self._headers):
+            raise ValueError(f"数据长度必须为 {len(self._headers)}，当前为 {len(trace_row)}")
+
+        # 计算需要删除的旧行数量
+        excess_rows = len(self._data) - self.max_rows
+        if excess_rows > 0:
+            # 1. 通知视图：要删除从0到excess_rows-1的行（批量删除）
+            self.beginRemoveRows(QModelIndex(), 0, excess_rows - 1)
+            # 2. 批量删除：保留最后max_rows行（切片直接截取，效率最高）
+            self._data = self._data[excess_rows:]
+            # 3. 通知视图：删除完成
+            self.endRemoveRows()
+
+        # 通知 Qt 模型：开始插入行（必须调用，否则视图不刷新）
+        self.beginInsertRows(QModelIndex(), len(self._data), len(self._data))
+        self._data.append(trace_row)
+        # 通知 Qt 模型：插入行完成
+        self.endInsertRows()
+
+    # 可选：重写表头方法，让 QTableView 显示列名
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+            if 0 <= section < len(self._headers):
+                return self._headers[section]
+        return None

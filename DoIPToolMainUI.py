@@ -16,20 +16,21 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
-    QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-    QMainWindow, QMenuBar, QPlainTextEdit, QPushButton,
-    QSizePolicy, QSpacerItem, QWidget)
+    QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QMainWindow, QMenuBar, QPlainTextEdit,
+    QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
+    QTableView, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(867, 575)
+        MainWindow.resize(896, 817)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.layoutWidget = QWidget(self.centralwidget)
         self.layoutWidget.setObjectName(u"layoutWidget")
-        self.layoutWidget.setGeometry(QRect(377, 520, 281, 27))
+        self.layoutWidget.setGeometry(QRect(560, 750, 281, 27))
         self.horizontalLayout = QHBoxLayout(self.layoutWidget)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
@@ -51,7 +52,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout.setStretch(1, 3)
         self.pushButton = QPushButton(self.centralwidget)
         self.pushButton.setObjectName(u"pushButton")
-        self.pushButton.setGeometry(QRect(680, 480, 75, 23))
+        self.pushButton.setGeometry(QRect(310, 750, 75, 23))
         self.pushButton.setFont(font)
         self.layoutWidget1 = QWidget(self.centralwidget)
         self.layoutWidget1.setObjectName(u"layoutWidget1")
@@ -74,12 +75,9 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_8.addWidget(self.pushButton_SendDoIP)
 
-        self.plainTextEdit_DataDisplay = QPlainTextEdit(self.centralwidget)
-        self.plainTextEdit_DataDisplay.setObjectName(u"plainTextEdit_DataDisplay")
-        self.plainTextEdit_DataDisplay.setGeometry(QRect(20, 180, 471, 171))
         self.label_2 = QLabel(self.centralwidget)
         self.label_2.setObjectName(u"label_2")
-        self.label_2.setGeometry(QRect(460, 400, 62, 18))
+        self.label_2.setGeometry(QRect(430, 760, 62, 18))
         self.label_2.setFrameShape(QFrame.Shape.NoFrame)
         self.gridLayoutWidget_2 = QWidget(self.centralwidget)
         self.gridLayoutWidget_2.setObjectName(u"gridLayoutWidget_2")
@@ -178,13 +176,31 @@ class Ui_MainWindow(object):
         self.gridLayout_2.setColumnStretch(3, 1)
         self.gridLayout_2.setColumnStretch(4, 3)
         self.gridLayout_2.setColumnStretch(5, 1)
+        self.tabWidget = QTabWidget(self.centralwidget)
+        self.tabWidget.setObjectName(u"tabWidget")
+        self.tabWidget.setGeometry(QRect(30, 190, 781, 471))
+        self.tab = QWidget()
+        self.tab.setObjectName(u"tab")
+        self.plainTextEdit_DataDisplay = QPlainTextEdit(self.tab)
+        self.plainTextEdit_DataDisplay.setObjectName(u"plainTextEdit_DataDisplay")
+        self.plainTextEdit_DataDisplay.setGeometry(QRect(30, 20, 451, 111))
+        self.tabWidget.addTab(self.tab, "")
+        self.tab_2 = QWidget()
+        self.tab_2.setObjectName(u"tab_2")
+        self.tableView_DoIPTrace = QTableView(self.tab_2)
+        self.tableView_DoIPTrace.setObjectName(u"tableView_DoIPTrace")
+        self.tableView_DoIPTrace.setGeometry(QRect(20, 30, 741, 391))
+        self.tabWidget.addTab(self.tab_2, "")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 867, 33))
+        self.menubar.setGeometry(QRect(0, 0, 896, 22))
         MainWindow.setMenuBar(self.menubar)
 
         self.retranslateUi(MainWindow)
+
+        self.tabWidget.setCurrentIndex(1)
+
 
         QMetaObject.connectSlotsByName(MainWindow)
     # setupUi
@@ -202,5 +218,7 @@ class Ui_MainWindow(object):
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
         self.checkBox_AotuReconnect.setText(QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Tab 1", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
     # retranslateUi
 

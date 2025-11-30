@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Dialog</class>
- <widget class="QDialog" name="Dialog">
+ <class>DoIPConfig</class>
+ <widget class="QDialog" name="DoIPConfig">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -95,7 +95,7 @@
         </font>
        </property>
        <property name="placeholderText">
-        <string>77A</string>
+        <string>(e.g. 77A)</string>
        </property>
       </widget>
      </item>
@@ -155,7 +155,7 @@
         </font>
        </property>
        <property name="placeholderText">
-        <string>7E2</string>
+        <string>(e.g. 7E2)</string>
        </property>
       </widget>
      </item>
@@ -209,7 +209,7 @@
         </font>
        </property>
        <property name="placeholderText">
-        <string>192.168.1.1</string>
+        <string>(e.g. 192.168.1.1)</string>
        </property>
       </widget>
      </item>
@@ -222,7 +222,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>Dialog</receiver>
+   <receiver>DoIPConfig</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

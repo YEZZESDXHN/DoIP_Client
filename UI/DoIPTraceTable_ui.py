@@ -1,18 +1,13 @@
-import ipaddress
 import logging
 from typing import List, Dict, Optional
 
-from PySide6.QtCore import Signal, Slot, QAbstractTableModel, Qt, QModelIndex
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, Slot, Qt
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import (QDialog, QMessageBox, QTableView, QScrollBar,
-                               QMenu, QApplication, QFileDialog)
+from PySide6.QtWidgets import QTableView, QScrollBar, QMenu, QMessageBox, QFileDialog, QApplication
 from openpyxl.styles import Font, Alignment
 from openpyxl.workbook import Workbook
 
-from DoIPConfigUI import Ui_Dialog
-from utils import hex_str_to_int, hex_to_ascii
-
-logger = logging.getLogger("UDSOnIPClient")
+logger = logging.getLogger("UiCustom")
 
 DEFAULT_HEADERS = (
     "Time",
@@ -35,69 +30,6 @@ DEFAULT_DISPLAY_HEADERS = (
     True,
     False
 )
-
-# -------------------------- 配置面板类 --------------------------
-class DoIPConfigPanel(QDialog, Ui_Dialog):
-    """
-    配置面板类，继承自 QDialog (窗口行为) 和 Ui_Dialog (界面布局)
-    """
-    config_signal = Signal(dict)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
-        self.buttonBox.accepted.connect(self.send_config_signal)
-
-    @Slot()
-    def send_config_signal(self):
-        """校验输入并发送配置信号"""
-        try:
-            # 校验并获取输入值
-            tester_addr = self._get_tester_logical_address()
-            dut_addr = self._get_dut_logical_address()
-            dut_ip = self._get_dut_ip_address()
-
-            # 发送配置信号
-            config = {
-                'tester_logical_address': tester_addr,
-                'DUT_logical_address': dut_addr,
-                'DUT_ipv4_address': dut_ip
-            }
-            self.config_signal.emit(config)
-            self.accept()
-            logger.debug("配置面板已发送有效配置")
-        except ValueError as e:
-            QMessageBox.critical(self, "输入错误", str(e))
-            logger.error(f"配置面板输入校验失败：{e}")
-
-    def _get_tester_logical_address(self) -> int:
-        """获取并校验测试机逻辑地址"""
-        text = self.lineEdit_TesterLogicalAddress.text().strip()
-        if not text:
-            raise ValueError("测试机逻辑地址不能为空")
-        return hex_str_to_int(text)
-
-    def _get_dut_logical_address(self) -> int:
-        """获取并校验DUT逻辑地址"""
-        text = self.lineEdit_DUTLogicalAddress.text().strip()
-        if not text:
-            raise ValueError("DUT逻辑地址不能为空")
-        return hex_str_to_int(text)
-
-    def _get_dut_ip_address(self) -> str:
-        """获取并校验DUT IPv4地址"""
-        text = self.lineEdit_DUT_IP.text().strip()
-        if not text:
-            raise ValueError("DUT IP地址不能为空")
-
-        try:
-            ip_obj = ipaddress.ip_address(text)
-            if ip_obj.version != 4:
-                raise ValueError(f"仅支持IPv4地址，当前输入为IPv{ip_obj.version}：{text}")
-            return text
-        except ipaddress.AddressValueError:
-            raise ValueError(f"无效的IP地址格式：{text}")
-
 
 class DoIPTraceTableModel(QAbstractTableModel):
     """DoIP追踪表格模型，优化数据管理和批量更新"""
@@ -125,7 +57,6 @@ class DoIPTraceTableModel(QAbstractTableModel):
         # 显示数据
         if role == Qt.ItemDataRole.DisplayRole:
             return self._data[row].get(col_name, "")
-
 
     def append_trace_data(self, trace_row: Dict):
         """
@@ -160,8 +91,6 @@ class DoIPTraceTableModel(QAbstractTableModel):
             if 0 <= section < len(self._headers):
                 return self._headers[section]
         return None
-
-    
 
     def clear(self):
         """清空表格数据（补全原有缺失的方法）"""
@@ -221,7 +150,6 @@ class DoIPTraceTableView(QTableView):
             logger.debug(f"初始化列显示，{self._column_visible}")
         except Exception as e:
             logger.exception(f'初始化列显示失败：{e}')
-
 
     def _bind_scroll_listener(self):
         """绑定滚动条监听，控制自动滚动"""
@@ -284,7 +212,6 @@ class DoIPTraceTableView(QTableView):
             copy_row_action = QAction("复制整行内容", self)
             copy_row_action.triggered.connect(lambda: self._copy_row_data(index.row()))
             menu.addAction(copy_row_action)
-
 
             # 分隔线
             menu.addSeparator()
@@ -432,6 +359,7 @@ class DoIPTraceTableView(QTableView):
     def _clear_data(self):
         """清空数据"""
         self.clear_trace_data()
+
     @Slot(int)
     def _on_scroll_value_changed(self, value: int):
         """根据滚动条位置更新自动滚动状态"""
@@ -446,7 +374,8 @@ class DoIPTraceTableView(QTableView):
             return
 
         try:
-            if self._column_visible[self._header_column_mapping['ASCII']] and 'Data' in data and 'uds data' in data and data['uds data']:
+            if self._column_visible[self._header_column_mapping['ASCII']] and 'Data' in data and 'uds data' in data and \
+                    data['uds data']:
                 try:
                     data['ASCII'] = data['uds data'].decode("ascii", errors="ignore")
                 except Exception as e:

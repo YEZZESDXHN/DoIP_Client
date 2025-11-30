@@ -16,16 +16,16 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
-    QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+    QGridLayout, QGroupBox, QHBoxLayout, QLabel,
     QLineEdit, QMainWindow, QMenuBar, QPlainTextEdit,
-    QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
-    QTableView, QWidget)
+    QPushButton, QScrollArea, QSizePolicy, QSpacerItem,
+    QTabWidget, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(896, 817)
+        MainWindow.resize(1141, 817)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.layoutWidget = QWidget(self.centralwidget)
@@ -185,16 +185,31 @@ class Ui_MainWindow(object):
         self.plainTextEdit_DataDisplay.setObjectName(u"plainTextEdit_DataDisplay")
         self.plainTextEdit_DataDisplay.setGeometry(QRect(30, 20, 451, 111))
         self.tabWidget.addTab(self.tab, "")
-        self.tab_2 = QWidget()
-        self.tab_2.setObjectName(u"tab_2")
-        self.tableView_DoIPTrace = QTableView(self.tab_2)
-        self.tableView_DoIPTrace.setObjectName(u"tableView_DoIPTrace")
-        self.tableView_DoIPTrace.setGeometry(QRect(20, 30, 741, 391))
-        self.tabWidget.addTab(self.tab_2, "")
+        self.tab_DoIPTrace = QWidget()
+        self.tab_DoIPTrace.setObjectName(u"tab_DoIPTrace")
+        self.groupBox_DoIPTrace = QGroupBox(self.tab_DoIPTrace)
+        self.groupBox_DoIPTrace.setObjectName(u"groupBox_DoIPTrace")
+        self.groupBox_DoIPTrace.setGeometry(QRect(20, 40, 711, 341))
+        self.tabWidget.addTab(self.tab_DoIPTrace, "")
+        self.line = QFrame(self.centralwidget)
+        self.line.setObjectName(u"line")
+        self.line.setGeometry(QRect(830, 20, 20, 651))
+        self.line.setFrameShape(QFrame.Shape.VLine)
+        self.line.setFrameShadow(QFrame.Shadow.Sunken)
+        self.scrollArea_DiagTree = QScrollArea(self.centralwidget)
+        self.scrollArea_DiagTree.setObjectName(u"scrollArea_DiagTree")
+        self.scrollArea_DiagTree.setGeometry(QRect(879, 49, 131, 261))
+        self.scrollArea_DiagTree.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scrollArea_DiagTree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scrollArea_DiagTree.setWidgetResizable(True)
+        self.scrollAreaWidgetContents = QWidget()
+        self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 129, 259))
+        self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 896, 22))
+        self.menubar.setGeometry(QRect(0, 0, 1141, 22))
         MainWindow.setMenuBar(self.menubar)
 
         self.retranslateUi(MainWindow)
@@ -219,6 +234,7 @@ class Ui_MainWindow(object):
         self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
         self.checkBox_AotuReconnect.setText(QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Tab 1", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
+        self.groupBox_DoIPTrace.setTitle("")
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_DoIPTrace), QCoreApplication.translate("MainWindow", u"Tab DoIPTrace", None))
     # retranslateUi
 

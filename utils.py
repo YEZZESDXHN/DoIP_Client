@@ -2,6 +2,20 @@ from typing import Dict
 
 import ifaddr
 
+# ------------------------------
+# 工具函数：Hex字符串转bytes，失败抛出异常
+# ------------------------------
+def hex_str_to_bytes(hex_str: str) -> bytes:
+    """
+    将十六进制字符串转换为bytes类型
+    :param hex_str: 待转换的Hex字符串
+    :return: 转换后的bytes
+    :raises ValueError: Hex格式非法时抛出异常
+    """
+    if not hex_str.strip():  # 空字符串返回空bytes
+        return b""
+    # fromhex会自动处理大小写，非法字符/长度会抛ValueError
+    return bytes.fromhex(hex_str.strip())
 
 def get_ethernet_ips() -> Dict:
     """

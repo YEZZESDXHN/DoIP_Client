@@ -4,15 +4,17 @@ from typing import Optional
 
 from PySide6.QtCore import QThread, Slot, Signal
 from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
-                               QSizePolicy, QLayout)
+                               QSizePolicy, QLayout, QDialog, QHeaderView)
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
-from ui_custom import DoIPConfigPanel, DoIPTraceTableView
-from DoIPToolMainUI import Ui_MainWindow
+from UI.DoIPConfigPanel_ui import DoIPConfigPanel
+from UI.DoIPToolMainUI import Ui_MainWindow
 from UDSOnIP import QUDSOnIPClient
+from UI.DoIPTraceTable_ui import DoIPTraceTableView
+from UI.treeView_ui import DiagTreeView, DiagTreeDataModel
 from utils import get_ethernet_ips
 
 # 日志配置
@@ -77,23 +79,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _init_ui(self):
         """初始化界面组件属性"""
-        # 替换表格并确保铺满布局
-        self._replace_table_with_custom(self.tableView_DoIPTrace)
+        # 添加表格
+        self.tableView_DoIPTrace = self._add_custom_table_view(self.groupBox_DoIPTrace)
 
-    def _replace_table_with_custom(self, old_table):
+        # 添加TreeView控件
+        self.treeView_Diag = self._add_custom_tree_view(self.scrollArea_DiagTree)
+
+    def _add_custom_tree_view(self, parent_widget):
         """
-        替换原有表格为自定义表格，确保表格铺满父布局
-        :param old_table: 原Qt设计的表格控件
+        在指定控件上添加控件treeView
+        :param parent_widget: 父控件
         """
-        # 获取父控件
-        parent_widget = old_table.parent()
         if not parent_widget:
-            logger.error("表格无父控件，替换失败")
+            logger.error("父控件无效")
             return
-        logger.debug(f"表格父控件：{parent_widget.objectName()}")
+        tree_view_diag = DiagTreeView(parent=parent_widget)
+        tree_model = DiagTreeDataModel()
+        tree_view_diag.setModel(tree_model)
+        tree_view_diag.expandAll()  # 展开所有节点
 
-        # 创建自定义表格
-        new_table = DoIPTraceTableView(parent=parent_widget)
+        logger.debug(f"父控件：{parent_widget.objectName()}")
 
         # 获取或创建布局
         layout = parent_widget.layout()
@@ -101,21 +106,44 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             layout = QHBoxLayout(parent_widget)
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(0)
-        else:
-            # 移除原表格（避免布局残留）
-            layout.removeWidget(old_table)
 
-        # 添加新表格并设置拉伸因子（核心：让表格铺满）
-        layout.addWidget(new_table)
-        layout.setStretchFactor(new_table, 1)
+        # 添加表格并设置拉伸因子（核心：让表格铺满）
+        layout.addWidget(tree_view_diag)
+        layout.setStretchFactor(tree_view_diag, 1)
 
         # 设置父控件尺寸策略（确保父控件也铺满上层）
         parent_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        # 销毁原表格并替换引用
-        old_table.deleteLater()
-        self.tableView_DoIPTrace = new_table
-        logger.info("自定义表格替换完成，已设置布局拉伸")
+        return tree_view_diag
+
+
+    def _add_custom_table_view(self, parent_widget):
+        """
+        在指定控件上添加控件custom_table
+        :param parent_widget: 父控件
+        """
+        if not parent_widget:
+            logger.error("父控件无效")
+            return
+        table_view_doip_trace = DoIPTraceTableView(parent=parent_widget)
+        logger.debug(f"父控件：{parent_widget.objectName()}")
+
+
+        # 获取或创建布局
+        layout = parent_widget.layout()
+        if layout is None:
+            layout = QHBoxLayout(parent_widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+
+        # 添加表格并设置拉伸因子（核心：让表格铺满）
+        layout.addWidget(table_view_doip_trace)
+        layout.setStretchFactor(table_view_doip_trace, 1)
+
+        # 设置父控件尺寸策略（确保父控件也铺满上层）
+        parent_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        return table_view_doip_trace
 
     def _init_signals(self):
         """初始化所有信号槽连接（统一管理）"""
@@ -125,11 +153,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # DoIP客户端信号
         self._connect_doip_client_signals()
 
+        self.treeView_Diag.clicked_node_data.connect(self.send_raw_doip_payload)
+
     def _connect_ui_signals(self):
         """连接UI组件的信号到槽函数"""
         # 按钮信号
         self.pushButton_ConnectDoIP.clicked.connect(self.change_doip_connect_state)
-        self.pushButton_SendDoIP.clicked.connect(self.send_raw_doip_payload)
+        self.pushButton_SendDoIP.clicked.connect(self._get_data_and_send_raw_doip_payload)
         self.pushButton_EditConfig.clicked.connect(self.open_edit_config_panel)
         self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
 
@@ -140,6 +170,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 自定义信号（传递给DoIP客户端）
         self.connect_or_disconnect_doip_signal.connect(self.uds_on_ip_client.change_doip_connect_state)
         self.doip_send_raw_payload_signal.connect(self.uds_on_ip_client.send_payload)
+
 
     def _connect_doip_client_signals(self):
         """连接DoIP客户端的信号到槽函数"""
@@ -169,20 +200,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug(f"TCP自动重连已设置为：{self.auto_reconnect_tcp}")
 
     @Slot()
-    def send_raw_doip_payload(self):
-        """获取发送数据窗口的hex,转换为bytes，通过信号与槽的机制传递给DoIP Client并发送出去"""
+    def _get_data_and_send_raw_doip_payload(self):
         hex_str = self.lineEdit_DoIPRawDate.text().strip()
         if not hex_str:
             logger.warning("发送数据为空，取消发送")
             return
-
         try:
             byte_data = bytes.fromhex(hex_str)
-            self.doip_send_raw_payload_signal.emit(byte_data)
-            self.pushButton_SendDoIP.setDisabled(True)
-            logger.debug(f"已发送DoIP数据到传输层：{hex_str} -> {byte_data.hex()}")
+            self.send_raw_doip_payload(byte_data)
         except ValueError as e:
             logger.error(f"十六进制数据格式错误：{e}，输入内容：{hex_str}")
+        except Exception as e:
+            logger.exception(f"发送DoIP数据失败：{e}")
+
+    @Slot(bytes)
+    def send_raw_doip_payload(self, byte_data: bytes):
+        """获通过信号与槽的机制传递给DoIP Client并发送出去"""
+        if not byte_data:
+            logger.warning("发送数据为空，取消发送")
+            return
+
+        try:
+            self.doip_send_raw_payload_signal.emit(byte_data)
+            self.pushButton_SendDoIP.setDisabled(True)
+            logger.debug(f"已发送DoIP数据到传输层：{byte_data.hex()}")
         except Exception as e:
             logger.exception(f"发送DoIP数据失败：{e}")
 
@@ -228,24 +269,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.client_logical_address:X}")
         config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.ecu_logical_address:X}")
 
-        # 连接配置确认信号
-        config_panel.config_signal.connect(self.update_doip_config)
-        config_panel.exec()
-
-    @Slot()
-    def update_doip_config(self, config):
-        """更新DoIP配置（从配置面板接收）"""
-        try:
-            self.client_logical_address = config.get('tester_logical_address', self.client_logical_address)
-            self.ecu_logical_address = config.get('DUT_logical_address', self.ecu_logical_address)
-            self.ecu_ip_address = config.get('DUT_ipv4_address', self.ecu_ip_address).strip()
-
+        if config_panel.exec() == QDialog.Accepted:
+            self.client_logical_address = config_panel.config.get('tester_logical_address', self.client_logical_address)
+            self.ecu_logical_address = config_panel.config.get('DUT_logical_address', self.ecu_logical_address)
+            self.ecu_ip_address = config_panel.config.get('DUT_ipv4_address', self.ecu_ip_address).strip()
             logger.info(
                 f"DoIP配置已更新 - 测试机逻辑地址: 0x{self.client_logical_address:X}, "
                 f"ECU逻辑地址: 0x{self.ecu_logical_address:X}, ECU IP: {self.ecu_ip_address}"
             )
-        except (ValueError, KeyError) as e:
-            logger.error(f"更新DoIP配置失败: {e}，配置数据: {config}")
 
     @Slot(bool)
     def _update_doip_connect_state(self, state: bool):

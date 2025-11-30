@@ -19,17 +19,17 @@ from PySide6.QtWidgets import (QAbstractButton, QApplication, QDialog, QDialogBu
     QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QSizePolicy, QWidget)
 
-class Ui_Dialog(object):
-    def setupUi(self, Dialog):
-        if not Dialog.objectName():
-            Dialog.setObjectName(u"Dialog")
-        Dialog.resize(602, 300)
-        self.buttonBox = QDialogButtonBox(Dialog)
+class Ui_DoIPConfig(object):
+    def setupUi(self, DoIPConfig):
+        if not DoIPConfig.objectName():
+            DoIPConfig.setObjectName(u"DoIPConfig")
+        DoIPConfig.resize(602, 300)
+        self.buttonBox = QDialogButtonBox(DoIPConfig)
         self.buttonBox.setObjectName(u"buttonBox")
         self.buttonBox.setGeometry(QRect(30, 240, 341, 32))
         self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Cancel|QDialogButtonBox.StandardButton.Ok)
-        self.groupBox_DoIPConfig = QGroupBox(Dialog)
+        self.groupBox_DoIPConfig = QGroupBox(DoIPConfig)
         self.groupBox_DoIPConfig.setObjectName(u"groupBox_DoIPConfig")
         self.groupBox_DoIPConfig.setGeometry(QRect(10, 10, 541, 200))
         self.groupBox_DoIPConfig.setMinimumSize(QSize(500, 120))
@@ -106,20 +106,20 @@ class Ui_Dialog(object):
         self.horizontalLayout_2.addWidget(self.lineEdit_DUT_IP)
 
 
-        self.retranslateUi(Dialog)
-        self.buttonBox.rejected.connect(Dialog.reject)
+        self.retranslateUi(DoIPConfig)
+        self.buttonBox.rejected.connect(DoIPConfig.reject)
 
-        QMetaObject.connectSlotsByName(Dialog)
+        QMetaObject.connectSlotsByName(DoIPConfig)
     # setupUi
 
-    def retranslateUi(self, Dialog):
-        Dialog.setWindowTitle(QCoreApplication.translate("Dialog", u"Dialog", None))
+    def retranslateUi(self, DoIPConfig):
+        DoIPConfig.setWindowTitle(QCoreApplication.translate("DoIPConfig", u"Dialog", None))
         self.groupBox_DoIPConfig.setTitle("")
-        self.label_6.setText(QCoreApplication.translate("Dialog", u"DUT \u903b\u8f91\u5730\u5740(Hex)", None))
-        self.lineEdit_DUTLogicalAddress.setPlaceholderText(QCoreApplication.translate("Dialog", u"77A", None))
-        self.label_3.setText(QCoreApplication.translate("Dialog", u"Tester \u903b\u8f91\u5730\u5740(Hex)", None))
-        self.lineEdit_TesterLogicalAddress.setPlaceholderText(QCoreApplication.translate("Dialog", u"7E2", None))
-        self.label_2.setText(QCoreApplication.translate("Dialog", u"DUT IP", None))
-        self.lineEdit_DUT_IP.setPlaceholderText(QCoreApplication.translate("Dialog", u"192.168.1.1", None))
+        self.label_6.setText(QCoreApplication.translate("DoIPConfig", u"DUT \u903b\u8f91\u5730\u5740(Hex)", None))
+        self.lineEdit_DUTLogicalAddress.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 77A)", None))
+        self.label_3.setText(QCoreApplication.translate("DoIPConfig", u"Tester \u903b\u8f91\u5730\u5740(Hex)", None))
+        self.lineEdit_TesterLogicalAddress.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 7E2)", None))
+        self.label_2.setText(QCoreApplication.translate("DoIPConfig", u"DUT IP", None))
+        self.lineEdit_DUT_IP.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 192.168.1.1)", None))
     # retranslateUi
 

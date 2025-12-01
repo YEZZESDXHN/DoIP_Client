@@ -108,7 +108,7 @@ class DiagTreeDataModel(QStandardItemModel):
             return False
         invisible_root = self.invisibleRootItem()
         new_root = QStandardItem(node_name.strip())
-        new_root.setData(custom_bytes, Qt.ItemDataRole.UserRole)  # 存储bytes
+        # new_root.setData(custom_bytes, Qt.ItemDataRole.UserRole)
         invisible_root.appendRow(new_root)
         return True
 
@@ -222,7 +222,7 @@ class DiagTreeView(QTreeView):
             QMessageBox.warning(self, "提示", "请先选中一个节点再添加子节点！")
             return
 
-        dialog = AddNodeDialog(self, title="添加子节点")
+        dialog = AddNodeDialog(self, title="添加子服务")
         if dialog.exec() == QDialog.Accepted:
             node_name, custom_bytes = dialog.get_inputs()
             model = self.model()
@@ -233,7 +233,10 @@ class DiagTreeView(QTreeView):
 
     def _add_root_node(self):
         """添加顶级根节点：调用对话框获取bytes数据"""
-        dialog = AddNodeDialog(self, title="添加顶级根节点")
+        dialog = AddNodeDialog(self, title="添加服务")
+        dialog.lineEdit_Hex.setVisible(False)
+        dialog.label_Hex.setVisible(False)
+        dialog.label_note.setVisible(False)
         if dialog.exec() == QDialog.Accepted:
             node_name, custom_bytes = dialog.get_inputs()
             model = self.model()

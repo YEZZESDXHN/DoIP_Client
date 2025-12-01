@@ -93,10 +93,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not parent_widget:
             logger.error("父控件无效")
             return
-        tree_view_diag = DiagTreeView(parent=parent_widget)
+        tree_view = DiagTreeView(parent=parent_widget)
         tree_model = DiagTreeDataModel()
-        tree_view_diag.setModel(tree_model)
-        tree_view_diag.expandAll()  # 展开所有节点
+        tree_view.setModel(tree_model)
+        tree_view.expandAll()  # 展开所有节点
+        tree_view.resizeColumnToContents(0)  # 设置第0列显示全部文本，不会截断
 
         logger.debug(f"父控件：{parent_widget.objectName()}")
 
@@ -108,13 +109,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             layout.setSpacing(0)
 
         # 添加表格并设置拉伸因子（核心：让表格铺满）
-        layout.addWidget(tree_view_diag)
-        layout.setStretchFactor(tree_view_diag, 1)
+        layout.addWidget(tree_view)
+        layout.setStretchFactor(tree_view, 1)
 
         # 设置父控件尺寸策略（确保父控件也铺满上层）
         parent_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        return tree_view_diag
+        return tree_view
 
 
     def _add_custom_table_view(self, parent_widget):

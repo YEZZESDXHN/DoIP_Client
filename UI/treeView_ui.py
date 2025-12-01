@@ -173,8 +173,9 @@ class DiagTreeView(QTreeView):
     def _init_context_menu(self):
         """初始化右键菜单"""
         self.context_menu = QMenu(self)
-        self.add_child_act = self.context_menu.addAction("添加服务")
-        self.add_root_act = self.context_menu.addAction("添加子服务")
+        self.add_root_act = self.context_menu.addAction("添加服务")
+        self.add_child_act = self.context_menu.addAction("添加子服务")
+        self.context_menu.addSeparator()
         self.delete_act = self.context_menu.addAction("删除(子)服务")
         self.add_child_act.triggered.connect(self._add_child_node)
         self.add_root_act.triggered.connect(self._add_root_node)

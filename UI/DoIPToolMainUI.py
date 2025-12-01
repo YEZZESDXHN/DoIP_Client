@@ -19,7 +19,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
     QGridLayout, QGroupBox, QHBoxLayout, QLabel,
     QLineEdit, QMainWindow, QMenuBar, QPlainTextEdit,
     QPushButton, QScrollArea, QSizePolicy, QSpacerItem,
-    QSplitter, QTabWidget, QVBoxLayout, QWidget)
+    QSplitter, QStatusBar, QTabWidget, QVBoxLayout,
+    QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -164,13 +165,18 @@ class Ui_MainWindow(object):
         self.splitter.setChildrenCollapsible(True)
         self.scrollArea_DiagTree = QScrollArea(self.splitter)
         self.scrollArea_DiagTree.setObjectName(u"scrollArea_DiagTree")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.scrollArea_DiagTree.sizePolicy().hasHeightForWidth())
+        self.scrollArea_DiagTree.setSizePolicy(sizePolicy2)
         self.scrollArea_DiagTree.setMinimumSize(QSize(250, 0))
         self.scrollArea_DiagTree.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scrollArea_DiagTree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 606))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 620))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         self.splitter.addWidget(self.scrollArea_DiagTree)
         self.tabWidget = QTabWidget(self.splitter)
@@ -246,46 +252,14 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_6.addLayout(self.verticalLayout_5)
 
-        self.horizontalLayout_6 = QHBoxLayout()
-        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
-        self.pushButton = QPushButton(self.centralwidget)
-        self.pushButton.setObjectName(u"pushButton")
-        self.pushButton.setFont(font)
-
-        self.horizontalLayout_6.addWidget(self.pushButton)
-
-        self.label_2 = QLabel(self.centralwidget)
-        self.label_2.setObjectName(u"label_2")
-        self.label_2.setFrameShape(QFrame.Shape.NoFrame)
-
-        self.horizontalLayout_6.addWidget(self.label_2)
-
-        self.horizontalLayout = QHBoxLayout()
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.label = QLabel(self.centralwidget)
-        self.label.setObjectName(u"label")
-        self.label.setFont(font)
-
-        self.horizontalLayout.addWidget(self.label)
-
-        self.lineEdit_2 = QLineEdit(self.centralwidget)
-        self.lineEdit_2.setObjectName(u"lineEdit_2")
-        self.lineEdit_2.setFont(font)
-
-        self.horizontalLayout.addWidget(self.lineEdit_2)
-
-        self.horizontalLayout.setStretch(1, 3)
-
-        self.horizontalLayout_6.addLayout(self.horizontalLayout)
-
-
-        self.verticalLayout_6.addLayout(self.horizontalLayout_6)
-
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
         self.menubar.setGeometry(QRect(0, 0, 1141, 33))
         MainWindow.setMenuBar(self.menubar)
+        self.statusBar = QStatusBar(MainWindow)
+        self.statusBar.setObjectName(u"statusBar")
+        MainWindow.setStatusBar(self.statusBar)
 
         self.retranslateUi(MainWindow)
 
@@ -310,8 +284,5 @@ class Ui_MainWindow(object):
         self.pushButton_ClearDoIPTrace.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
         self.groupBox_DoIPTrace.setTitle("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_DoIPTrace), QCoreApplication.translate("MainWindow", u"DoIPTrace", None))
-        self.pushButton.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.label.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
     # retranslateUi
 

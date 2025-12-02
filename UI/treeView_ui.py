@@ -1,3 +1,4 @@
+import json
 import logging
 
 from PySide6.QtCore import QModelIndex, Signal, QPoint
@@ -102,7 +103,7 @@ class DiagTreeDataModel(QStandardItemModel):
         parent_item.appendRow(new_item)
         return True
 
-    def add_root_node(self, node_name: str, custom_bytes: bytes = b""):
+    def add_root_node(self, node_name: str):
         """添加顶级根节点（接收bytes类型数据）"""
         if not node_name.strip():
             return False
@@ -123,6 +124,15 @@ class DiagTreeDataModel(QStandardItemModel):
         parent_item.removeRow(row)
         return True
 
+    def _get_node_level(self, index: QModelIndex) -> int:
+        """计算给定 QModelIndex 的层级（深度），根节点为 0"""
+        level = 0
+        temp_index = index
+        while temp_index.parent().isValid():
+            level += 1
+            temp_index = temp_index.parent()
+        return level
+
     def get_node_info(self, node_index: QModelIndex) -> dict:
         """获取节点信息（bytes转Hex字符串展示）"""
         if not node_index.isValid():
@@ -130,13 +140,9 @@ class DiagTreeDataModel(QStandardItemModel):
         node_text = node_index.data(Qt.ItemDataRole.DisplayRole)
         custom_bytes = node_index.data(Qt.ItemDataRole.UserRole)  # 获取bytes数据
         # 计算节点层级
-        node_level = 0
-        temp_index = node_index
-        while temp_index.parent().isValid():
-            node_level += 1
-            temp_index = temp_index.parent()
+        node_level = self._get_node_level(node_index)
         # bytes转Hex字符串（大写），空bytes显示"无"
-        hex_str = custom_bytes.hex().upper() if custom_bytes else "无"
+        hex_str = custom_bytes.hex().upper() if custom_bytes else ""
         return {
             "text": node_text,
             "hex_str": hex_str,       # 格式化后的Hex字符串
@@ -181,8 +187,37 @@ class DiagTreeView(QTreeView):
         self.add_root_act.triggered.connect(self._add_root_node)
         self.delete_act.triggered.connect(self._delete_node)
 
+    def _get_node_level(self, index: QModelIndex) -> int:
+        """计算给定 QModelIndex 的层级（深度），根节点为 0"""
+        level = 0
+        temp_index = index
+        while temp_index.parent().isValid():
+            level += 1
+            temp_index = temp_index.parent()
+        return level
     def _show_context_menu(self, pos: QPoint):
-        """显示右键菜单"""
+        """处理右键点击事件，根据节点深度动态启用/禁用菜单项"""
+        # 获取被点击的 QModelIndex
+        clicked_index = self.indexAt(pos)
+
+        # 根节点/空白区域被点击
+        if not clicked_index.isValid():
+            # 只能添加顶级服务
+            self.add_root_act.setEnabled(True)
+            self.add_child_act.setEnabled(False)
+            self.delete_act.setEnabled(False)
+        else:  # 有效节点被点击
+            node_level = self._get_node_level(clicked_index)
+
+            if 0 <= node_level <= 1:
+                self.add_root_act.setEnabled(True)
+                self.add_child_act.setEnabled(True)
+                self.delete_act.setEnabled(True)
+            elif node_level > 1:
+                self.add_root_act.setEnabled(True)
+                self.add_child_act.setEnabled(False)
+                self.delete_act.setEnabled(True)
+
         global_pos = self.mapToGlobal(pos)
         self.context_menu.exec(global_pos)
 
@@ -194,7 +229,7 @@ class DiagTreeView(QTreeView):
         node_info = model.get_node_info(index)
         if not node_info:
             return
-        if node_info['level'] == 1:
+        if node_info['level'] >= 1:
             self.clicked_node_data.emit(node_info.get('raw_bytes', bytes()))
 
 
@@ -221,8 +256,8 @@ class DiagTreeView(QTreeView):
         if not current_index.isValid():
             QMessageBox.warning(self, "提示", "请先选中一个节点再添加子节点！")
             return
-
-        dialog = AddNodeDialog(self, title="添加子服务")
+        current_level = self._get_node_level(current_index)
+        dialog = AddNodeDialog(parent=self, level=current_level, title="添加子服务")
         if dialog.exec() == QDialog.Accepted:
             node_name, custom_bytes = dialog.get_inputs()
             model = self.model()
@@ -233,7 +268,7 @@ class DiagTreeView(QTreeView):
 
     def _add_root_node(self):
         """添加顶级根节点：调用对话框获取bytes数据"""
-        dialog = AddNodeDialog(self, title="添加服务")
+        dialog = AddNodeDialog(parent=self, level=-1, title="添加服务")
         dialog.lineEdit_Hex.setVisible(False)
         dialog.label_Hex.setVisible(False)
         dialog.label_note.setVisible(False)
@@ -241,7 +276,7 @@ class DiagTreeView(QTreeView):
             node_name, custom_bytes = dialog.get_inputs()
             model = self.model()
             if isinstance(model, DiagTreeDataModel):
-                model.add_root_node(node_name, custom_bytes)
+                model.add_root_node(node_name)
 
     def _delete_node(self):
         """删除节点"""
@@ -255,12 +290,13 @@ class DiagTreeView(QTreeView):
             QMessageBox.warning(self, "提示", "删除节点失败，请选中有效节点！")
 
 class AddNodeDialog(Ui_AddDiagServiceDialog, QDialog):
-    def __init__(self, parent=None, title="添加节点"):
+    def __init__(self, level: int, parent=None, title="添加节点"):
         super().__init__(parent)
         self.setupUi(self)
         self.setWindowTitle(title)
         self.node_name = ""
         self.custom_bytes = b""  # 存储转换后的bytes数据
+        self.clicked_node_level = level
 
         self.buttonBox.accepted.connect(self._on_accept)
 
@@ -273,8 +309,16 @@ class AddNodeDialog(Ui_AddDiagServiceDialog, QDialog):
             self.lineEdit_name.setFocus()  # 聚焦到输入框重新输入
             return
 
+
         # 2. Hex字符串转bytes（捕获异常）
         hex_input = self.lineEdit_Hex.text().strip()
+
+        # 点击的level 1层级，添加子服务必须带有数据
+        if not hex_input and self.clicked_node_level == 1:
+            QMessageBox.warning(self, "数据不能为空", "节请输入合法的十六进制字符串（如1A3F、FF00）")
+            self.lineEdit_Hex.setFocus()  # 聚焦到输入框重新输入
+            return
+
         try:
             self.custom_bytes = hex_str_to_bytes(hex_input)
         except ValueError as e:

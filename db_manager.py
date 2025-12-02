@@ -5,6 +5,8 @@ from os import PathLike
 from typing import Union, Optional, List
 
 DOIP_CONFIG_TABLE_NAME = "DoIP_Config"
+DIAG_TREE_TABLE_NAME = "Diag_Tree"
+DIAG_PROCESS_TABLE_NAME = "Diag_Process"
 
 logger = logging.getLogger('UDSOnIPClient.' + __name__)
 

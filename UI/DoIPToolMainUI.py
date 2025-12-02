@@ -26,7 +26,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1141, 817)
+        MainWindow.resize(1170, 813)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.verticalLayout_6 = QVBoxLayout(self.centralwidget)
@@ -78,7 +78,7 @@ class Ui_MainWindow(object):
         self.pushButton_ConnectDoIP.setObjectName(u"pushButton_ConnectDoIP")
         sizePolicy1.setHeightForWidth(self.pushButton_ConnectDoIP.sizePolicy().hasHeightForWidth())
         self.pushButton_ConnectDoIP.setSizePolicy(sizePolicy1)
-        self.pushButton_ConnectDoIP.setMaximumSize(QSize(50, 16777215))
+        self.pushButton_ConnectDoIP.setMaximumSize(QSize(16777215, 16777215))
         self.pushButton_ConnectDoIP.setFont(font)
 
         self.gridLayout_2.addWidget(self.pushButton_ConnectDoIP, 0, 5, 1, 1)
@@ -101,11 +101,6 @@ class Ui_MainWindow(object):
         self.comboBox_TesterIP.setLabelDrawingMode(QComboBox.LabelDrawingMode.UseStyle)
 
         self.gridLayout_2.addWidget(self.comboBox_TesterIP, 0, 1, 1, 1)
-
-        self.label_3 = QLabel(self.centralwidget)
-        self.label_3.setObjectName(u"label_3")
-
-        self.gridLayout_2.addWidget(self.label_3, 1, 5, 1, 1)
 
         self.pushButton_EditConfig = QPushButton(self.centralwidget)
         self.pushButton_EditConfig.setObjectName(u"pushButton_EditConfig")
@@ -171,12 +166,13 @@ class Ui_MainWindow(object):
         sizePolicy2.setHeightForWidth(self.scrollArea_DiagTree.sizePolicy().hasHeightForWidth())
         self.scrollArea_DiagTree.setSizePolicy(sizePolicy2)
         self.scrollArea_DiagTree.setMinimumSize(QSize(250, 0))
+        self.scrollArea_DiagTree.setMaximumSize(QSize(16777215, 16777215))
         self.scrollArea_DiagTree.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scrollArea_DiagTree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 620))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 616))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         self.splitter.addWidget(self.scrollArea_DiagTree)
         self.tabWidget = QTabWidget(self.splitter)
@@ -244,6 +240,36 @@ class Ui_MainWindow(object):
         self.horizontalLayout_4.addLayout(self.verticalLayout_2)
 
         self.tabWidget.addTab(self.tab_DoIPTrace, "")
+        self.tab_AutomatedDiagProcess = QWidget()
+        self.tab_AutomatedDiagProcess.setObjectName(u"tab_AutomatedDiagProcess")
+        self.verticalLayout_8 = QVBoxLayout(self.tab_AutomatedDiagProcess)
+        self.verticalLayout_8.setObjectName(u"verticalLayout_8")
+        self.verticalLayout_7 = QVBoxLayout()
+        self.verticalLayout_7.setObjectName(u"verticalLayout_7")
+        self.pushButton = QPushButton(self.tab_AutomatedDiagProcess)
+        self.pushButton.setObjectName(u"pushButton")
+        sizePolicy1.setHeightForWidth(self.pushButton.sizePolicy().hasHeightForWidth())
+        self.pushButton.setSizePolicy(sizePolicy1)
+        self.pushButton.setFont(font)
+
+        self.verticalLayout_7.addWidget(self.pushButton)
+
+
+        self.verticalLayout_8.addLayout(self.verticalLayout_7)
+
+        self.splitter_2 = QSplitter(self.tab_AutomatedDiagProcess)
+        self.splitter_2.setObjectName(u"splitter_2")
+        self.splitter_2.setOrientation(Qt.Orientation.Vertical)
+        self.groupBox_AutomatedDiagProcessTable = QGroupBox(self.splitter_2)
+        self.groupBox_AutomatedDiagProcessTable.setObjectName(u"groupBox_AutomatedDiagProcessTable")
+        self.splitter_2.addWidget(self.groupBox_AutomatedDiagProcessTable)
+        self.groupBox_AutomatedDiagTrace = QGroupBox(self.splitter_2)
+        self.groupBox_AutomatedDiagTrace.setObjectName(u"groupBox_AutomatedDiagTrace")
+        self.splitter_2.addWidget(self.groupBox_AutomatedDiagTrace)
+
+        self.verticalLayout_8.addWidget(self.splitter_2)
+
+        self.tabWidget.addTab(self.tab_AutomatedDiagProcess, "")
         self.splitter.addWidget(self.tabWidget)
 
         self.verticalLayout_5.addWidget(self.splitter)
@@ -255,7 +281,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1141, 33))
+        self.menubar.setGeometry(QRect(0, 0, 1170, 33))
         MainWindow.setMenuBar(self.menubar)
         self.statusBar = QStatusBar(MainWindow)
         self.statusBar.setObjectName(u"statusBar")
@@ -275,7 +301,6 @@ class Ui_MainWindow(object):
         self.pushButton_RefreshIP.setText(QCoreApplication.translate("MainWindow", u"\u5237\u65b0", None))
         self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("MainWindow", u"\u8fde\u63a5", None))
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Tester IP", None))
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
         self.checkBox_AotuReconnect.setText(QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
         self.pushButton_SendDoIP.setText(QCoreApplication.translate("MainWindow", u"Send", None))
@@ -284,5 +309,9 @@ class Ui_MainWindow(object):
         self.pushButton_ClearDoIPTrace.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
         self.groupBox_DoIPTrace.setTitle("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_DoIPTrace), QCoreApplication.translate("MainWindow", u"DoIPTrace", None))
+        self.pushButton.setText(QCoreApplication.translate("MainWindow", u"Run", None))
+        self.groupBox_AutomatedDiagProcessTable.setTitle("")
+        self.groupBox_AutomatedDiagTrace.setTitle("")
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_AutomatedDiagProcess), QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u8bca\u65ad\u6d41\u7a0b", None))
     # retranslateUi
 

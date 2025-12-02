@@ -9,7 +9,8 @@ from doipclient import DoIPClient
 from doipclient.connectors import DoIPClientUDSConnector
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
-from udsoncan import ClientConfig, Request, Response
+from udsoncan import ClientConfig, Request, Response, NegativeResponseException, TimeoutException, \
+    InvalidResponseException, UnexpectedResponseException, ConfigError
 from udsoncan.client import Client
 from udsoncan.configs import default_client_config
 
@@ -186,6 +187,28 @@ class QUDSOnIPClient(QObject):
                 response_dict['code_name'] = response.code_name
                 response_dict['uds data'] = response.data
                 self.doip_response.emit(response_dict)
+            except TimeoutException as e:
+                self.error_signal.emit(e)
+                logger.debug(f'timeout:{e}')
+            except NegativeResponseException as negative_response:
+                response = negative_response.response
+                response_dict = {}
+                response_dict['Time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                response_dict['Dir'] = 'Rx'
+                response_dict['Type'] = response.code_name
+                response_dict['Destination IP'] = self.client_ip_address
+                response_dict['Source IP'] = self.ecu_ip_address
+                response_dict['Data'] = response.original_payload
+                response_dict['DataLength'] = len(response_dict['Data'])
+                response_dict['code_name'] = response.code_name
+                response_dict['uds data'] = response.data
+                self.doip_response.emit(response_dict)
+            except InvalidResponseException as e:
+                logger.debug(f'InvalidResponseException:{e}')
+            except UnexpectedResponseException as e:
+                logger.debug(f'UnexpectedResponseException:{e}')
+            except ConfigError as e:
+                logger.debug(f'ConfigError:{e}')
             except Exception as e:
                 response_dict = {}
                 self.doip_response.emit(response_dict)

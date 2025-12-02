@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtCore import QThread, Slot, Signal
 from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
-                               QSizePolicy, QLayout, QDialog, QHeaderView)
+                               QSizePolicy, QLayout, QDialog, QHeaderView, QStyle)
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
 from udsoncan import ClientConfig
@@ -49,8 +49,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.uds_on_ip_client_thread = None
 
         self.ip_list = []
-        # self.ecu_ip_address = '172.16.104.70'
-        self.ecu_ip_address = '127.0.0.1'
+        self.ecu_ip_address = '172.16.104.70'
+        # self.ecu_ip_address = '127.0.0.1'
         self.client_ip_address = None
         self.client_logical_address = 0x7e2
         self.ecu_logical_address = 0x773
@@ -79,8 +79,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _init_ui(self):
         """初始化界面组件属性"""
+        icon_disconnected = QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
+        self.pushButton_ConnectDoIP.setIcon(icon_disconnected)
+
         # 添加表格
         self.tableView_DoIPTrace = self._add_custom_table_view(self.groupBox_DoIPTrace)
+
+        # 添加DoIPTrace表格到诊断自动化流程
+        self.tableView_DoIPTrace_Automated_Process = self._add_custom_table_view(self.groupBox_AutomatedDiagTrace)
 
         # 添加TreeView控件
         self.treeView_Diag = self._add_custom_tree_view(self.scrollArea_DiagTree)
@@ -113,7 +119,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         layout.setStretchFactor(tree_view, 1)
 
         # 设置父控件尺寸策略（确保父控件也铺满上层）
-        parent_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        parent_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         return tree_view
 
@@ -142,7 +148,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         layout.setStretchFactor(table_view_doip_trace, 1)
 
         # 设置父控件尺寸策略（确保父控件也铺满上层）
-        parent_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        parent_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         return table_view_doip_trace
 
@@ -153,8 +159,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # DoIP客户端信号
         self._connect_doip_client_signals()
-
-        self.treeView_Diag.clicked_node_data.connect(self.send_raw_doip_payload)
 
     def _connect_ui_signals(self):
         """连接UI组件的信号到槽函数"""
@@ -172,6 +176,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.connect_or_disconnect_doip_signal.connect(self.uds_on_ip_client.change_doip_connect_state)
         self.doip_send_raw_payload_signal.connect(self.uds_on_ip_client.send_payload)
 
+        # treeView双击信号获取触发send_raw_doip_payload发送数据
+        self.treeView_Diag.clicked_node_data.connect(self.send_raw_doip_payload)
+
 
     def _connect_doip_client_signals(self):
         """连接DoIP客户端的信号到槽函数"""
@@ -180,8 +187,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
 
         self.uds_on_ip_client.doip_connect_state.connect(self._update_doip_connect_state)
+
         self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace.add_trace_data)
         self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace.add_trace_data)
+
+        self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+
         self.uds_on_ip_client.doip_response.connect(self.doip_response_callback)
 
     @Slot(dict)
@@ -283,8 +295,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _update_doip_connect_state(self, state: bool):
         """更新DoIP连接状态的UI显示"""
         self.pushButton_ConnectDoIP.setDisabled(False)
+
+        icon_connected = QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
+        icon_disconnected = QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
+
+        icon = icon_connected if state else icon_disconnected
         btn_text = '已连接' if state else '连接'
         self.pushButton_ConnectDoIP.setText(btn_text)
+        self.pushButton_ConnectDoIP.setIcon(icon)
         logger.info(f"DoIP连接状态已更新为：{btn_text}")
 
     @Slot()

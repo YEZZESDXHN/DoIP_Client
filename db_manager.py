@@ -17,7 +17,7 @@ DEFAULT_DOIP_CONFIG = {
     'dut_ipv4_address': '172.16.104.70',
     'is_routing_activation_use': True,
     'is_oem_specific_use': False,
-    'oem_specific': '\x00\x00\x00\x00',
+    'oem_specific': b'\x00\x00\x00\x00',
 
 }
 
@@ -412,4 +412,26 @@ class DBManager:
         except sqlite3.Error as e:
             logger.exception(f"删除配置异常：{config_name} - {e}")
             return False
+
+    def get_all_config_names(self) -> List[str]:
+        """
+        获取 doip_config 表中所有的配置名称
+        :return: 配置名称列表（为空则返回空列表）
+        """
+        query_sql = f"SELECT config_name FROM {DOIP_CONFIG_TABLE_NAME} ORDER BY config_name ASC;"
+        try:
+            with sqlite3.connect(self.database) as conn:
+                cursor = conn.execute(query_sql)
+                # 提取所有配置名称，转换为列表（fetchall() 返回 [(name1,), (name2,), ...] 格式）
+                results = cursor.fetchall()
+                config_names = [row[0] for row in results]
+
+            logger.info(f"查询到 {len(config_names)} 个配置名称")
+            return config_names
+        except sqlite3.Error as e:
+            logger.exception(f"查询所有配置名称异常：{e}")
+            return []
+
+
+
 

@@ -11,22 +11,25 @@
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
     QMetaObject, QObject, QPoint, QRect,
     QSize, QTime, QUrl, Qt)
-from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
-    QFont, QFontDatabase, QGradient, QIcon,
-    QImage, QKeySequence, QLinearGradient, QPainter,
-    QPalette, QPixmap, QRadialGradient, QTransform)
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
+    QCursor, QFont, QFontDatabase, QGradient,
+    QIcon, QImage, QKeySequence, QLinearGradient,
+    QPainter, QPalette, QPixmap, QRadialGradient,
+    QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
     QGridLayout, QGroupBox, QHBoxLayout, QLabel,
-    QLineEdit, QMainWindow, QMenuBar, QPlainTextEdit,
-    QPushButton, QScrollArea, QSizePolicy, QSpacerItem,
-    QSplitter, QStatusBar, QTabWidget, QVBoxLayout,
-    QWidget)
+    QLineEdit, QMainWindow, QMenu, QMenuBar,
+    QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy,
+    QSpacerItem, QSplitter, QStatusBar, QTabWidget,
+    QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(1387, 911)
+        self.action_database = QAction(MainWindow)
+        self.action_database.setObjectName(u"action_database")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.verticalLayout_5 = QVBoxLayout(self.centralwidget)
@@ -158,12 +161,13 @@ class Ui_MainWindow(object):
         self.plainTextEdit_DataDisplay = QPlainTextEdit(self.tab_info)
         self.plainTextEdit_DataDisplay.setObjectName(u"plainTextEdit_DataDisplay")
         self.plainTextEdit_DataDisplay.setGeometry(QRect(20, 100, 256, 192))
-        self.widget = QWidget(self.tab_info)
-        self.widget.setObjectName(u"widget")
-        self.verticalLayout_3 = QVBoxLayout(self.widget)
+        self.layoutWidget = QWidget(self.tab_info)
+        self.layoutWidget.setObjectName(u"layoutWidget")
+        self.layoutWidget.setGeometry(QRect(0, 0, 100, 30))
+        self.verticalLayout_3 = QVBoxLayout(self.layoutWidget)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
-        self.pushButton_ClearText = QPushButton(self.widget)
+        self.pushButton_ClearText = QPushButton(self.layoutWidget)
         self.pushButton_ClearText.setObjectName(u"pushButton_ClearText")
         sizePolicy.setHeightForWidth(self.pushButton_ClearText.sizePolicy().hasHeightForWidth())
         self.pushButton_ClearText.setSizePolicy(sizePolicy)
@@ -193,17 +197,17 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 339, 668))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 248, 701))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         self.splitter.addWidget(self.scrollArea_DiagTree)
-        self.widget1 = QWidget(self.splitter)
-        self.widget1.setObjectName(u"widget1")
-        self.verticalLayout_2 = QVBoxLayout(self.widget1)
+        self.layoutWidget1 = QWidget(self.splitter)
+        self.layoutWidget1.setObjectName(u"layoutWidget1")
+        self.verticalLayout_2 = QVBoxLayout(self.layoutWidget1)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.verticalLayout_2.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout = QVBoxLayout()
         self.verticalLayout.setObjectName(u"verticalLayout")
-        self.pushButton_ClearDoIPTrace = QPushButton(self.widget1)
+        self.pushButton_ClearDoIPTrace = QPushButton(self.layoutWidget1)
         self.pushButton_ClearDoIPTrace.setObjectName(u"pushButton_ClearDoIPTrace")
         sizePolicy.setHeightForWidth(self.pushButton_ClearDoIPTrace.sizePolicy().hasHeightForWidth())
         self.pushButton_ClearDoIPTrace.setSizePolicy(sizePolicy)
@@ -214,13 +218,13 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_2.addLayout(self.verticalLayout)
 
-        self.groupBox_DoIPTrace = QGroupBox(self.widget1)
+        self.groupBox_DoIPTrace = QGroupBox(self.layoutWidget1)
         self.groupBox_DoIPTrace.setObjectName(u"groupBox_DoIPTrace")
 
         self.verticalLayout_2.addWidget(self.groupBox_DoIPTrace)
 
         self.verticalLayout_2.setStretch(1, 1)
-        self.splitter.addWidget(self.widget1)
+        self.splitter.addWidget(self.layoutWidget1)
 
         self.horizontalLayout.addWidget(self.splitter)
 
@@ -258,7 +262,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTree_2.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 460, 629))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 1316, 667))
         self.scrollArea_DiagTree_2.setWidget(self.scrollAreaWidgetContents_2)
         self.splitter_3.addWidget(self.scrollArea_DiagTree_2)
         self.splitter_2 = QSplitter(self.splitter_3)
@@ -285,11 +289,22 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
+        self.menu_about = QMenu(self.menubar)
+        self.menu_about.setObjectName(u"menu_about")
+        self.menu_set = QMenu(self.menubar)
+        self.menu_set.setObjectName(u"menu_set")
+        self.menu_tool = QMenu(self.menubar)
+        self.menu_tool.setObjectName(u"menu_tool")
         MainWindow.setMenuBar(self.menubar)
         self.statusBar = QStatusBar(MainWindow)
         self.statusBar.setObjectName(u"statusBar")
         MainWindow.setStatusBar(self.statusBar)
+
+        self.menubar.addAction(self.menu_tool.menuAction())
+        self.menubar.addAction(self.menu_set.menuAction())
+        self.menubar.addAction(self.menu_about.menuAction())
+        self.menu_tool.addAction(self.action_database)
 
         self.retranslateUi(MainWindow)
 
@@ -301,6 +316,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
+        self.action_database.setText(QCoreApplication.translate("MainWindow", u"\u53ef\u89c6\u5316\u6570\u636e\u5e93", None))
         self.pushButton_EditConfig.setText(QCoreApplication.translate("MainWindow", u"\u7f16\u8f91", None))
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Tester IP", None))
         self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("MainWindow", u"\u8fde\u63a5", None))
@@ -317,5 +333,8 @@ class Ui_MainWindow(object):
         self.groupBox_AutomatedDiagProcessTable.setTitle("")
         self.groupBox_AutomatedDiagTrace.setTitle("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_AutomatedDiagProcess), QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u8bca\u65ad\u6d41\u7a0b", None))
+        self.menu_about.setTitle(QCoreApplication.translate("MainWindow", u"\u5173\u4e8e", None))
+        self.menu_set.setTitle(QCoreApplication.translate("MainWindow", u"\u8bbe\u7f6e", None))
+        self.menu_tool.setTitle(QCoreApplication.translate("MainWindow", u"\u5de5\u5177", None))
     # retranslateUi
 

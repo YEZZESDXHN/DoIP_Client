@@ -14,8 +14,11 @@ from UI.DoIPConfigPanel_ui import DoIPConfigPanel
 from UI.DoIPToolMainUI import Ui_MainWindow
 from UDSOnIP import QUDSOnIPClient
 from UI.DoIPTraceTable_ui import DoIPTraceTableView
+from UI.sql_ui import SQLTablePanel
 from UI.treeView_ui import DiagTreeView, DiagTreeDataModel
+from db_manager import DBManager
 from utils import get_ethernet_ips
+from pathlib import Path
 
 # 日志配置
 logging.config.fileConfig("./logging.conf")
@@ -37,11 +40,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 初始化属性
         self._init_attributes()
 
+        self.load_database(self.db_path)
+
         # 初始化UI、客户端、信号、IP列表
         self._init_ui()
         self._init_doip_client()
         self._init_signals()
         self._refresh_ip_list()
+    def load_database(self, db):
+        self.db_manager = DBManager(db)
 
     def _init_attributes(self):
         """初始化所有配置属性（集中管理，提高可读性）"""
@@ -63,6 +70,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.auto_reconnect_tcp = True
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
+
+        self.db_path = 'Database/database.db'
+
+        db_path = Path(self.db_path)  # 转换为 Path 对象（方便处理路径）
+        db_dir = db_path.parent  # 获取数据库文件所在的文件夹路径
+
+        # 如果文件夹不存在，创建文件夹（包括多级目录）
+        if not db_dir.exists():
+            try:
+                db_dir.mkdir(parents=True, exist_ok=True)  # parents=True：创建多级目录；exist_ok=True：已存在则不报错
+                logger.info(f"数据库文件夹不存在，已自动创建：{db_dir}")
+            except Exception as e:
+                logger.exception(f"创建数据库文件夹失败：{str(e)}")
 
     def _init_doip_client(self):
         """初始化DoIP客户端和线程"""
@@ -90,6 +110,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # 添加TreeView控件
         self.treeView_Diag = self._add_custom_tree_view(self.scrollArea_DiagTree)
+
+        doip_configs = self.db_manager.get_all_config_names()
+        current_active_config = self.db_manager.get_active_config_name()
+        if current_active_config in doip_configs:
+            for config in doip_configs:
+                self.comboBox_ChooseConfig.addItem(config)
+            self.comboBox_ChooseConfig.setCurrentText(current_active_config)
+
 
     def _add_custom_tree_view(self, parent_widget):
         """
@@ -178,6 +206,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # treeView双击信号获取触发send_raw_doip_payload发送数据
         self.treeView_Diag.clicked_node_data.connect(self.send_raw_doip_payload)
+
+        self.action_database.triggered.connect(self.open_sql_ui)
 
 
     def _connect_doip_client_signals(self):
@@ -271,6 +301,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         client.uds_request_timeout = self.uds_request_timeout
         client.uds_config = self.uds_config
         logger.debug("DoIP客户端配置已更新")
+
+    @Slot()
+    def open_sql_ui(self):
+        """
+        打开sql可视化窗口
+        """
+        self.sql_table_panel = SQLTablePanel(self.db_path)
+        self.sql_table_panel.show()
 
     @Slot()
     def open_edit_config_panel(self):

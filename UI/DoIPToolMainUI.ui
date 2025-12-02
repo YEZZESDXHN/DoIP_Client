@@ -277,7 +277,15 @@
          </rect>
         </property>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>100</width>
+          <height>30</height>
+         </rect>
+        </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
           <widget class="QPushButton" name="pushButton_ClearText">
@@ -343,13 +351,13 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>339</width>
-              <height>668</height>
+              <width>248</width>
+              <height>701</height>
              </rect>
             </property>
            </widget>
           </widget>
-          <widget class="QWidget" name="">
+          <widget class="QWidget" name="layoutWidget">
            <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
             <item>
              <layout class="QVBoxLayout" name="verticalLayout">
@@ -453,8 +461,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>460</width>
-                <height>629</height>
+                <width>1316</width>
+                <height>667</height>
                </rect>
               </property>
              </widget>
@@ -490,11 +498,35 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>33</height>
+     <height>22</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menu_about">
+    <property name="title">
+     <string>关于</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menu_set">
+    <property name="title">
+     <string>设置</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menu_tool">
+    <property name="title">
+     <string>工具</string>
+    </property>
+    <addaction name="action_database"/>
+   </widget>
+   <addaction name="menu_tool"/>
+   <addaction name="menu_set"/>
+   <addaction name="menu_about"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
+  <action name="action_database">
+   <property name="text">
+    <string>可视化数据库</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

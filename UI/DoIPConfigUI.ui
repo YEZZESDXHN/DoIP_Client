@@ -73,8 +73,14 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>110</width>
+         <width>90</width>
          <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>90</width>
+         <height>16777215</height>
         </size>
        </property>
        <property name="font">
@@ -83,7 +89,7 @@
         </font>
        </property>
        <property name="text">
-        <string>DUT 逻辑地址(Hex)</string>
+        <string>应答(Hex)</string>
        </property>
       </widget>
      </item>
@@ -121,8 +127,14 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>110</width>
+         <width>90</width>
          <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>90</width>
+         <height>16777215</height>
         </size>
        </property>
        <property name="sizeIncrement">
@@ -137,7 +149,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Tester 逻辑地址(Hex)</string>
+        <string>请求ID(Hex)</string>
        </property>
       </widget>
      </item>
@@ -166,7 +178,7 @@
      <rect>
       <x>10</x>
       <y>100</y>
-      <width>201</width>
+      <width>291</width>
       <height>27</height>
      </rect>
     </property>
@@ -181,8 +193,14 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>60</width>
+         <width>90</width>
          <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>90</width>
+         <height>16777215</height>
         </size>
        </property>
        <property name="baseSize">
@@ -197,7 +215,7 @@
         </font>
        </property>
        <property name="text">
-        <string>DUT IP</string>
+        <string>被测件IP</string>
        </property>
       </widget>
      </item>
@@ -215,23 +233,113 @@
      </item>
     </layout>
    </widget>
+   <widget class="QCheckBox" name="checkBox_RouteActive">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>140</y>
+      <width>111</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="layoutDirection">
+     <enum>Qt::LayoutDirection::LeftToRight</enum>
+    </property>
+    <property name="text">
+     <string>RouteActive</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QWidget" name="layoutWidget_2">
+    <property name="geometry">
+     <rect>
+      <x>150</x>
+      <y>140</y>
+      <width>261</width>
+      <height>29</height>
+     </rect>
+    </property>
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,3">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="font">
+        <font>
+         <family>微软雅黑</family>
+        </font>
+       </property>
+       <property name="text">
+        <string>OEM specific</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_OEMSpecific">
+       <property name="font">
+        <font>
+         <family>微软雅黑</family>
+        </font>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
   </widget>
  </widget>
  <resources/>
  <connections>
   <connection>
    <sender>buttonBox</sender>
-   <signal>rejected()</signal>
+   <signal>accepted()</signal>
    <receiver>DoIPConfig</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>200</x>
+     <y>255</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
      <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>checkBox_RouteActive</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>label</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>80</x>
+     <y>161</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>274</x>
+     <y>174</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>checkBox_RouteActive</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>lineEdit_OEMSpecific</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>80</x>
+     <y>161</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>406</x>
+     <y>174</y>
     </hint>
    </hints>
   </connection>

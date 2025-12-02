@@ -15,9 +15,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractButton, QApplication, QDialog, QDialogButtonBox,
-    QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-    QSizePolicy, QWidget)
+from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QDialog,
+    QDialogButtonBox, QGroupBox, QHBoxLayout, QLabel,
+    QLineEdit, QSizePolicy, QWidget)
 
 class Ui_DoIPConfig(object):
     def setupUi(self, DoIPConfig):
@@ -47,7 +47,8 @@ class Ui_DoIPConfig(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
         self.label_6.setSizePolicy(sizePolicy)
-        self.label_6.setMinimumSize(QSize(110, 0))
+        self.label_6.setMinimumSize(QSize(90, 0))
+        self.label_6.setMaximumSize(QSize(90, 16777215))
         font = QFont()
         font.setFamilies([u"\u5fae\u8f6f\u96c5\u9ed1"])
         self.label_6.setFont(font)
@@ -70,7 +71,8 @@ class Ui_DoIPConfig(object):
         self.label_3.setObjectName(u"label_3")
         sizePolicy.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
         self.label_3.setSizePolicy(sizePolicy)
-        self.label_3.setMinimumSize(QSize(110, 0))
+        self.label_3.setMinimumSize(QSize(90, 0))
+        self.label_3.setMaximumSize(QSize(90, 16777215))
         self.label_3.setSizeIncrement(QSize(0, 0))
         self.label_3.setFont(font)
 
@@ -85,7 +87,7 @@ class Ui_DoIPConfig(object):
 
         self.layoutWidget2 = QWidget(self.groupBox_DoIPConfig)
         self.layoutWidget2.setObjectName(u"layoutWidget2")
-        self.layoutWidget2.setGeometry(QRect(10, 100, 201, 27))
+        self.layoutWidget2.setGeometry(QRect(10, 100, 291, 27))
         self.horizontalLayout_2 = QHBoxLayout(self.layoutWidget2)
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
@@ -93,7 +95,8 @@ class Ui_DoIPConfig(object):
         self.label_2.setObjectName(u"label_2")
         sizePolicy.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
         self.label_2.setSizePolicy(sizePolicy)
-        self.label_2.setMinimumSize(QSize(60, 0))
+        self.label_2.setMinimumSize(QSize(90, 0))
+        self.label_2.setMaximumSize(QSize(90, 16777215))
         self.label_2.setBaseSize(QSize(0, 0))
         self.label_2.setFont(font)
 
@@ -105,9 +108,37 @@ class Ui_DoIPConfig(object):
 
         self.horizontalLayout_2.addWidget(self.lineEdit_DUT_IP)
 
+        self.checkBox_RouteActive = QCheckBox(self.groupBox_DoIPConfig)
+        self.checkBox_RouteActive.setObjectName(u"checkBox_RouteActive")
+        self.checkBox_RouteActive.setGeometry(QRect(10, 140, 111, 24))
+        sizePolicy.setHeightForWidth(self.checkBox_RouteActive.sizePolicy().hasHeightForWidth())
+        self.checkBox_RouteActive.setSizePolicy(sizePolicy)
+        self.checkBox_RouteActive.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self.checkBox_RouteActive.setChecked(True)
+        self.layoutWidget_2 = QWidget(self.groupBox_DoIPConfig)
+        self.layoutWidget_2.setObjectName(u"layoutWidget_2")
+        self.layoutWidget_2.setGeometry(QRect(150, 140, 261, 29))
+        self.horizontalLayout = QHBoxLayout(self.layoutWidget_2)
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
+        self.label = QLabel(self.layoutWidget_2)
+        self.label.setObjectName(u"label")
+        self.label.setFont(font)
+
+        self.horizontalLayout.addWidget(self.label)
+
+        self.lineEdit_OEMSpecific = QLineEdit(self.layoutWidget_2)
+        self.lineEdit_OEMSpecific.setObjectName(u"lineEdit_OEMSpecific")
+        self.lineEdit_OEMSpecific.setFont(font)
+
+        self.horizontalLayout.addWidget(self.lineEdit_OEMSpecific)
+
+        self.horizontalLayout.setStretch(1, 3)
 
         self.retranslateUi(DoIPConfig)
-        self.buttonBox.rejected.connect(DoIPConfig.reject)
+        self.buttonBox.accepted.connect(DoIPConfig.reject)
+        self.checkBox_RouteActive.toggled.connect(self.label.setVisible)
+        self.checkBox_RouteActive.toggled.connect(self.lineEdit_OEMSpecific.setVisible)
 
         QMetaObject.connectSlotsByName(DoIPConfig)
     # setupUi
@@ -115,11 +146,13 @@ class Ui_DoIPConfig(object):
     def retranslateUi(self, DoIPConfig):
         DoIPConfig.setWindowTitle(QCoreApplication.translate("DoIPConfig", u"Dialog", None))
         self.groupBox_DoIPConfig.setTitle("")
-        self.label_6.setText(QCoreApplication.translate("DoIPConfig", u"DUT \u903b\u8f91\u5730\u5740(Hex)", None))
+        self.label_6.setText(QCoreApplication.translate("DoIPConfig", u"\u5e94\u7b54(Hex)", None))
         self.lineEdit_DUTLogicalAddress.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 77A)", None))
-        self.label_3.setText(QCoreApplication.translate("DoIPConfig", u"Tester \u903b\u8f91\u5730\u5740(Hex)", None))
+        self.label_3.setText(QCoreApplication.translate("DoIPConfig", u"\u8bf7\u6c42ID(Hex)", None))
         self.lineEdit_TesterLogicalAddress.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 7E2)", None))
-        self.label_2.setText(QCoreApplication.translate("DoIPConfig", u"DUT IP", None))
+        self.label_2.setText(QCoreApplication.translate("DoIPConfig", u"\u88ab\u6d4b\u4ef6IP", None))
         self.lineEdit_DUT_IP.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 192.168.1.1)", None))
+        self.checkBox_RouteActive.setText(QCoreApplication.translate("DoIPConfig", u"RouteActive", None))
+        self.label.setText(QCoreApplication.translate("DoIPConfig", u"OEM specific", None))
     # retranslateUi
 

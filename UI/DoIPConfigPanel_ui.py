@@ -6,7 +6,7 @@ from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from UI.DoIPConfigUI import Ui_DoIPConfig
-from db_manager import DoIPConfig
+from user_data import DoIPConfig
 from utils import hex_str_to_int
 
 

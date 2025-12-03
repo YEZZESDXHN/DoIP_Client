@@ -12,9 +12,10 @@ from UI.DoIPConfigPanel_ui import DoIPConfigPanel
 from UI.DoIPToolMainUI import Ui_MainWindow
 from UDSOnIP import QUDSOnIPClient
 from UI.DoIPTraceTable_ui import DoIPTraceTableView
-from UI.sql_ui import SQLTablePanel
+from UI.sql_data_panel import SQLTablePanel
 from UI.treeView_ui import DiagTreeView, DiagTreeDataModel
-from db_manager import DBManager, DoIPConfig
+from db_manager import DBManager
+from user_data import DoIPConfig
 from utils import get_ethernet_ips
 from pathlib import Path
 

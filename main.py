@@ -110,6 +110,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 添加DoIPTrace表格到诊断自动化流程
         self.tableView_DoIPTrace_Automated_Process = self._add_custom_table_view(self.groupBox_AutomatedDiagTrace)
 
+        # 共用同一数据模型，需要取消以下两个信号连接
+        # self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        # self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        # 搜索关键字可以在_connect_doip_client_signals中可以找到
+        self.tableView_DoIPTrace_Automated_Process.trace_model = self.tableView_DoIPTrace.trace_model
+        self.tableView_DoIPTrace_Automated_Process.setModel(self.tableView_DoIPTrace.trace_model)
+
         # 添加TreeView控件
         self.treeView_Diag = self._add_custom_tree_view(self.scrollArea_DiagTree)
 
@@ -225,8 +232,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace.add_trace_data)
         self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace.add_trace_data)
 
-        self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
-        self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        # self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        # self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
 
         self.uds_on_ip_client.doip_response.connect(self.doip_response_callback)
 
@@ -387,6 +394,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.current_doip_config.dut_ipv4_address = config_panel.config.dut_ipv4_address
                 self.current_doip_config.is_routing_activation_use = config_panel.config.is_routing_activation_use
                 self.current_doip_config.oem_specific = config_panel.config.oem_specific
+                self.db_manager.update_doip_config(self.current_doip_config)
                 logger.info(
                     f"DoIP配置已更新 - 测试机逻辑地址: 0x{config_panel.config.tester_logical_address:X}, "
                     f"ECU逻辑地址: 0x{config_panel.config.dut_logical_address:X}, ECU IP: {config_panel.config.dut_ipv4_address}"

@@ -112,7 +112,7 @@ class DoIPTraceTableView(QTableView):
         super().__init__(parent)
         self._auto_scroll = True  # 自动滚动开关
         self._headers = headers
-        self.trace_model = DoIPTraceTableModel(headers=headers, max_rows=500)  # 初始化模型
+        self.trace_model: DoIPTraceTableModel = DoIPTraceTableModel(headers=headers, max_rows=500)  # 初始化模型
         # 列显示状态管理（key:列索引，value:是否显示）
         self._column_visible: Dict[int, bool] = {
             idx: True for idx in range(self.trace_model.columnCount())
@@ -380,8 +380,11 @@ class DoIPTraceTableView(QTableView):
                     data['ASCII'] = data['uds data'].decode("ascii", errors="ignore")
                 except Exception as e:
                     logger.exception(f'转ascii失败，{e}')
-            if data['Data']:
-                data['Data'] = data['Data'].hex(' ')
+            try:
+                if data['Data']:
+                    data['Data'] = data['Data'].hex(' ')
+            except:
+                pass
             self.trace_model.append_trace_data(data)
             if self._auto_scroll:
                 self.scrollToBottom()  # 自动滚动到底部

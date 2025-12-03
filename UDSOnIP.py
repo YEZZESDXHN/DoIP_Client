@@ -211,6 +211,12 @@ class QUDSOnIPClient(QObject):
                 logger.debug(f'ConfigError:{e}')
             except Exception as e:
                 response_dict = {}
+                try:
+                    response_dict['Time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                    response_dict['Dir'] = 'Rx'
+                    response_dict['Type'] = e.args[0]
+                except:
+                    pass
                 self.doip_response.emit(response_dict)
                 self.error_signal.emit(e)
                 logger.exception(e)

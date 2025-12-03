@@ -14,6 +14,8 @@ from udsoncan import ClientConfig, Request, Response, NegativeResponseException,
 from udsoncan.client import Client
 from udsoncan.configs import default_client_config
 
+from user_data import TableViewData
+
 logger = logging.getLogger('UDSOnIPClient.' + __name__)
 
 
@@ -75,8 +77,8 @@ class QUDSOnIPClient(QObject):
 
     doip_connect_state = Signal(bool)
 
-    doip_request = Signal(dict)
-    doip_response = Signal(dict)
+    doip_request = Signal(TableViewData)
+    doip_response = Signal(TableViewData)
 
     def __init__(self):
         super().__init__()
@@ -162,47 +164,61 @@ class QUDSOnIPClient(QObject):
         if self.uds_on_ip_client:
             try:
                 req = Request.from_payload(payload)
+                req_data = req.get_payload()
+                req_table_view_data = TableViewData(
+                    Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                    Dir='Tx',
+                    Type=req.service.get_name(),
+                    Destination_IP=self.ecu_ip_address,
+                    Source_IP=self.client_ip_address,
+                    Data_bytes=req_data,
+                    DataLength=len(req_data),
 
-                request_dict = {}
-                request_dict['Time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-                request_dict['Dir'] = 'Tx'
-                request_dict['Type'] = req.service.get_name()
-                request_dict['Destination IP'] = self.ecu_ip_address
-                request_dict['Source IP'] = self.client_ip_address
-                request_dict['Data'] = req.get_payload()
-                request_dict['DataLength'] = len(request_dict['Data'])
-                # request_dict['code_name'] = req.code_name
-                # request_dict['uds data'] = req.data
-                self.doip_request.emit(request_dict)
+                )
+                req_table_view_data.Data_bytes_to_Data_hex()
+
+                self.doip_request.emit(req_table_view_data)
 
                 response = self.uds_on_ip_client.send_request(req)
-                response_dict = {}
-                response_dict['Time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-                response_dict['Dir'] = 'Rx'
-                response_dict['Type'] = response.code_name
-                response_dict['Destination IP'] = self.client_ip_address
-                response_dict['Source IP'] = self.ecu_ip_address
-                response_dict['Data'] = response.original_payload
-                response_dict['DataLength'] = len(response_dict['Data'])
-                response_dict['code_name'] = response.code_name
-                response_dict['uds data'] = response.data
-                self.doip_response.emit(response_dict)
+                resp_data = response.original_payload
+                resp_table_view_data = TableViewData(
+                    Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                    Dir='Rx',
+                    Type=response.code_name,
+                    Destination_IP=self.client_ip_address,
+                    Source_IP=self.ecu_ip_address,
+                    Data_bytes=resp_data,
+                    DataLength=len(resp_data),
+                    code_name=response.code_name,
+                    uds_data=response.data
+                )
+                resp_table_view_data.Data_bytes_to_Data_hex()
+                self.doip_response.emit(resp_table_view_data)
             except TimeoutException as e:
+                resp_table_view_data = TableViewData(
+                    Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                    Dir='Rx',
+                    Type='TimeoutException',
+                )
+                self.doip_response.emit(resp_table_view_data)
                 self.error_signal.emit(e)
                 logger.debug(f'timeout:{e}')
             except NegativeResponseException as negative_response:
                 response = negative_response.response
-                response_dict = {}
-                response_dict['Time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-                response_dict['Dir'] = 'Rx'
-                response_dict['Type'] = response.code_name
-                response_dict['Destination IP'] = self.client_ip_address
-                response_dict['Source IP'] = self.ecu_ip_address
-                response_dict['Data'] = response.original_payload
-                response_dict['DataLength'] = len(response_dict['Data'])
-                response_dict['code_name'] = response.code_name
-                response_dict['uds data'] = response.data
-                self.doip_response.emit(response_dict)
+                resp_data = response.original_payload
+                resp_table_view_data = TableViewData(
+                    Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                    Dir='Rx',
+                    Type=response.code_name,
+                    Destination_IP=self.client_ip_address,
+                    Source_IP=self.ecu_ip_address,
+                    Data_bytes=resp_data,
+                    DataLength=len(resp_data),
+                    code_name=response.code_name,
+                    uds_data=response.data
+                )
+                resp_table_view_data.Data_bytes_to_Data_hex()
+                self.doip_response.emit(resp_table_view_data)
             except InvalidResponseException as e:
                 logger.debug(f'InvalidResponseException:{e}')
             except UnexpectedResponseException as e:
@@ -210,20 +226,19 @@ class QUDSOnIPClient(QObject):
             except ConfigError as e:
                 logger.debug(f'ConfigError:{e}')
             except Exception as e:
-                response_dict = {}
                 try:
-                    response_dict['Time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-                    response_dict['Dir'] = 'Rx'
-                    response_dict['Type'] = e.args[0]
+                    resp_table_view_data = TableViewData(
+                        Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                        Dir='Rx',
+                        Type=e.args[0],
+                    )
+                    self.doip_response.emit(resp_table_view_data)
                 except:
                     pass
-                self.doip_response.emit(response_dict)
                 self.error_signal.emit(e)
                 logger.exception(e)
         else:
             info_message = f'DoIP未连接'
-            response_dict = {}
-            self.doip_response.emit(response_dict)
             logger.info(info_message)
             self.info_signal.emit(info_message)
 

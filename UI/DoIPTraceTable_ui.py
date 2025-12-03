@@ -7,6 +7,8 @@ from PySide6.QtWidgets import QTableView, QScrollBar, QMenu, QMessageBox, QFileD
 from openpyxl.styles import Font, Alignment
 from openpyxl.workbook import Workbook
 
+from user_data import TableViewData
+
 logger = logging.getLogger("UiCustom")
 
 DEFAULT_HEADERS = (
@@ -34,11 +36,11 @@ DEFAULT_DISPLAY_HEADERS = (
 class DoIPTraceTableModel(QAbstractTableModel):
     """DoIP追踪表格模型，优化数据管理和批量更新"""
 
-    def __init__(self, headers: tuple = DEFAULT_HEADERS, max_rows: int = 500):
+    def __init__(self, max_rows: int = 500):
         super().__init__()
         self.max_rows = max_rows  # 最大行数（防止内存溢出）
-        self._data: List[Dict[str, Optional[str]]] = []
-        self._headers = headers
+        self._data: List[TableViewData] = []
+        self._headers = TableViewData().get_attr_names()[:8]
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self._data)
@@ -56,12 +58,13 @@ class DoIPTraceTableModel(QAbstractTableModel):
 
         # 显示数据
         if role == Qt.ItemDataRole.DisplayRole:
-            return self._data[row].get(col_name, "")
+            test = getattr(self._data[row], col_name, '')
+            return getattr(self._data[row], col_name, '')
 
-    def append_trace_data(self, trace_row: Dict):
+    def append_trace_data(self, table_view_data: TableViewData):
         """
         追加一行追踪数据，自动清理超出最大行数的旧数据
-        :param trace_row: 行数据
+        :param table_view_data: 行数据
         """
 
         # 计算超出的行数，批量清理旧数据（支持一次性删除多行）
@@ -79,7 +82,7 @@ class DoIPTraceTableModel(QAbstractTableModel):
         insert_row_idx = len(self._data)  # 新行的索引（末尾）
         # 通知视图：即将在insert_row_idx位置插入1行
         self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
-        self._data.append(trace_row)
+        self._data.append(table_view_data)
         # 通知视图：插入操作完成
         self.endInsertRows()
         logger.debug(f"表格模型新增1行数据，当前总行数{len(self._data)}")
@@ -100,7 +103,7 @@ class DoIPTraceTableModel(QAbstractTableModel):
         logger.debug("表格模型数据已清空")
 
     @property
-    def data_list(self) -> List[Dict[str, Optional[str]]]:
+    def data_list(self) -> List[TableViewData]:
         """获取原始数据（只读）"""
         return self._data.copy()
 
@@ -108,11 +111,11 @@ class DoIPTraceTableModel(QAbstractTableModel):
 class DoIPTraceTableView(QTableView):
     """DoIP追踪表格，优化布局和交互"""
 
-    def __init__(self, headers: tuple = DEFAULT_HEADERS, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self._auto_scroll = True  # 自动滚动开关
-        self._headers = headers
-        self.trace_model: DoIPTraceTableModel = DoIPTraceTableModel(headers=headers, max_rows=500)  # 初始化模型
+        self._headers = TableViewData().get_attr_names()[:8]
+        self.trace_model: DoIPTraceTableModel = DoIPTraceTableModel(max_rows=500)  # 初始化模型
         # 列显示状态管理（key:列索引，value:是否显示）
         self._column_visible: Dict[int, bool] = {
             idx: True for idx in range(self.trace_model.columnCount())
@@ -368,23 +371,14 @@ class DoIPTraceTableView(QTableView):
         if self._auto_scroll:
             logger.debug("表格滚动到底部，开启自动滚动")
 
-    def add_trace_data(self, data: Dict):
+    def add_trace_data(self, data: TableViewData):
         """对外暴露的接口：添加追踪数据"""
-        if not data:
+        if data.is_empty():
             return
 
         try:
-            if self._column_visible[self._header_column_mapping['ASCII']] and 'Data' in data and 'uds data' in data and \
-                    data['uds data']:
-                try:
-                    data['ASCII'] = data['uds data'].decode("ascii", errors="ignore")
-                except Exception as e:
-                    logger.exception(f'转ascii失败，{e}')
-            try:
-                if data['Data']:
-                    data['Data'] = data['Data'].hex(' ')
-            except:
-                pass
+            if self._column_visible[self._header_column_mapping['ASCII']]:
+                data.uds_data_to_ascii()
             self.trace_model.append_trace_data(data)
             if self._auto_scroll:
                 self.scrollToBottom()  # 自动滚动到底部

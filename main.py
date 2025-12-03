@@ -15,7 +15,7 @@ from UI.DoIPTraceTable_ui import DoIPTraceTableView
 from UI.sql_data_panel import SQLTablePanel
 from UI.treeView_ui import DiagTreeView, DiagTreeDataModel
 from db_manager import DBManager
-from user_data import DoIPConfig
+from user_data import DoIPConfig, TableViewData
 from utils import get_ethernet_ips
 from pathlib import Path
 
@@ -238,7 +238,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.uds_on_ip_client.doip_response.connect(self.doip_response_callback)
 
     @Slot(dict)
-    def doip_response_callback(self, data: dict):
+    def doip_response_callback(self, data: TableViewData):
         self.pushButton_SendDoIP.setDisabled(False)
 
     @Slot(int)

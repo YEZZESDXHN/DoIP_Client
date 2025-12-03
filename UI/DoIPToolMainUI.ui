@@ -214,6 +214,24 @@
         </property>
        </spacer>
       </item>
+      <item row="1" column="3">
+       <widget class="QPushButton" name="pushButton_CreateConfig">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <family>微软雅黑</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>新建配置</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </item>
     <item>
@@ -283,7 +301,7 @@
           <x>0</x>
           <y>0</y>
           <width>100</width>
-          <height>30</height>
+          <height>31</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -351,8 +369,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>248</width>
-              <height>701</height>
+              <width>246</width>
+              <height>668</height>
              </rect>
             </property>
            </widget>
@@ -461,8 +479,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>1316</width>
-                <height>667</height>
+                <width>246</width>
+                <height>16</height>
                </rect>
               </property>
              </widget>
@@ -498,7 +516,7 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>22</height>
+     <height>33</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_about">

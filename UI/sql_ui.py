@@ -22,8 +22,8 @@ class SQLTablePanel(Ui_sql, QDialog):
         self.init_model()
         self.bind_events()
         self.load_all_tables()
-        if self.current_table:
-            self.load_table_data(self.current_table)
+        # if self.current_table:
+        #     self.load_table_data(self.current_table)
 
     def init_table_settings(self):
         """初始化表格样式和功能"""

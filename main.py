@@ -2,11 +2,9 @@ import logging.config
 import sys
 from typing import Optional
 
-from PySide6.QtCore import QThread, Slot, Signal
+from PySide6.QtCore import QThread, Slot, Signal, Qt
 from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
-                               QSizePolicy, QLayout, QDialog, QHeaderView, QStyle)
-from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
-from doipclient.messages import RoutingActivationRequest
+                               QSizePolicy, QDialog, QStyle)
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
@@ -16,7 +14,7 @@ from UDSOnIP import QUDSOnIPClient
 from UI.DoIPTraceTable_ui import DoIPTraceTableView
 from UI.sql_ui import SQLTablePanel
 from UI.treeView_ui import DiagTreeView, DiagTreeDataModel
-from db_manager import DBManager
+from db_manager import DBManager, DoIPConfig
 from utils import get_ethernet_ips
 from pathlib import Path
 
@@ -37,52 +35,55 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        # 初始化属性
-        self._init_attributes()
+        self.tester_ip_address: Optional[str] = None
+        self.current_doip_config: Optional[DoIPConfig] = None
+        self.db_manager: Optional[DBManager] = None
+        self.uds_on_ip_client = None
+        self.uds_on_ip_client_thread = None
+        self.auto_reconnect_tcp = True
+        self.uds_request_timeout: Optional[float] = None
+        self.uds_config: ClientConfig = default_client_config
 
-        self.load_database(self.db_path)
+        self.ip_list = []
+
+        self.db_path = 'Database/database.db'
+        self.init_database(self.db_path)
+        self._init_current_doip_config()
 
         # 初始化UI、客户端、信号、IP列表
         self._init_ui()
         self._init_doip_client()
         self._init_signals()
         self._refresh_ip_list()
-    def load_database(self, db):
-        self.db_manager = DBManager(db)
 
-    def _init_attributes(self):
-        """初始化所有配置属性（集中管理，提高可读性）"""
-        self.uds_on_ip_client = None
-        self.uds_on_ip_client_thread = None
+    def _init_current_doip_config(self):
+        try:
+            current_config_name = self.db_manager.get_active_config_name()
+            self.current_doip_config = self.db_manager.query_doip_config(current_config_name)
+        except Exception as e:
+            logger.exception(f'{e}')
 
-        self.ip_list = []
-        self.ecu_ip_address = '172.16.104.70'
-        # self.ecu_ip_address = '127.0.0.1'
-        self.client_ip_address = None
-        self.client_logical_address = 0x7e2
-        self.ecu_logical_address = 0x773
-        self.vm_specific = 0
-        self.tcp_port = TCP_DATA_UNSECURED
-        self.udp_port = UDP_DISCOVERY
-        self.activation_type = RoutingActivationRequest.ActivationType.Default
-        self.protocol_version = 0x02
-        self.use_secure = False
-        self.auto_reconnect_tcp = True
-        self.uds_request_timeout: Optional[float] = None
-        self.uds_config: ClientConfig = default_client_config
+            self.current_doip_config = DoIPConfig(
+                config_name='default',
+                tester_logical_address=0x7e2,
+                dut_logical_address=0x773,
+                dut_ipv4_address='172.16.104.70',
+            )
 
-        self.db_path = 'Database/database.db'
-
-        db_path = Path(self.db_path)  # 转换为 Path 对象（方便处理路径）
+    def init_database(self, db):
+        db_path = Path(db)  # 转换为 Path 对象（方便处理路径）
         db_dir = db_path.parent  # 获取数据库文件所在的文件夹路径
 
-        # 如果文件夹不存在，创建文件夹（包括多级目录）
+        # 如果文件夹不存在，创建文件夹
         if not db_dir.exists():
             try:
                 db_dir.mkdir(parents=True, exist_ok=True)  # parents=True：创建多级目录；exist_ok=True：已存在则不报错
                 logger.info(f"数据库文件夹不存在，已自动创建：{db_dir}")
             except Exception as e:
                 logger.exception(f"创建数据库文件夹失败：{str(e)}")
+        self.db_manager = DBManager(db)
+
+
 
     def _init_doip_client(self):
         """初始化DoIP客户端和线程"""
@@ -111,12 +112,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 添加TreeView控件
         self.treeView_Diag = self._add_custom_tree_view(self.scrollArea_DiagTree)
 
-        doip_configs = self.db_manager.get_all_config_names()
-        current_active_config = self.db_manager.get_active_config_name()
-        if current_active_config in doip_configs:
-            for config in doip_configs:
+        doip_config_names = self.db_manager.get_all_config_names()
+        if self.current_doip_config.config_name in doip_config_names:
+            for config in doip_config_names:
                 self.comboBox_ChooseConfig.addItem(config)
-            self.comboBox_ChooseConfig.setCurrentText(current_active_config)
+            self.comboBox_ChooseConfig.setCurrentText(self.current_doip_config.config_name)
 
 
     def _add_custom_tree_view(self, parent_widget):
@@ -194,6 +194,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButton_ConnectDoIP.clicked.connect(self.change_doip_connect_state)
         self.pushButton_SendDoIP.clicked.connect(self._get_data_and_send_raw_doip_payload)
         self.pushButton_EditConfig.clicked.connect(self.open_edit_config_panel)
+        self.pushButton_CreateConfig.clicked.connect(self.open_create_config_panel)
         self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
 
         # 复选框和下拉框信号
@@ -208,6 +209,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.treeView_Diag.clicked_node_data.connect(self.send_raw_doip_payload)
 
         self.action_database.triggered.connect(self.open_sql_ui)
+
+        self.comboBox_ChooseConfig.currentIndexChanged.connect(self._on_doip_config_chaneged)
 
 
     def _connect_doip_client_signals(self):
@@ -230,11 +233,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def doip_response_callback(self, data: dict):
         self.pushButton_SendDoIP.setDisabled(False)
 
+    @Slot(int)
+    def _on_doip_config_chaneged(self, index: int):
+        config_name = self.comboBox_ChooseConfig.currentText()
+        self.current_doip_config = self.db_manager.query_doip_config(config_name)
+        self.db_manager.set_active_config(config_name)
 
     def set_tester_ip(self, index: int):
         """设置测试机IP"""
-        self.client_ip_address = None if index == 0 else self.comboBox_TesterIP.currentText()
-        logger.debug(f"测试机IP已设置为：{self.client_ip_address}")
+        self.tester_ip_address = None if index == 0 else self.comboBox_TesterIP.currentText()
+        logger.debug(f"测试机IP已设置为：{self.tester_ip_address}")
 
     @Slot()
     def set_auto_reconnect_tcp(self, state):
@@ -287,17 +295,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
 
         client = self.uds_on_ip_client
-        client.ecu_ip_address = self.ecu_ip_address
-        client.ecu_logical_address = self.ecu_logical_address
-        client.tcp_port = self.tcp_port
-        client.udp_port = self.udp_port
-        client.activation_type = self.activation_type
-        client.protocol_version = self.protocol_version
-        client.client_logical_address = self.client_logical_address
-        client.client_ip_address = self.client_ip_address
-        client.use_secure = self.use_secure
+        client.ecu_ip_address = self.current_doip_config.dut_ipv4_address
+        client.ecu_logical_address = self.current_doip_config.dut_logical_address
+        client.tcp_port = self.current_doip_config.tcp_port
+        client.udp_port = self.current_doip_config.udp_port
+        client.activation_type = self.current_doip_config.activation_type
+        client.protocol_version = self.current_doip_config.protocol_version
+        client.client_logical_address = self.current_doip_config.tester_logical_address
+        client.client_ip_address = self.tester_ip_address
+        client.use_secure = self.current_doip_config.use_secure
         client.auto_reconnect_tcp = self.auto_reconnect_tcp
-        client.vm_specific = self.vm_specific
+        client.vm_specific = self.current_doip_config.oem_specific
         client.uds_request_timeout = self.uds_request_timeout
         client.uds_config = self.uds_config
         logger.debug("DoIP客户端配置已更新")
@@ -311,23 +319,77 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.sql_table_panel.show()
 
     @Slot()
+    def open_create_config_panel(self):
+        """打开DoIP新建配置面板"""
+        config_panel = DoIPConfigPanel(parent=self, is_create_new_config=True)
+        config_panel.setWindowTitle('新建配置')
+        new_config = DoIPConfig()
+
+        # config_panel.lineEdit_ConfigName.setText(self.db_manager.get_active_config_name())
+        # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
+        config_panel.lineEdit_DUT_IP.setText(new_config.dut_ipv4_address)
+        config_panel.lineEdit_TesterLogicalAddress.setText(f"{new_config.tester_logical_address:X}")
+        config_panel.lineEdit_DUTLogicalAddress.setText(f"{new_config.dut_logical_address:X}")
+        config_panel.lineEdit_OEMSpecific.setText(str(new_config.oem_specific))
+        config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
+
+        if config_panel.exec() == QDialog.Accepted:
+            new_config.config_name = config_panel.config.config_name
+            new_config.tester_logical_address = config_panel.config.tester_logical_address
+            new_config.dut_logical_address = config_panel.config.dut_logical_address
+            new_config.dut_ipv4_address = config_panel.config.dut_ipv4_address
+            new_config.is_routing_activation_use = config_panel.config.is_routing_activation_use
+            new_config.oem_specific = config_panel.config.oem_specific
+            logger.info(
+                f"新DoIP配置 - 测试机逻辑地址: 0x{config_panel.config.tester_logical_address:X}, "
+                f"ECU逻辑地址: 0x{config_panel.config.dut_logical_address:X}, ECU IP: {config_panel.config.dut_ipv4_address}"
+            )
+            self.db_manager.add_doip_config(new_config)
+            self.comboBox_ChooseConfig.addItem(new_config.config_name)
+
+    @Slot()
     def open_edit_config_panel(self):
         """打开DoIP配置编辑面板"""
         config_panel = DoIPConfigPanel(parent=self)
-
+        config_panel.setWindowTitle('修改配置')
+        config_panel.lineEdit_ConfigName.setText(self.db_manager.get_active_config_name())
         # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
-        config_panel.lineEdit_DUT_IP.setText(self.ecu_ip_address)
-        config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.client_logical_address:X}")
-        config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.ecu_logical_address:X}")
+        config_panel.lineEdit_DUT_IP.setText(self.current_doip_config.dut_ipv4_address)
+        config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.current_doip_config.tester_logical_address:X}")
+        config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.current_doip_config.dut_logical_address:X}")
+        config_panel.lineEdit_OEMSpecific.setText(str(self.current_doip_config.oem_specific))
+        if self.current_doip_config.is_routing_activation_use:
+            config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
+        else:
+            config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Unchecked)
 
         if config_panel.exec() == QDialog.Accepted:
-            self.client_logical_address = config_panel.config.get('tester_logical_address', self.client_logical_address)
-            self.ecu_logical_address = config_panel.config.get('DUT_logical_address', self.ecu_logical_address)
-            self.ecu_ip_address = config_panel.config.get('DUT_ipv4_address', self.ecu_ip_address).strip()
-            logger.info(
-                f"DoIP配置已更新 - 测试机逻辑地址: 0x{self.client_logical_address:X}, "
-                f"ECU逻辑地址: 0x{self.ecu_logical_address:X}, ECU IP: {self.ecu_ip_address}"
-            )
+            if config_panel.config is None:  # 删除配置
+                self.db_manager.delete_doip_config(self.current_doip_config.config_name)
+                doip_config_names = self.db_manager.get_all_config_names()
+                if len(doip_config_names) > 0:
+                    try:
+                        self.comboBox_ChooseConfig.clear()
+                        self.db_manager.set_active_config(doip_config_names[0])
+                        for config in doip_config_names:
+                            self.comboBox_ChooseConfig.addItem(config)
+                        self.comboBox_ChooseConfig.setCurrentText(self.current_doip_config.config_name)
+                    except Exception as e:
+                        self.db_manager.set_active_config('')
+                        logger.exception(e)
+                else:
+                    self.comboBox_ChooseConfig.clear()
+            elif isinstance(config_panel.config, DoIPConfig):
+                self.current_doip_config.config_name = config_panel.config.config_name
+                self.current_doip_config.tester_logical_address = config_panel.config.tester_logical_address
+                self.current_doip_config.dut_logical_address = config_panel.config.dut_logical_address
+                self.current_doip_config.dut_ipv4_address = config_panel.config.dut_ipv4_address
+                self.current_doip_config.is_routing_activation_use = config_panel.config.is_routing_activation_use
+                self.current_doip_config.oem_specific = config_panel.config.oem_specific
+                logger.info(
+                    f"DoIP配置已更新 - 测试机逻辑地址: 0x{config_panel.config.tester_logical_address:X}, "
+                    f"ECU逻辑地址: 0x{config_panel.config.dut_logical_address:X}, ECU IP: {config_panel.config.dut_ipv4_address}"
+                )
 
     @Slot(bool)
     def _update_doip_connect_state(self, state: bool):

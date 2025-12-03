@@ -121,6 +121,14 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2.addItem(self.horizontalSpacer_2, 1, 4, 1, 1)
 
+        self.pushButton_CreateConfig = QPushButton(self.centralwidget)
+        self.pushButton_CreateConfig.setObjectName(u"pushButton_CreateConfig")
+        sizePolicy.setHeightForWidth(self.pushButton_CreateConfig.sizePolicy().hasHeightForWidth())
+        self.pushButton_CreateConfig.setSizePolicy(sizePolicy)
+        self.pushButton_CreateConfig.setFont(font)
+
+        self.gridLayout_2.addWidget(self.pushButton_CreateConfig, 1, 3, 1, 1)
+
         self.gridLayout_2.setColumnStretch(0, 1)
 
         self.verticalLayout_5.addLayout(self.gridLayout_2)
@@ -163,7 +171,7 @@ class Ui_MainWindow(object):
         self.plainTextEdit_DataDisplay.setGeometry(QRect(20, 100, 256, 192))
         self.layoutWidget = QWidget(self.tab_info)
         self.layoutWidget.setObjectName(u"layoutWidget")
-        self.layoutWidget.setGeometry(QRect(0, 0, 100, 30))
+        self.layoutWidget.setGeometry(QRect(0, 0, 100, 31))
         self.verticalLayout_3 = QVBoxLayout(self.layoutWidget)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
@@ -197,7 +205,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 248, 701))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 668))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         self.splitter.addWidget(self.scrollArea_DiagTree)
         self.layoutWidget1 = QWidget(self.splitter)
@@ -262,7 +270,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTree_2.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 1316, 667))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 246, 16))
         self.scrollArea_DiagTree_2.setWidget(self.scrollAreaWidgetContents_2)
         self.splitter_3.addWidget(self.scrollArea_DiagTree_2)
         self.splitter_2 = QSplitter(self.splitter_3)
@@ -289,7 +297,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
         self.menu_set = QMenu(self.menubar)
@@ -323,6 +331,7 @@ class Ui_MainWindow(object):
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"\u914d\u7f6e", None))
         self.pushButton_RefreshIP.setText(QCoreApplication.translate("MainWindow", u"\u5237\u65b0", None))
         self.checkBox_AotuReconnect.setText(QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
+        self.pushButton_CreateConfig.setText(QCoreApplication.translate("MainWindow", u"\u65b0\u5efa\u914d\u7f6e", None))
         self.pushButton_SendDoIP.setText(QCoreApplication.translate("MainWindow", u"Send", None))
         self.pushButton_ClearText.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_info), QCoreApplication.translate("MainWindow", u"Info", None))

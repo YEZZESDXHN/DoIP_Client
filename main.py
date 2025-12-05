@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
+from UI.AutomaticDiagnosisProcess_ui import DiagProcessTableView, DiagProcessTableModel
 from UI.DoIPConfigPanel_ui import DoIPConfigPanel
 from UI.DoIPToolMainUI import Ui_MainWindow
 from UDSOnIP import QUDSOnIPClient
@@ -120,6 +121,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 添加TreeView控件
         self.treeView_Diag = self._add_custom_tree_view(self.scrollArea_DiagTree)
 
+        self.diag_process_table_view = self._add_diag_process_table_view(self.groupBox_AutomatedDiagProcessTable)
+
         doip_config_names = self.db_manager.get_all_config_names()
         if self.current_doip_config.config_name in doip_config_names:
             for config in doip_config_names:
@@ -158,6 +161,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         parent_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         return tree_view
+
+    def _add_diag_process_table_view(self, parent_widget):
+        if not parent_widget:
+            logger.error("父控件无效")
+            return
+        diag_process_table_view = DiagProcessTableView(parent=parent_widget)
+        diag_process_table_model = DiagProcessTableModel()
+        diag_process_table_view.setModel(diag_process_table_model)
+        logger.debug(f"父控件：{parent_widget.objectName()}")
+
+
+        # 获取或创建布局
+        layout = parent_widget.layout()
+        if layout is None:
+            layout = QHBoxLayout(parent_widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+
+        # 添加表格并设置拉伸因子（核心：让表格铺满）
+        layout.addWidget(diag_process_table_view)
+        layout.setStretchFactor(diag_process_table_view, 1)
+
+        # 设置父控件尺寸策略（确保父控件也铺满上层）
+        parent_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        return diag_process_table_view
 
 
     def _add_custom_table_view(self, parent_widget):

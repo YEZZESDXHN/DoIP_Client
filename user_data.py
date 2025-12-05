@@ -1,7 +1,25 @@
 from dataclasses import dataclass, asdict, fields
+from typing import Any
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
+
+
+@dataclass
+class DiagnosisStepData:
+    enable: int = 1
+    service_tree: Any = None
+
+
+    def get_attr_names(self) -> tuple:
+        """返回属性名字元组（核心新增方法）"""
+        # fields(self) 按定义顺序返回所有数据属性，提取 name 组成元组
+        return tuple(field.name for field in fields(self))
+
+    def to_tuple(self) -> tuple:
+        """返回所有数据属性的元组（顺序与属性定义一致）"""
+        # 遍历 fields 按定义顺序提取属性值
+        return tuple(getattr(self, field.name) for field in fields(self))
 
 
 @dataclass

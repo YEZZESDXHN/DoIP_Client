@@ -21,23 +21,7 @@ DEFAULT_DOIP_CONFIG_INSTANCE = DoIPConfig(
     dut_logical_address=0x773,
     dut_ipv4_address='172.16.104.70',
 )
-def json_default_converter(obj):
-    """
-    一个自定义转换器，用于处理 JSON 无法直接序列化的对象。
-    如果对象是 bytes 类型，则将其转换为 Base64 编码的字符串。
-    如果对象是 bool 类型，则将其转换为 int。
-    """
-    if isinstance(obj, bytes):
-        # 1. Base64 编码 (bytes -> bytes)
-        encoded_bytes = base64.b64encode(obj)
-        # 2. 转换为 UTF-8 字符串 (bytes -> str)
-        return encoded_bytes.decode('utf-8')
 
-    if isinstance(obj, bool):
-        return 1 if obj else 0
-
-    # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
-    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 def sql_converter(obj):

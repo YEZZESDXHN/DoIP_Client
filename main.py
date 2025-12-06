@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtCore import QThread, Slot, Signal, Qt
 from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
-                               QSizePolicy, QDialog, QStyle)
+                               QSizePolicy, QDialog, QStyle, QAbstractItemView)
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
@@ -118,10 +118,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_DoIPTrace_Automated_Process.trace_model = self.tableView_DoIPTrace.trace_model
         self.tableView_DoIPTrace_Automated_Process.setModel(self.tableView_DoIPTrace.trace_model)
 
+
         # 添加TreeView控件
         self.treeView_Diag = self._add_custom_tree_view(self.scrollArea_DiagTree)
+        self.treeView_Diag_Process = self._add_custom_tree_view(self.scrollArea_DiagTreeForProcess)
+        self.treeView_Diag_Process.setModel(self.treeView_Diag.model())
+        self.treeView_Diag_Process.expandAll()
+        self.treeView_Diag_Process.setDragEnabled(True)  # 允许拖拽
+        self.treeView_Diag_Process.setDragDropMode(QAbstractItemView.DragOnly)  # 仅作为拖拽源
+        self.treeView_Diag_Process.setDefaultDropAction(Qt.CopyAction)
 
         self.diag_process_table_view = self._add_diag_process_table_view(self.groupBox_AutomatedDiagProcessTable)
+
 
         doip_config_names = self.db_manager.get_all_config_names()
         if self.current_doip_config.config_name in doip_config_names:

@@ -1,12 +1,12 @@
 import json
 import logging
 
-from PySide6.QtCore import QModelIndex, Signal, QPoint
-from PySide6.QtGui import QStandardItemModel, QStandardItem, Qt
+from PySide6.QtCore import QModelIndex, Signal, QPoint, QMimeData, QByteArray, QDataStream, QIODevice
+from PySide6.QtGui import QStandardItemModel, QStandardItem, Qt, QDrag
 from PySide6.QtWidgets import QTreeView, QMenu, QMessageBox, QDialog, QHeaderView
 
 from UI.AddDiagServiceDialog import Ui_AddDiagServiceDialog
-from utils import hex_str_to_bytes
+from utils import hex_str_to_bytes, json_default_converter
 
 logger = logging.getLogger("UiCustom")
 
@@ -175,6 +175,36 @@ class DiagTreeView(QTreeView):
         # self.clicked.connect(self._on_node_clicked)
         self.doubleClicked.connect(self._on_sub_service_double_clicked)
         self.customContextMenuRequested.connect(self._show_context_menu)
+
+    def startDrag(self, supported_actions: Qt.DropAction):
+        """重写拖拽开始逻辑：封装选中的节点数据"""
+        # 1. 获取选中的节点索引
+        selected_index = self.currentIndex()
+        if not selected_index.isValid():
+            return
+
+        # 2. 获取节点文本（诊断项名称）
+        node_info = self.model().get_node_info(selected_index)
+        if not node_info["raw_bytes"]:
+            return
+
+        # 3. 封装拖拽数据（QMimeData）
+        mime_data = QMimeData()
+        # 自定义MIME类型（避免和其他拖拽冲突）
+        mime_type = "application/x-diag-item"
+        # 将数据转为字节流（支持复杂数据，这里先传文本）
+        byte_array = QByteArray()
+        stream = QDataStream(byte_array, QIODevice.WriteOnly)
+        json_str = json.dumps(node_info, ensure_ascii=False, indent=0, default=json_default_converter)
+        stream.writeQString(json_str)  # 写入诊断项名称
+        mime_data.setData(mime_type, byte_array)
+
+        # 4. 创建拖拽对象并启动拖拽
+        drag = QDrag(self)
+        drag.setMimeData(mime_data)
+        drag.setHotSpot(self.cursor().pos() - self.rect().topLeft())  # 拖拽热点
+        # 执行拖拽（复制模式）
+        drag.exec(Qt.CopyAction)
 
     def _init_context_menu(self):
         """初始化右键菜单"""

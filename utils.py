@@ -1,3 +1,4 @@
+import base64
 from typing import Dict
 
 import ifaddr
@@ -132,3 +133,48 @@ def hex_to_ascii(hex_str: str) -> str:
     except ValueError as e:
         # 无效十六进制格式（如含非0-9/a-f字符）
         raise ValueError(f"[转换错误: {str(e)}]")
+
+
+
+def json_default_converter(obj):
+    """
+    一个自定义转换器，用于处理 JSON 无法直接序列化的对象。
+    如果对象是 bytes 类型，则将其转换为 Base64 编码的字符串。
+    """
+    if isinstance(obj, bytes):
+        # 1. Base64 编码 (bytes -> bytes)
+        encoded_bytes = base64.b64encode(obj)
+        # 2. 转换为 UTF-8 字符串 (bytes -> str)
+        return encoded_bytes.decode('utf-8')
+
+    # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def json_custom_decoder(obj):
+    """
+    自定义JSON反序列化函数，与json_default_converter配对：
+    - Base64编码的字符串 → 还原为bytes类型
+    - 其他类型保持原样
+    """
+    # 先拷贝一份字典（避免修改原数据）
+    decoded_obj = obj.copy() if isinstance(obj, dict) else obj
+
+    # 仅处理字典类型（JSON反序列化后，复杂数据最终都是dict/list/基础类型）
+    if isinstance(decoded_obj, dict):
+        for key, value in decoded_obj.items():
+            # 1. 还原Base64编码的bytes：判断是否是Base64字符串（简单校验）
+            if isinstance(value, str):
+                try:
+                    # 尝试Base64解码（失败则说明不是Base64字符串，跳过）
+                    decoded_bytes = base64.b64decode(value.encode('utf-8'))
+                    decoded_obj[key] = decoded_bytes
+                    continue  # 解码成功，跳过后续判断
+                except (base64.binascii.Error, ValueError):
+                    pass  # 不是Base64字符串，继续处理其他类型
+
+    # 处理列表嵌套的情况（递归解析）
+    elif isinstance(decoded_obj, list):
+        decoded_obj = [json_custom_decoder(item) for item in decoded_obj]
+
+    return decoded_obj

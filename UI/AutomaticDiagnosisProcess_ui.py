@@ -1,129 +1,97 @@
+import json
 import logging
 
-from PySide6.QtCore import QEvent, Qt, Slot
-from PySide6.QtGui import QAction, QStandardItemModel
+from PySide6.QtCore import QEvent, Qt, Slot, QDataStream, QIODevice, QModelIndex, QSize, QRect, QPoint
+from PySide6.QtGui import QAction, QStandardItemModel, QStandardItem, QPainter, QMouseEvent
 from PySide6.QtWidgets import QComboBox, QTreeView, QSizePolicy, QWidget, QStyledItemDelegate, QTableView, QScrollBar, \
-    QMenu, QAbstractItemView
-from user_data import DiagnosisStepData
+    QMenu, QAbstractItemView, QLineEdit, QCheckBox, QStyle, QApplication, QStyleOptionButton
+from user_data import DiagnosisStepData, DiagnosisStepTypeEnum
+from utils import json_custom_decoder
 
 logger = logging.getLogger("UiCustom.DiagnosisProcess")
 
-class DiagTreeViewComboBox(QComboBox):
-    """自定义ComboBox，下拉显示TreeView"""
 
-    def __init__(self, model, parent=None, ):
-        super().__init__(parent)
-        # self.setView(QTreeView())
-        # self.tree_view = self.view()
-        self.view()
-        self.tree_view = self.view()
-
-        self.tree_view.setHeaderHidden(True)
-        self.tree_view.setRootIsDecorated(True)
-        self.tree_view.setItemsExpandable(True)
-        self.tree_view.expandAll()
-
-        self.setModel(model)
-
-
-        self.setMinimumContentsLength(20)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-    def showPopup(self):
-        self.tree_view.expandAll()
-        self.tree_view.adjustSize()
-        popup = self.findChild(QWidget, "QComboBoxPrivateContainer")
-        if popup:
-            popup.setMinimumWidth(max(self.width(), self.tree_view.width()))
-        super().showPopup()
-
-    def hidePopup(self):
-        if self.currentIndex() != -1:
-            self.activated.emit(self.currentIndex())
-        super().hidePopup()
-
-
-class TreeViewDelegate(QStyledItemDelegate):
-    """自定义委托，管理TreeView下拉框"""
-
+class ColumnEditDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.tree_models = {}  # (行号, 列号) -> TreeModel
-        self.current_editor = None
+        self.no_edit_columns = {1}  # 禁止编辑的列号
 
-    def set_tree_model_for_index(self, index, tree_model):
-        """为指定单元格设置TreeView模型"""
-        key = (index.row(), index.column())
-        self.tree_models[key] = tree_model
+    @staticmethod
+    def get_checkbox_rect(cell_rect: QRect) -> QRect:
+        """计算复选框在单元格中的居中位置"""
+        # 获取默认复选框大小
+        style = QApplication.style()
+        check_size = style.sizeFromContents(
+            QStyle.CT_CheckBox, None, QSize(), None
+        )
+        # 确保坐标在单元格内
+        x = cell_rect.left() + (cell_rect.width() - check_size.width()) // 2
+        y = cell_rect.top() + (cell_rect.height() - check_size.height()) // 2
+        return QRect(QPoint(x, y), check_size)
+
+    def paint(self, painter: QPainter, option, index: QModelIndex):
+        """绘制单元格：第一列画Checkbox，其他列默认绘制"""
+        # 仅处理第一列
+        if index.column() == 0:
+            # 1. 获取模型数据（0/1），转为布尔值
+            is_checked = bool(int(index.data(Qt.DisplayRole)))  # 0→False，1→True
+
+            # 创建复选框样式选项
+            check_box_option = QStyleOptionButton()
+            check_box_option.initFrom(option.widget)  # 初始化样式上下文
+            check_box_option.rect = self.get_checkbox_rect(option.rect)
+            # 设置复选框状态
+            check_box_option.state = QStyle.State_Enabled | QStyle.State_Active
+            if is_checked:
+                check_box_option.state |= QStyle.State_On
+            else:
+                check_box_option.state |= QStyle.State_Off
+
+            # 绘制复选框
+            QApplication.style().drawControl(QStyle.CE_CheckBox, check_box_option, painter)
+        else:
+            # 其他列使用默认绘制逻辑
+            super().paint(painter, option, index)
+
+    def editorEvent(self, event: QEvent, model, option, index: QModelIndex):
+        """处理Checkbox点击事件，同步状态到模型"""
+        if index.column() != 0:
+            return super().editorEvent(event, model, option, index)
+
+        # 过滤有效事件类型
+        if event.type() not in (QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick,
+                                QEvent.KeyPress, QEvent.KeyRelease):
+            return False
+
+        # 鼠标点击事件处理
+        if event.type() == QEvent.MouseButtonPress:
+            return True  # 拦截按下事件，避免穿透
+        if event.type() == QEvent.MouseButtonRelease:
+            mouse_event: QMouseEvent = event
+            # 关键修复3：正确计算点击位置（全局坐标转局部）
+            checkbox_rect = self.get_checkbox_rect(option.rect)
+            # 转换事件坐标到单元格局部坐标系
+            if checkbox_rect.contains(mouse_event.pos()):
+                # 切换状态
+                current_state = index.data(Qt.CheckStateRole) or Qt.Unchecked
+                new_state = Qt.Checked if current_state == Qt.Unchecked else Qt.Unchecked
+                # 关键修复4：强制触发模型数据更新（指定EditRole兜底）
+                model.setData(index, new_state, Qt.CheckStateRole)
+                model.setData(index, new_state, Qt.EditRole)
+                return True
+
+        return False
 
     def createEditor(self, parent, option, index):
-        key = (index.row(), index.column())
-        if key not in self.tree_models:
-            return super().createEditor(parent, option, index)
+        # 判断当前列是否禁止编辑
+        column_index = index.column()
+        if column_index in self.no_edit_columns:
+            return None  # 返回None = 不创建编辑器 → 禁止编辑
 
-        editor = DiagTreeViewComboBox(parent)
-        editor.activated.connect(lambda: self.commitData.emit(editor))
-        editor.activated.connect(lambda: self.closeEditor.emit(editor))
-
-        self.current_editor = editor
-        return editor
-
-    def setEditorData(self, editor, index):
-        if not isinstance(editor, DiagTreeViewComboBox):
-            super().setEditorData(editor, index)
+        if column_index == 0:
             return
-
-        current_value = index.data(Qt.ItemDataRole.DisplayRole)
-        if current_value is None or current_value == "":
-            return
-
-        model = editor.model()
-        if isinstance(model, QStandardItemModel):
-            root_item = model.invisibleRootItem()
-            root_index = root_item.index()
-            self._select_item_in_tree(model, root_index, current_value, editor)
-
-    def setModelData(self, editor, model, index):
-        if not isinstance(editor, DiagTreeViewComboBox):
-            super().setModelData(editor, model, index)
-            return
-
-        selected_index = editor.tree_view.currentIndex()
-        if selected_index.isValid():
-            selected_value = selected_index.data(Qt.ItemDataRole.DisplayRole)
-            model.setData(index, selected_value, Qt.ItemDataRole.DisplayRole)
-
-    def updateEditorGeometry(self, editor, option, index):
-        if isinstance(editor, DiagTreeViewComboBox):
-            editor.setGeometry(option.rect)
-        else:
-            super().updateEditorGeometry(editor, option, index)
-
-    def editorEvent(self, event, model, option, index):
-        if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
-            if index.column() == 1:
-                self.parent().edit(index)
-                if self.current_editor:
-                    self.current_editor.showPopup()
-                return True
-        return super().editorEvent(event, model, option, index)
-
-    def _select_item_in_tree(self, model, parent_index, target_value, editor):
-        for row in range(model.rowCount(parent_index)):
-            current_index = model.index(row, 0, parent_index)
-            if not current_index.isValid():
-                continue
-
-            current_value = current_index.data(Qt.ItemDataRole.DisplayRole)
-            if current_value == target_value:
-                editor.tree_view.setCurrentIndex(current_index)
-                return True
-
-            if model.hasChildren(current_index):
-                if self._select_item_in_tree(model, current_index, target_value, editor):
-                    return True
-        return False
+        # 允许编辑的列，创建默认编辑器（如QLineEdit）
+        return QLineEdit(parent)
 
 class DiagProcessTableModel(QStandardItemModel):
     def __init__(self, parent=None):
@@ -131,8 +99,16 @@ class DiagProcessTableModel(QStandardItemModel):
 
         self.setHorizontalHeaderLabels(DiagnosisStepData().get_attr_names())
 
-    def add_row_data(self):
-        self.appendRow(DiagnosisStepData().to_tuple())
+    def add_normal_test_step(self):
+        item_list = [QStandardItem(str(item)) for item in DiagnosisStepData().to_tuple()]
+        self.appendRow(item_list)
+
+    def add_existing_step(self, step_data: DiagnosisStepData):
+        item_list = [QStandardItem(str(item)) for item in step_data.to_tuple()]
+        self.appendRow(item_list)
+
+
+
 
 
 class DiagProcessTableView(QTableView):
@@ -170,8 +146,12 @@ class DiagProcessTableView(QTableView):
         # 最后一列自适应剩余空间
         self.horizontalHeader().setStretchLastSection(True)
 
-        self.tree_view_delegate = TreeViewDelegate(self)
-        self.setItemDelegateForColumn(1, self.tree_view_delegate)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QAbstractItemView.DropOnly)  # 仅作为放置目标
+        self.setDropIndicatorShown(True)  # 显示拖放指示器
+
+        self.setItemDelegate(ColumnEditDelegate(self))
+
 
 
     def _bind_scroll_listener(self):
@@ -196,30 +176,13 @@ class DiagProcessTableView(QTableView):
         # 若点击在数据行上，添加复制相关选项
         if index.isValid():
             # 复制单元格内容
-            copy_cell_action = QAction("复制单元格内容", self)
-            copy_cell_action.triggered.connect(lambda: self._copy_cell_data(index))
-            menu.addAction(copy_cell_action)
+            add_normal_step_action = QAction("添加行", self)
+            add_normal_step_action.triggered.connect(lambda: self.add_normal_test_step())
+            menu.addAction(add_normal_step_action)
 
-            # 复制整行内容
-            copy_row_action = QAction("复制整行内容", self)
-            copy_row_action.triggered.connect(lambda: self._copy_row_data(index.row()))
-            menu.addAction(copy_row_action)
-
-            # 分隔线
-            menu.addSeparator()
-
-        export_text_action = QAction("导出到text", self)
-        export_text_action.triggered.connect(lambda: self.export_to_text())
-        menu.addAction(export_text_action)
-
-        export_excel_action = QAction("导出到Excel", self)
-        export_excel_action.triggered.connect(lambda: self.export_to_excel())
-        menu.addAction(export_excel_action)
-
-        # 清空数据选项（无论是否点击在数据行上都显示）
-        clear_action = QAction("清空表格数据", self)
-        clear_action.triggered.connect(self._clear_data)
-        menu.addAction(clear_action)
+        add_normal_step_action = QAction("添加行", self)
+        add_normal_step_action.triggered.connect(lambda: self.add_normal_test_step())
+        menu.addAction(add_normal_step_action)
 
         # 显示菜单（转换为全局坐标）
         menu.exec(self.mapToGlobal(pos))
@@ -238,11 +201,15 @@ class DiagProcessTableView(QTableView):
         if self._auto_scroll:
             logger.debug("表格滚动到底部，开启自动滚动")
 
-    def add_test_step(self, data):
+    def add_normal_test_step(self):
         model = self.model()
         if isinstance(model, DiagProcessTableModel):
-            model.add_empty_row_data()
+            model.add_normal_test_step()
 
+    def add_existing_step(self, step_data: DiagnosisStepData):
+        model = self.model()
+        if isinstance(model, DiagProcessTableModel):
+            model.add_existing_step(step_data)
     def clear_test_step(self):
         pass
 
@@ -257,4 +224,43 @@ class DiagProcessTableView(QTableView):
         self._auto_scroll = state
         if state:
             self.scrollToBottom()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasFormat("application/x-diag-item"):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasFormat("application/x-diag-item"):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+    def dropEvent(self, event):
+        """TableView接收拖拽数据，解析字典"""
+        mime_data = event.mimeData()
+        mime_type = "application/x-diag-item"
+
+        if not mime_data.hasFormat(mime_type):
+            event.ignore()
+            return
+
+        # 1. 读取字节流中的JSON字符串
+        byte_array = mime_data.data(mime_type)
+        stream = QDataStream(byte_array, QIODevice.ReadOnly)
+        json_str = stream.readQString()  # 读出JSON字符串
+
+        # 2. 将JSON字符串反序列化为字典（关键步骤）
+        try:
+            diag_dict = json.loads(json_str,object_hook=json_custom_decoder)  # 转回字典
+        except json.JSONDecodeError:
+            return
+
+        diagnosis_step_data = DiagnosisStepData()
+        diagnosis_step_data.step_type = DiagnosisStepTypeEnum.ExistingStep
+        diagnosis_step_data.send_data = diag_dict['raw_bytes']
+
+        self.add_existing_step(diagnosis_step_data)
+
+        event.acceptProposedAction()
 

@@ -1,25 +1,41 @@
 from dataclasses import dataclass, asdict, fields
+from enum import Enum
 from typing import Any
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
 
+class DiagnosisStepTypeEnum(Enum):
+    NormalStep = "普通步骤"
+    ExistingStep = "已有配置"
 
 @dataclass
 class DiagnosisStepData:
     enable: int = 1
-    service_tree: Any = None
+    step_type: DiagnosisStepTypeEnum = DiagnosisStepTypeEnum.NormalStep
+    service: str = ''
+    send_data: bytes = b''
+    exp_resp_data: bytes = b''
 
 
     def get_attr_names(self) -> tuple:
-        """返回属性名字元组（核心新增方法）"""
+        """返回属性名字元组"""
         # fields(self) 按定义顺序返回所有数据属性，提取 name 组成元组
         return tuple(field.name for field in fields(self))
 
     def to_tuple(self) -> tuple:
-        """返回所有数据属性的元组（顺序与属性定义一致）"""
-        # 遍历 fields 按定义顺序提取属性值
-        return tuple(getattr(self, field.name) for field in fields(self))
+        """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
+        tuple_values = []
+        for field in fields(self):
+            value = getattr(self, field.name)
+            # 对枚举类型字段，提取其value；其他字段直接用原值
+            if isinstance(value, Enum):
+                tuple_values.append(value.value)
+            elif isinstance(value, bytes):
+                tuple_values.append(value.hex(' '))
+            else:
+                tuple_values.append(value)
+        return tuple(tuple_values)
 
 
 @dataclass

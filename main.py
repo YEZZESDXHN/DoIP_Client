@@ -102,6 +102,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _init_ui(self):
         """初始化界面组件属性"""
+        self.splitter_3.setStretchFactor(0, 1)
+        self.splitter_3.setStretchFactor(1, 5)
+
+
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 5)
+
         icon_disconnected = QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
         self.pushButton_ConnectDoIP.setIcon(icon_disconnected)
 

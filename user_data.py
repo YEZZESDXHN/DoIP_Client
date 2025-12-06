@@ -1,6 +1,10 @@
-from dataclasses import dataclass, asdict, fields
+import base64
+import binascii
+import enum
+import json
+from dataclasses import dataclass, asdict, fields, is_dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Type
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
@@ -11,7 +15,7 @@ class DiagnosisStepTypeEnum(Enum):
 
 @dataclass
 class DiagnosisStepData:
-    enable: int = 1
+    enable: bool = True
     step_type: DiagnosisStepTypeEnum = DiagnosisStepTypeEnum.NormalStep
     service: str = ''
     send_data: bytes = b''
@@ -33,9 +37,88 @@ class DiagnosisStepData:
                 tuple_values.append(value.value)
             elif isinstance(value, bytes):
                 tuple_values.append(value.hex(' '))
+            elif isinstance(value, bool):
+                tuple_values.append(str(value))
             else:
                 tuple_values.append(value)
         return tuple(tuple_values)
+
+    def _json_default_converter(self, obj):
+        if isinstance(obj, bytes):
+            # 1. Base64 编码 (bytes -> bytes)
+            encoded_bytes = base64.b64encode(obj)
+            # 2. 转换为 UTF-8 字符串 (bytes -> str)
+            return encoded_bytes.decode('utf-8')
+
+        if isinstance(obj, DiagnosisStepTypeEnum):
+            return obj.value
+
+        if isinstance(obj, str):
+            return obj
+
+        if isinstance(obj, bool):
+            return int(obj)
+
+        # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+    def to_json(self):
+
+        data_dict = asdict(self)
+        data_json = json.dumps(data_dict, default=self._json_default_converter)
+        return data_json
+
+    def _get_field_type(self, field_name: str) -> Optional[Type]:
+        """辅助方法：获取属性的类型（优先从dataclass字段获取）"""
+        # 如果是dataclass，从字段定义取类型
+        if is_dataclass(self):
+            for field in fields(self):
+                if field.name == field_name:
+                    return field.type
+        return None
+
+    def from_dict(self, data_dict: dict):
+        for key, value in data_dict.items():
+            if not hasattr(self, key):
+                continue
+            field_type = self._get_field_type(key)
+            current_value = getattr(self, key, None)
+
+            try:
+                # 处理枚举类型（字符串/数字转枚举实例）
+                if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
+                    value = field_type(value)
+                # 处理基础类型转换（如字符串转数字）
+                elif field_type in (int, float, bool, str) and value is not None:
+                    # bool类型特殊处理（避免"False"被转成True）
+                    if field_type == bool and isinstance(value, str):
+                        value = value.lower() in ("true", "1", "yes")
+                    else:
+                        value = field_type(value)
+                elif field_type is bytes:
+                    if isinstance(value, bytes):
+                        pass
+                    elif isinstance(value, str):
+                        try:
+                            # 尝试Base64解码（失败则说明不是Base64字符串，跳过）
+                            value = base64.b64decode(value.encode('utf-8'))
+                        except (binascii.Error, ValueError):
+                            value = b''
+
+            except (ValueError, TypeError, enum.EnumError) as e:
+                # 类型转换失败时打印提示，保留原值（也可改为raise抛出异常）
+                print(f"警告：属性{key}赋值失败（{e}），原值：{current_value}，待赋值：{value}")
+                continue
+
+                # 4. 最终赋值（仅当值有效时）
+            if value is not None:
+                setattr(self, key, value)
+
+    def from_json(self, json_str: str):
+        data_dict = json.loads(json_str)
+        self.from_dict(data_dict)
+
+
+
 
 
 @dataclass

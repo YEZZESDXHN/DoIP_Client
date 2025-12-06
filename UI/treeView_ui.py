@@ -6,6 +6,7 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, Qt, QDrag
 from PySide6.QtWidgets import QTreeView, QMenu, QMessageBox, QDialog, QHeaderView
 
 from UI.AddDiagServiceDialog import Ui_AddDiagServiceDialog
+from user_data import DiagnosisStepData, DiagnosisStepTypeEnum
 from utils import hex_str_to_bytes, json_default_converter
 
 logger = logging.getLogger("UiCustom")
@@ -195,8 +196,12 @@ class DiagTreeView(QTreeView):
         # 将数据转为字节流（支持复杂数据，这里先传文本）
         byte_array = QByteArray()
         stream = QDataStream(byte_array, QIODevice.WriteOnly)
-        json_str = json.dumps(node_info, ensure_ascii=False, indent=0, default=json_default_converter)
-        stream.writeQString(json_str)  # 写入诊断项名称
+        # json_str = json.dumps(node_info, ensure_ascii=False, indent=0, default=json_default_converter)
+        diagnosis_step_data = DiagnosisStepData()
+        diagnosis_step_data.service = node_info['text']
+        diagnosis_step_data.send_data = node_info['raw_bytes']
+        diagnosis_step_data.step_type = DiagnosisStepTypeEnum.ExistingStep
+        stream.writeQString(diagnosis_step_data.to_json())  # 写入诊断项名称
         mime_data.setData(mime_type, byte_array)
 
         # 4. 创建拖拽对象并启动拖拽

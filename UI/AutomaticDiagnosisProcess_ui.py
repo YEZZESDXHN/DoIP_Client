@@ -16,72 +16,19 @@ class ColumnEditDelegate(QStyledItemDelegate):
         super().__init__(parent)
         self.no_edit_columns = {1}  # 禁止编辑的列号
 
-    @staticmethod
-    def get_checkbox_rect(cell_rect: QRect) -> QRect:
-        """计算复选框在单元格中的居中位置"""
-        # 获取默认复选框大小
-        style = QApplication.style()
-        check_size = style.sizeFromContents(
-            QStyle.CT_CheckBox, None, QSize(), None
-        )
-        # 确保坐标在单元格内
-        x = cell_rect.left() + (cell_rect.width() - check_size.width()) // 2
-        y = cell_rect.top() + (cell_rect.height() - check_size.height()) // 2
-        return QRect(QPoint(x, y), check_size)
+    def paint(self, painter, option, index):
+        column_index = index.column()
+        if column_index == 0:
+            check_style = QStyleOptionButton()
+            check_style.rect = option.rect
+            if index.data() is True:
+                check_style.state = QStyle.State_Enabled | QStyle.State_On
+            elif index.data() is False:
+                check_style.state = QStyle.State_Enabled | QStyle.State_Off
+            QApplication.style().drawControl(QStyle.CE_CheckBox, check_style, painter)
 
-    def paint(self, painter: QPainter, option, index: QModelIndex):
-        """绘制单元格：第一列画Checkbox，其他列默认绘制"""
-        # 仅处理第一列
-        if index.column() == 0:
-            # 1. 获取模型数据（0/1），转为布尔值
-            is_checked = bool(int(index.data(Qt.DisplayRole)))  # 0→False，1→True
-
-            # 创建复选框样式选项
-            check_box_option = QStyleOptionButton()
-            check_box_option.initFrom(option.widget)  # 初始化样式上下文
-            check_box_option.rect = self.get_checkbox_rect(option.rect)
-            # 设置复选框状态
-            check_box_option.state = QStyle.State_Enabled | QStyle.State_Active
-            if is_checked:
-                check_box_option.state |= QStyle.State_On
-            else:
-                check_box_option.state |= QStyle.State_Off
-
-            # 绘制复选框
-            QApplication.style().drawControl(QStyle.CE_CheckBox, check_box_option, painter)
         else:
-            # 其他列使用默认绘制逻辑
-            super().paint(painter, option, index)
-
-    def editorEvent(self, event: QEvent, model, option, index: QModelIndex):
-        """处理Checkbox点击事件，同步状态到模型"""
-        if index.column() != 0:
-            return super().editorEvent(event, model, option, index)
-
-        # 过滤有效事件类型
-        if event.type() not in (QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick,
-                                QEvent.KeyPress, QEvent.KeyRelease):
-            return False
-
-        # 鼠标点击事件处理
-        if event.type() == QEvent.MouseButtonPress:
-            return True  # 拦截按下事件，避免穿透
-        if event.type() == QEvent.MouseButtonRelease:
-            mouse_event: QMouseEvent = event
-            # 关键修复3：正确计算点击位置（全局坐标转局部）
-            checkbox_rect = self.get_checkbox_rect(option.rect)
-            # 转换事件坐标到单元格局部坐标系
-            if checkbox_rect.contains(mouse_event.pos()):
-                # 切换状态
-                current_state = index.data(Qt.CheckStateRole) or Qt.Unchecked
-                new_state = Qt.Checked if current_state == Qt.Unchecked else Qt.Unchecked
-                # 关键修复4：强制触发模型数据更新（指定EditRole兜底）
-                model.setData(index, new_state, Qt.CheckStateRole)
-                model.setData(index, new_state, Qt.EditRole)
-                return True
-
-        return False
-
+            return super(ColumnEditDelegate, self).paint(painter, option, index)
     def createEditor(self, parent, option, index):
         # 判断当前列是否禁止编辑
         column_index = index.column()
@@ -89,9 +36,16 @@ class ColumnEditDelegate(QStyledItemDelegate):
             return None  # 返回None = 不创建编辑器 → 禁止编辑
 
         if column_index == 0:
-            return
+            return QCheckBox(parent)
         # 允许编辑的列，创建默认编辑器（如QLineEdit）
         return QLineEdit(parent)
+
+    def setModelData(self, editor, model, index):
+        if index.column() == 0:
+            if isinstance(editor, QCheckBox):
+                model.setData(index, bool(editor.isChecked()))
+        else:
+            return super(ColumnEditDelegate, self).setModelData(editor, model, index)
 
 class DiagProcessTableModel(QStandardItemModel):
     def __init__(self, parent=None):
@@ -250,15 +204,9 @@ class DiagProcessTableView(QTableView):
         stream = QDataStream(byte_array, QIODevice.ReadOnly)
         json_str = stream.readQString()  # 读出JSON字符串
 
-        # 2. 将JSON字符串反序列化为字典（关键步骤）
-        try:
-            diag_dict = json.loads(json_str,object_hook=json_custom_decoder)  # 转回字典
-        except json.JSONDecodeError:
-            return
-
         diagnosis_step_data = DiagnosisStepData()
-        diagnosis_step_data.step_type = DiagnosisStepTypeEnum.ExistingStep
-        diagnosis_step_data.send_data = diag_dict['raw_bytes']
+        diagnosis_step_data.from_json(json_str)
+
 
         self.add_existing_step(diagnosis_step_data)
 

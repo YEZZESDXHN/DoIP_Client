@@ -16,14 +16,15 @@ class ColumnEditDelegate(QStyledItemDelegate):
         super().__init__(parent)
         self.no_edit_columns = {1}  # 禁止编辑的列号
 
+
     def paint(self, painter, option, index):
         column_index = index.column()
         if column_index == 0:
             check_style = QStyleOptionButton()
             check_style.rect = option.rect
-            if index.data() is True:
+            if bool(index.data()) is True:
                 check_style.state = QStyle.State_Enabled | QStyle.State_On
-            elif index.data() is False:
+            elif bool(index.data()) is False:
                 check_style.state = QStyle.State_Enabled | QStyle.State_Off
             QApplication.style().drawControl(QStyle.CE_CheckBox, check_style, painter)
 
@@ -36,9 +37,14 @@ class ColumnEditDelegate(QStyledItemDelegate):
             return None  # 返回None = 不创建编辑器 → 禁止编辑
 
         if column_index == 0:
-            return QCheckBox(parent)
+            editor = QCheckBox(parent)
+            editor.setContextMenuPolicy(Qt.NoContextMenu)
+            return editor
         # 允许编辑的列，创建默认编辑器（如QLineEdit）
-        return QLineEdit(parent)
+
+        editor = QLineEdit(parent)
+        editor.setContextMenuPolicy(Qt.NoContextMenu)
+        return editor
 
     def setModelData(self, editor, model, index):
         if index.column() == 0:
@@ -81,11 +87,7 @@ class DiagProcessTableView(QTableView):
     def _init_ui(self):
         """初始化表格UI属性，确保铺满布局"""
         # 表格配置
-        self.setEditTriggers(
-            QAbstractItemView.EditTrigger.CurrentChanged |
-            QAbstractItemView.EditTrigger.DoubleClicked |
-            QAbstractItemView.EditTrigger.EditKeyPressed
-        )
+        self.setEditTriggers(QAbstractItemView.EditTrigger.CurrentChanged | QAbstractItemView.EditTrigger.SelectedClicked | QAbstractItemView.EditTrigger.AnyKeyPressed)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setAlternatingRowColors(True)  # 隔行变色
 

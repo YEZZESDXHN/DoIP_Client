@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QTableView, QScrollBar, QMenu, QMessageBox, QFileD
 from openpyxl.styles import Font, Alignment
 from openpyxl.workbook import Workbook
 
-from user_data import TableViewData
+from user_data import DoIPMessageStruct
 
 logger = logging.getLogger("UiCustom")
 
@@ -39,8 +39,8 @@ class DoIPTraceTableModel(QAbstractTableModel):
     def __init__(self, max_rows: int = 500):
         super().__init__()
         self.max_rows = max_rows  # 最大行数（防止内存溢出）
-        self._data: List[TableViewData] = []
-        self._headers = TableViewData().get_attr_names()[:8]
+        self._data: List[DoIPMessageStruct] = []
+        self._headers = DoIPMessageStruct().get_attr_names()[:8]
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self._data)
@@ -61,7 +61,7 @@ class DoIPTraceTableModel(QAbstractTableModel):
             test = getattr(self._data[row], col_name, '')
             return getattr(self._data[row], col_name, '')
 
-    def append_trace_data(self, table_view_data: TableViewData):
+    def append_trace_data(self, table_view_data: DoIPMessageStruct):
         """
         追加一行追踪数据，自动清理超出最大行数的旧数据
         :param table_view_data: 行数据
@@ -103,7 +103,7 @@ class DoIPTraceTableModel(QAbstractTableModel):
         logger.debug("表格模型数据已清空")
 
     @property
-    def data_list(self) -> List[TableViewData]:
+    def data_list(self) -> List[DoIPMessageStruct]:
         """获取原始数据（只读）"""
         return self._data.copy()
 
@@ -114,7 +114,7 @@ class DoIPTraceTableView(QTableView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._auto_scroll = True  # 自动滚动开关
-        self._headers = TableViewData().get_attr_names()[:8]
+        self._headers = DoIPMessageStruct().get_attr_names()[:8]
         self.trace_model: DoIPTraceTableModel = DoIPTraceTableModel(max_rows=500)  # 初始化模型
         # 列显示状态管理（key:列索引，value:是否显示）
         self._column_visible: Dict[int, bool] = {
@@ -371,14 +371,14 @@ class DoIPTraceTableView(QTableView):
         if self._auto_scroll:
             logger.debug("表格滚动到底部，开启自动滚动")
 
-    def add_trace_data(self, data: TableViewData):
+    def add_trace_data(self, data: DoIPMessageStruct):
         """对外暴露的接口：添加追踪数据"""
         if data.is_empty():
             return
 
         try:
             if self._column_visible[self._header_column_mapping['ASCII']]:
-                data.uds_data_to_ascii()
+                data.update_ascii_by_uds_data()
             self.trace_model.append_trace_data(data)
             if self._auto_scroll:
                 self.scrollToBottom()  # 自动滚动到底部

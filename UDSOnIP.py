@@ -14,7 +14,7 @@ from udsoncan import ClientConfig, Request, Response, NegativeResponseException,
 from udsoncan.client import Client
 from udsoncan.configs import default_client_config
 
-from user_data import TableViewData
+from user_data import DoIPMessageStruct, MessageDir
 
 logger = logging.getLogger('UDSOnIPClient.' + __name__)
 
@@ -77,8 +77,8 @@ class QUDSOnIPClient(QObject):
 
     doip_connect_state = Signal(bool)
 
-    doip_request = Signal(TableViewData)
-    doip_response = Signal(TableViewData)
+    doip_request = Signal(DoIPMessageStruct)
+    doip_response = Signal(DoIPMessageStruct)
 
     def __init__(self):
         super().__init__()
@@ -165,9 +165,9 @@ class QUDSOnIPClient(QObject):
             try:
                 req = Request.from_payload(payload)
                 req_data = req.get_payload()
-                req_table_view_data = TableViewData(
+                req_table_view_data = DoIPMessageStruct(
                     Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    Dir='Tx',
+                    Dir=MessageDir.Tx,
                     Type=req.service.get_name(),
                     Destination_IP=self.ecu_ip_address,
                     Source_IP=self.client_ip_address,
@@ -175,15 +175,15 @@ class QUDSOnIPClient(QObject):
                     DataLength=len(req_data),
 
                 )
-                req_table_view_data.Data_bytes_to_Data_hex()
+                req_table_view_data.update_data_by_data_bytes()
 
                 self.doip_request.emit(req_table_view_data)
 
                 response = self.uds_on_ip_client.send_request(req)
                 resp_data = response.original_payload
-                resp_table_view_data = TableViewData(
+                resp_table_view_data = DoIPMessageStruct(
                     Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    Dir='Rx',
+                    Dir=MessageDir.Rx,
                     Type=response.code_name,
                     Destination_IP=self.client_ip_address,
                     Source_IP=self.ecu_ip_address,
@@ -192,12 +192,12 @@ class QUDSOnIPClient(QObject):
                     code_name=response.code_name,
                     uds_data=response.data
                 )
-                resp_table_view_data.Data_bytes_to_Data_hex()
+                resp_table_view_data.update_data_by_data_bytes()
                 self.doip_response.emit(resp_table_view_data)
             except TimeoutException as e:
-                resp_table_view_data = TableViewData(
+                resp_table_view_data = DoIPMessageStruct(
                     Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    Dir='Rx',
+                    Dir=MessageDir.Rx,
                     Type='TimeoutException',
                 )
                 self.doip_response.emit(resp_table_view_data)
@@ -206,9 +206,9 @@ class QUDSOnIPClient(QObject):
             except NegativeResponseException as negative_response:
                 response = negative_response.response
                 resp_data = response.original_payload
-                resp_table_view_data = TableViewData(
+                resp_table_view_data = DoIPMessageStruct(
                     Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    Dir='Rx',
+                    Dir=MessageDir.Rx,
                     Type=response.code_name,
                     Destination_IP=self.client_ip_address,
                     Source_IP=self.ecu_ip_address,
@@ -217,7 +217,7 @@ class QUDSOnIPClient(QObject):
                     code_name=response.code_name,
                     uds_data=response.data
                 )
-                resp_table_view_data.Data_bytes_to_Data_hex()
+                resp_table_view_data.update_data_by_data_bytes()
                 self.doip_response.emit(resp_table_view_data)
             except InvalidResponseException as e:
                 logger.debug(f'InvalidResponseException:{e}')
@@ -227,9 +227,9 @@ class QUDSOnIPClient(QObject):
                 logger.debug(f'ConfigError:{e}')
             except Exception as e:
                 try:
-                    resp_table_view_data = TableViewData(
+                    resp_table_view_data = DoIPMessageStruct(
                         Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                        Dir='Rx',
+                        Dir=MessageDir.Rx,
                         Type=e.args[0],
                     )
                     self.doip_response.emit(resp_table_view_data)

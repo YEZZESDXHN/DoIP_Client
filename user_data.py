@@ -9,18 +9,20 @@ from typing import Any, Optional, Type
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
 
+
 class DiagnosisStepTypeEnum(Enum):
     NormalStep = "普通步骤"
     ExistingStep = "已有配置"
 
+
 @dataclass
 class DiagnosisStepData:
+    """诊断自动化测试步骤的数据类"""
     enable: bool = True
     step_type: DiagnosisStepTypeEnum = DiagnosisStepTypeEnum.NormalStep
     service: str = ''
     send_data: bytes = b''
     exp_resp_data: bytes = b''
-
 
     def get_attr_names(self) -> tuple:
         """返回属性名字元组"""
@@ -43,7 +45,9 @@ class DiagnosisStepData:
                 tuple_values.append(value)
         return tuple(tuple_values)
 
-    def _json_default_converter(self, obj):
+    @staticmethod
+    def _json_default_converter(obj):
+        """数据类转换json时，不支持的类型转换规则"""
         if isinstance(obj, bytes):
             # 1. Base64 编码 (bytes -> bytes)
             encoded_bytes = base64.b64encode(obj)
@@ -53,30 +57,25 @@ class DiagnosisStepData:
         if isinstance(obj, DiagnosisStepTypeEnum):
             return obj.value
 
-        if isinstance(obj, str):
-            return obj
-
-        if isinstance(obj, bool):
-            return int(obj)
-
         # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
         raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-    def to_json(self):
 
+    def to_json(self) -> str:
+        """数据类转json字符串"""
         data_dict = asdict(self)
         data_json = json.dumps(data_dict, default=self._json_default_converter)
         return data_json
 
     def _get_field_type(self, field_name: str) -> Optional[Type]:
-        """辅助方法：获取属性的类型（优先从dataclass字段获取）"""
-        # 如果是dataclass，从字段定义取类型
+        """辅助方法：获取属性的类型"""
         if is_dataclass(self):
             for field in fields(self):
                 if field.name == field_name:
                     return field.type
         return None
 
-    def from_dict(self, data_dict: dict):
+    def update_from_dict(self, data_dict: dict):
+        """从dict更新数据类"""
         for key, value in data_dict.items():
             if not hasattr(self, key):
                 continue
@@ -113,18 +112,23 @@ class DiagnosisStepData:
             if value is not None:
                 setattr(self, key, value)
 
-    def from_json(self, json_str: str):
+    def update_from_json(self, json_str: str):
+        """从json更新数据类"""
         data_dict = json.loads(json_str)
-        self.from_dict(data_dict)
+        self.update_from_dict(data_dict)
 
 
-
+class MessageDir(Enum):
+    Tx = "Tx"
+    Rx = "Rx"
+    NoDir = ""
 
 
 @dataclass
-class TableViewData:
+class DoIPMessageStruct:
+    """DoIP消息数据类"""
     Time: str = ''
-    Dir: str = ''
+    Dir: MessageDir = MessageDir.NoDir
     Type: str = ''
     Destination_IP: str = ''
     Source_IP: str = ''
@@ -133,29 +137,39 @@ class TableViewData:
     ASCII: str = ''
     Data_bytes: bytes = b''
     code_name: str = ''
-    uds_data: bytes = b''
+    uds_data: bytes = b''  # uds数据部分，如responses数据：62 f1 95 11 22 33,uds_data为：11 22 33
 
-    def Data_bytes_to_Data_hex(self):
+    def update_data_by_data_bytes(self):
+        """将Data_bytes转为hex并更新到Data"""
         try:
             self.Data = self.Data_bytes.hex(' ')
         except Exception as e:
             raise e
 
-    def uds_data_to_ascii(self):
+    def update_ascii_by_uds_data(self):
+        """将uds_data转为ascii并更新到ASCII"""
         try:
             self.ASCII = self.uds_data.decode("ascii", errors="ignore")
         except Exception as e:
             raise e
 
-    def to_tuple(self) -> tuple:
-        """返回所有数据属性的元组（顺序与属性定义一致）"""
-        # 遍历 fields 按定义顺序提取属性值
-        return tuple(getattr(self, field.name) for field in fields(self))
-
     def get_attr_names(self) -> tuple:
-        """返回属性名字元组（核心新增方法）"""
-        # fields(self) 按定义顺序返回所有数据属性，提取 name 组成元组
+        """返回属性名字元组"""
         return tuple(field.name for field in fields(self))
+
+    def to_tuple(self) -> tuple:
+        """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
+        tuple_values = []
+        for field in fields(self):
+            value = getattr(self, field.name)
+            # 对枚举类型字段，提取其value；其他字段直接用原值
+            if isinstance(value, Enum):
+                tuple_values.append(value.value)
+            elif isinstance(value, bytes):
+                tuple_values.append(value.hex(' '))
+            else:
+                tuple_values.append(value)
+        return tuple(tuple_values)
 
     def is_empty(self) -> bool:
         """通用判断：所有属性是否均为默认空状态"""
@@ -181,6 +195,78 @@ class TableViewData:
             return True
         return False  # 空串、0、空bytes、None、空容器，均视为“空”
 
+    @staticmethod
+    def _json_default_converter(obj):
+        """数据类转换json时，不支持的类型转换规则"""
+        if isinstance(obj, bytes):
+            # 1. Base64 编码 (bytes -> bytes)
+            encoded_bytes = base64.b64encode(obj)
+            # 2. 转换为 UTF-8 字符串 (bytes -> str)
+            return encoded_bytes.decode('utf-8')
+
+        if isinstance(obj, DiagnosisStepTypeEnum):
+            return obj.value
+
+        # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    def to_json(self) -> str:
+        """数据类转json字符串"""
+        data_dict = asdict(self)
+        data_json = json.dumps(data_dict, default=self._json_default_converter)
+        return data_json
+
+    def _get_field_type(self, field_name: str) -> Optional[type]:
+        """辅助方法：获取属性的类型"""
+        if is_dataclass(self):
+            for field in fields(self):
+                if field.name == field_name:
+                    return field.type
+        return None
+
+    def update_from_dict(self, data_dict: dict):
+        """从dict更新数据类"""
+        for key, value in data_dict.items():
+            if not hasattr(self, key):
+                continue
+            field_type = self._get_field_type(key)
+            current_value = getattr(self, key, None)
+
+            try:
+                # 处理枚举类型（字符串/数字转枚举实例）
+                if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
+                    value = field_type(value)
+                # 处理基础类型转换（如字符串转数字）
+                elif field_type in (int, float, bool, str) and value is not None:
+                    # bool类型特殊处理（避免"False"被转成True）
+                    if field_type == bool and isinstance(value, str):
+                        value = value.lower() in ("true", "1", "yes")
+                    else:
+                        value = field_type(value)
+                elif field_type is bytes:
+                    if isinstance(value, bytes):
+                        pass
+                    elif isinstance(value, str):
+                        try:
+                            # 尝试Base64解码（失败则说明不是Base64字符串，跳过）
+                            value = base64.b64decode(value.encode('utf-8'))
+                        except (binascii.Error, ValueError):
+                            value = b''
+
+            except (ValueError, TypeError, enum.EnumError) as e:
+                # 类型转换失败时打印提示，保留原值（也可改为raise抛出异常）
+                print(f"警告：属性{key}赋值失败（{e}），原值：{current_value}，待赋值：{value}")
+                continue
+
+                # 4. 最终赋值（仅当值有效时）
+            if value is not None:
+                setattr(self, key, value)
+
+    def update_from_json(self, json_str: str):
+        """从json更新数据类"""
+        data_dict = json.loads(json_str)
+        self.update_from_dict(data_dict)
+
 
 @dataclass
 class DoIPConfig:
@@ -194,28 +280,108 @@ class DoIPConfig:
     activation_type: int = RoutingActivationRequest.ActivationType.Default
     protocol_version: int = 0x02
     use_secure: int = 0
-    is_routing_activation_use: int = 1
-    is_oem_specific_use: int = 0
+    is_routing_activation_use: bool = True
+    is_oem_specific_use: bool = False
     oem_specific: int = 0
 
+
+    def get_attr_names(self) -> tuple:
+        """返回属性名字元组"""
+        return tuple(field.name for field in fields(self))
+
+    def to_tuple(self) -> tuple:
+        """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
+        tuple_values = []
+        for field in fields(self):
+            value = getattr(self, field.name)
+            # 对枚举类型字段，提取其value；其他字段直接用原值
+            if isinstance(value, Enum):
+                tuple_values.append(value.value)
+            elif isinstance(value, bytes):
+                tuple_values.append(value.hex(' '))
+            else:
+                tuple_values.append(value)
+        return tuple(tuple_values)
+
     def to_dict(self) -> dict:
-        """转换为字典（用于 JSON 序列化或日志打印）"""
-        return asdict(self)
+        """转换为字典"""
+        data_dict = asdict(self)
+        for key, value in data_dict.items():
+            if isinstance(value, bytes):
+                encoded_bytes = base64.b64encode(value)
+                data_dict[key] = encoded_bytes.decode('utf-8')
+            elif isinstance(value, Enum):
+                data_dict[key] = value.value
 
-    def to_update_dict(self) -> dict:
-        """转换为数据库更新所需的字典（不含主键）"""
-        data = asdict(self)
-        data.pop('config_name')  # 移除主键
-        return data
+        return data_dict
 
-    def __str__(self) -> str:
-        """自定义字符串输出，方便打印查看"""
-        return (
-            f"DoipConfig(config_name='{self.config_name}', "
-            f"tester_logical_address={self.tester_logical_address}, "
-            f"dut_logical_address={self.dut_logical_address}, "
-            f"dut_ipv4_address='{self.dut_ipv4_address}', "
-            f"is_routing_activation_use={'启用' if self.is_routing_activation_use == 1 else '禁用'}, "
-            f"is_oem_specific_use={'启用' if self.is_oem_specific_use == 1 else '禁用'}, "
-            f"oem_specific={self.oem_specific})"
-        )
+    @staticmethod
+    def _json_default_converter(obj):
+        """数据类转换json时，不支持的类型转换规则"""
+        if isinstance(obj, bytes):
+            # 1. Base64 编码 (bytes -> bytes)
+            encoded_bytes = base64.b64encode(obj)
+            # 2. 转换为 UTF-8 字符串 (bytes -> str)
+            return encoded_bytes.decode('utf-8')
+
+        # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    def to_json(self) -> str:
+        """数据类转json字符串"""
+        data_dict = asdict(self)
+        data_json = json.dumps(data_dict, default=self._json_default_converter)
+        return data_json
+
+    def _get_field_type(self, field_name: str) -> Optional[Type]:
+        """辅助方法：获取属性的类型"""
+        if is_dataclass(self):
+            for field in fields(self):
+                if field.name == field_name:
+                    return field.type
+        return None
+
+    def update_from_dict(self, data_dict: dict):
+        """从dict更新数据类"""
+        for key, value in data_dict.items():
+            if not hasattr(self, key):
+                continue
+            field_type = self._get_field_type(key)
+            current_value = getattr(self, key, None)
+
+            try:
+                # 处理枚举类型（字符串/数字转枚举实例）
+                if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
+                    value = field_type(value)
+                # 处理基础类型转换（如字符串转数字）
+                elif field_type in (int, float, bool, str) and value is not None:
+                    # bool类型特殊处理（避免"False"被转成True）
+                    if field_type == bool and isinstance(value, str):
+                        value = value.lower() in ("true", "1", "yes")
+                    else:
+                        value = field_type(value)
+                elif field_type is bytes:
+                    if isinstance(value, bytes):
+                        pass
+                    elif isinstance(value, str):
+                        try:
+                            # 尝试Base64解码（失败则说明不是Base64字符串，跳过）
+                            value = base64.b64decode(value.encode('utf-8'))
+                        except (binascii.Error, ValueError):
+                            value = b''
+
+            except (ValueError, TypeError, enum.EnumError) as e:
+                # 类型转换失败时打印提示，保留原值（也可改为raise抛出异常）
+                print(f"警告：属性{key}赋值失败（{e}），原值：{current_value}，待赋值：{value}")
+                continue
+
+                # 4. 最终赋值（仅当值有效时）
+            if value is not None:
+                setattr(self, key, value)
+
+    def update_from_json(self, json_str: str):
+        """从json更新数据类"""
+        data_dict = json.loads(json_str)
+        self.update_from_dict(data_dict)
+
+

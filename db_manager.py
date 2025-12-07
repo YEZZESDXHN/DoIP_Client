@@ -1,95 +1,55 @@
-import base64
 import logging
 import sqlite3
-from enum import Enum
-from os import PathLike
-from typing import Union, Optional, List
+from typing import Optional, List
 
 from user_data import DoIPConfig
 
-DOIP_CONFIG_TABLE_NAME = "DoIP_Config"
-CURRENT_CONFIG_TABLE_NAME = 'current_active_config'
-DIAG_TREE_TABLE_NAME = "Diag_Tree"
-DIAG_PROCESS_TABLE_NAME = "Diag_Process"
-
 logger = logging.getLogger('UDSOnIPClient.' + __name__)
 
-
-DEFAULT_DOIP_CONFIG_INSTANCE = DoIPConfig(
-    config_name='default_config',
-    tester_logical_address=0x7e2,
-    dut_logical_address=0x773,
-    dut_ipv4_address='172.16.104.70',
-)
+DOIP_CONFIG_TABLE_NAME = "DoIP_Config"
+CURRENT_CONFIG_TABLE_NAME = 'current_active_config'
 
 
-
-def sql_converter(obj):
-    """
-    一个自定义转换器，用于处理 spl 无法直接序列化的对象。
-    如果对象是 bytes 类型，则将其转换为 int
-    如果对象是 bool 类型，则将其转换为 int。
-    """
-    if isinstance(obj, bytes):
-        return int.from_bytes(
-            obj,
-            byteorder='big',  # 假设采用大端序（网络字节序）
-            signed=False  # 假设它是无符号整数
-        )
-
-    if isinstance(obj, bool):
-        return 1 if obj else 0
-
-    if isinstance(obj, Enum):
-        return obj.value
-
-    return obj
+class DoIPConfigDBManager:
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.default_config = DoIPConfig()
+        self.keys_tuple = self.default_config.get_attr_names()
+        self.primary_key = DoIPConfig().get_attr_names()[0]
+        self.init_config_database()
 
 
-class DBManager:
-    def __init__(self, database: Union[str, bytes, PathLike[str], PathLike[bytes]]):
-        self.database = database  # 数据库路径/名称
-        # 预先获取字段名和默认值，用于动态 SQL
-        self.config_fields = DEFAULT_DOIP_CONFIG_INSTANCE.to_dict()
-        self.field_names = list(self.config_fields.keys())
-        self.primary_key = 'config_name'
-        self.init_database()      # 初始化时自动建表
-
-    def init_database(self):
-        """初始化数据库：创建 doip_config 表并确保存在默认配置"""
-
-        # --- 动态生成 CREATE TABLE SQL ---
+    def init_config_database(self):
+        # --- 动态生成 CREATE TABLE SQL(doip config) ---
         field_definitions = []
-        for field, value in self.config_fields.items():
+        for field, value in DoIPConfig().to_dict().items():
             # 确定 SQL 类型和约束
             sql_type = 'TEXT' if isinstance(value, str) else 'INTEGER'
             constraints = 'PRIMARY KEY' if field == self.primary_key else 'NOT NULL'
 
             # 添加 DEFAULT 子句（如果不是主键）
             if field != self.primary_key:
-                # 使用 sql_converter 转换默认值，确保 SQL 格式正确
-                default_value = sql_converter(value)
-                constraints += f" DEFAULT {repr(default_value)}"
+                constraints += f" DEFAULT {repr(value)}"
 
             field_definitions.append(f"{field} {sql_type} {constraints}")
 
         fields_sql = ',\n'.join(field_definitions)
         create_doip_config_sql = f"""
-        CREATE TABLE IF NOT EXISTS {DOIP_CONFIG_TABLE_NAME} (
-            {fields_sql}
-        );
-        """
-        # ---------------------------------
-
-        create_current_config_sql = f"""
-                CREATE TABLE IF NOT EXISTS {CURRENT_CONFIG_TABLE_NAME} (
-                    key TEXT PRIMARY KEY,
-                    active_config_name TEXT NOT NULL
+                CREATE TABLE IF NOT EXISTS {DOIP_CONFIG_TABLE_NAME} (
+                    {fields_sql}
                 );
                 """
 
+        # ---生成当前配置的CREATE TABLE SQL---
+        create_current_config_sql = f"""
+                        CREATE TABLE IF NOT EXISTS {CURRENT_CONFIG_TABLE_NAME} (
+                            key TEXT PRIMARY KEY,
+                            active_config_name TEXT NOT NULL
+                        );
+                        """
+
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(create_doip_config_sql)
                 cursor.execute(create_current_config_sql)
@@ -101,8 +61,8 @@ class DBManager:
                 count = cursor.fetchone()[0]
 
                 if count == 0:
-                    # 3. 如果没有数据，插入默认配置
-                    self._insert_default_config(conn)
+                    # 如果没有数据，插入默认配置
+                    self._insert_default_doip_config(conn)
                 else:
                     logger.info(f"表 {DOIP_CONFIG_TABLE_NAME} 中已存在 {count} 条配置，跳过写入默认配置。")
 
@@ -112,14 +72,35 @@ class DBManager:
 
                 if meta_count == 0:
                     # 如果激活配置表是空的，将默认配置设为激活
-                    self._insert_default_config_name(conn)
+                    self._insert_default_doip_config_name(conn)
                 else:
                     logger.info(f"表 {CURRENT_CONFIG_TABLE_NAME} 中已存在激活配置记录，跳过设置。")
 
         except sqlite3.Error as e:
             logger.exception(f"初始化数据库失败：{e}")
 
-    def _insert_default_config_name(self, conn: sqlite3.Connection):
+    def _insert_default_doip_config(self, conn: sqlite3.Connection):
+        """内部方法：将默认配置写入数据库"""
+        # 构建 SQL 插入语句
+        keys = ', '.join(self.keys_tuple)
+        # 使用 ? 占位符防止 SQL 注入
+        placeholders = ', '.join(['?'] * len(self.keys_tuple))
+        insert_sql = f"""
+        INSERT INTO {DOIP_CONFIG_TABLE_NAME} ({keys}) 
+        VALUES ({placeholders})
+        """
+
+        values = self.default_config.to_tuple()
+
+        try:
+            cursor = conn.cursor()
+            cursor.execute(insert_sql, values)
+            conn.commit()
+            logger.info(f"成功写入默认配置: {self.default_config.config_name}")
+        except sqlite3.Error as e:
+            logger.exception(f"写入默认配置失败: {e}")
+
+    def _insert_default_doip_config_name(self, conn: sqlite3.Connection):
         """内部方法：首次将默认配置名称写入 current_active_config 表"""
         insert_meta_sql = f"""
         INSERT INTO {CURRENT_CONFIG_TABLE_NAME} (key, active_config_name) 
@@ -128,39 +109,11 @@ class DBManager:
         try:
             cursor = conn.cursor()
             # 使用默认配置实例的 config_name
-            cursor.execute(insert_meta_sql, (DEFAULT_DOIP_CONFIG_INSTANCE.config_name,))
+            cursor.execute(insert_meta_sql, (DoIPConfig().config_name,))
             conn.commit()
-            logger.info(f"成功将 '{DEFAULT_DOIP_CONFIG_INSTANCE.config_name}' 设置为当前激活配置。")
+            logger.info(f"成功将 '{DoIPConfig().config_name}' 设置为当前激活配置。")
         except sqlite3.Error as e:
             logger.exception(f"设置激活配置名称失败: {e}")
-
-    def _insert_default_config(self, conn: sqlite3.Connection):
-        """内部方法：将默认配置写入数据库"""
-
-        # 转换为字典并使用 sql_converter 转换默认配置中的值
-        converted_config = {}
-        for key, value in DEFAULT_DOIP_CONFIG_INSTANCE.to_dict().items():
-            converted_config[key] = sql_converter(value)
-
-        # 构建 SQL 插入语句 (使用 self.field_names 保证顺序与 asdict 结果一致)
-        keys = ', '.join(self.field_names)
-        # 使用 ? 占位符防止 SQL 注入
-        placeholders = ', '.join(['?'] * len(self.field_names))
-        insert_sql = f"""
-        INSERT INTO {DOIP_CONFIG_TABLE_NAME} ({keys}) 
-        VALUES ({placeholders})
-        """
-
-        # 准备要插入的值，保持顺序与 keys (self.field_names) 一致
-        values = tuple(converted_config[key] for key in self.field_names)
-
-        try:
-            cursor = conn.cursor()
-            cursor.execute(insert_sql, values)
-            conn.commit()
-            logger.info(f"成功写入默认配置: {DEFAULT_DOIP_CONFIG_INSTANCE.config_name}")
-        except sqlite3.Error as e:
-            logger.exception(f"写入默认配置失败: {e}")
 
     def set_active_config(self, new_config_name: str) -> bool:
         """
@@ -173,7 +126,7 @@ class DBManager:
         :return: 成功返回 True，失败返回 False。
         """
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
 
                 # 1. 验证新的配置名称是否在 doip_config 表中存在
@@ -205,11 +158,10 @@ class DBManager:
             logger.exception(f"更新当前激活配置名称失败：{e}")
             return False
 
-
     def get_active_config_name(self) -> Optional[str]:
         """获取当前激活的配置名称。"""
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 select_sql = f"SELECT active_config_name FROM {CURRENT_CONFIG_TABLE_NAME} WHERE key = 'singleton_key';"
                 cursor.execute(select_sql)
@@ -221,23 +173,20 @@ class DBManager:
             logger.exception(f"获取当前激活配置名称失败：{e}")
             return None
 
-
     def add_doip_config(self, config: DoIPConfig) -> bool:
         """
         新增 DOIP 配置 (动态字段)
         """
-        keys = ', '.join(self.field_names)
-        placeholders = ', '.join(['?'] * len(self.field_names))
+        keys = ', '.join(self.keys_tuple)
+        placeholders = ', '.join(['?'] * len(self.keys_tuple))
         insert_sql = f"""
         INSERT INTO {DOIP_CONFIG_TABLE_NAME} ({keys})
         VALUES ({placeholders});
         """
-        # 使用 asdict() 获取所有字段的值，并按 field_names 顺序排列
-        config_dict = config.to_dict()
-        values = tuple(sql_converter(config_dict[key]) for key in self.field_names)
+        values = config.to_tuple()
 
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 conn.execute(insert_sql, values)
             logger.info(f"新增 DOIP 配置成功：{config}")
             return True
@@ -252,17 +201,17 @@ class DBManager:
         """
         查询指定名称的 DOIP 配置 (动态字段)
         """
-        keys = ', '.join(self.field_names)
+        keys = ', '.join(self.keys_tuple)
         query_sql = f"SELECT {keys} FROM {DOIP_CONFIG_TABLE_NAME} WHERE config_name = ?;"
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(query_sql, (config_name,))
                 result = cursor.fetchone()
 
             if result:
                 logger.info(f"查询到配置：{config_name}")
                 # 动态创建 DoIPConfig 实例
-                config_data = dict(zip(self.field_names, result))
+                config_data = dict(zip(self.keys_tuple, result))
                 return DoIPConfig(**config_data)
             else:
                 logger.warning(f"未找到配置：{config_name}")
@@ -275,17 +224,17 @@ class DBManager:
         """
         查询所有 DOIP 配置 (动态字段)
         """
-        keys = ', '.join(self.field_names)
+        keys = ', '.join(self.keys_tuple)
         query_sql = f"SELECT {keys} FROM {DOIP_CONFIG_TABLE_NAME} ORDER BY config_name ASC;"
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(query_sql)
                 results = cursor.fetchall()
 
             config_list = []
             for row in results:
                 # 动态创建 DoIPConfig 实例
-                config_data = dict(zip(self.field_names, row))
+                config_data = dict(zip(self.keys_tuple, row))
                 config_list.append(DoIPConfig(**config_data))
 
             logger.info(f"查询到 {len(config_list)} 条配置")
@@ -298,8 +247,7 @@ class DBManager:
         """
         更新 DOIP 配置 (动态字段)
         """
-        update_data = config.to_update_dict()  # 不包含 config_name
-        set_clauses = ', '.join([f"{key} = ?" for key in update_data.keys()])
+        set_clauses = ', '.join([f"{key} = ?" for key in config.get_attr_names()[1:]])
 
         update_sql = f"""
         UPDATE {DOIP_CONFIG_TABLE_NAME}
@@ -307,10 +255,10 @@ class DBManager:
         WHERE {self.primary_key} = ?;
         """
         # 值：更新字段的值 + 主键的值
-        values = tuple(sql_converter(v) for v in update_data.values()) + (config.config_name,)
+        values = config.to_tuple()[1:] + (config.config_name,)
 
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(update_sql, values)
                 if cursor.rowcount > 0:
                     conn.commit()
@@ -331,7 +279,7 @@ class DBManager:
         """
         delete_sql = f"DELETE FROM {DOIP_CONFIG_TABLE_NAME} WHERE config_name = ?;"
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(delete_sql, (config_name,))
                 if cursor.rowcount > 0:
                     conn.commit()
@@ -351,7 +299,7 @@ class DBManager:
         """
         query_sql = f"SELECT config_name FROM {DOIP_CONFIG_TABLE_NAME} ORDER BY config_name ASC;"
         try:
-            with sqlite3.connect(self.database) as conn:
+            with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(query_sql)
                 # 提取所有配置名称，转换为列表（fetchall() 返回 [(name1,), (name2,), ...] 格式）
                 results = cursor.fetchall()
@@ -362,7 +310,3 @@ class DBManager:
         except sqlite3.Error as e:
             logger.exception(f"查询所有配置名称异常：{e}")
             return []
-
-
-
-

@@ -207,7 +207,7 @@ class DiagProcessTableView(QTableView):
         json_str = stream.readQString()  # 读出JSON字符串
 
         diagnosis_step_data = DiagnosisStepData()
-        diagnosis_step_data.from_json(json_str)
+        diagnosis_step_data.update_from_json(json_str)
 
 
         self.add_existing_step(diagnosis_step_data)

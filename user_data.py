@@ -2,12 +2,153 @@ import base64
 import binascii
 import enum
 import json
-from dataclasses import dataclass, asdict, fields, is_dataclass
+import pprint
+from dataclasses import dataclass, asdict, fields, is_dataclass, field
 from enum import Enum
 from typing import Any, Optional, Type
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
+
+
+@dataclass
+class DiagnosticSessionControl:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class ECUReset:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class ReadDataByIdentifier:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class InputOutputControlByIdentifier:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class ReadDTCInformation:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class RequestDownload:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class RequestUpload:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class TransferData:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class RequestTransferExit:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class SecurityAccess:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class TesterPresent:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class Routine:
+    name: str = ''
+    payload: bytes = b''
+
+
+@dataclass
+class RoutineControl:
+    startRoutine: list[Routine] = field(default_factory=list)
+    stopRoutine: list[Routine] = field(default_factory=list)
+    requestRoutineResults: list[Routine] = field(default_factory=list)
+
+
+@dataclass
+class UdsService:
+    """服务数据类"""
+    DiagnosticSessionControl: list[DiagnosticSessionControl] = field(default_factory=list)
+    ECUReset: list[ECUReset] = field(default_factory=list)
+    ReadDataByIdentifier: list[ReadDataByIdentifier] = field(default_factory=list)
+    InputOutputControlByIdentifier: list[InputOutputControlByIdentifier] = field(default_factory=list)
+    ReadDTCInformation: list[ReadDTCInformation] = field(default_factory=list)
+    RequestDownload: list[RequestDownload] = field(default_factory=list)
+    RequestUpload: list[RequestUpload] = field(default_factory=list)
+    TransferData: list[TransferData] = field(default_factory=list)
+    RequestTransferExit: list[RequestTransferExit] = field(default_factory=list)
+    SecurityAccess: list[SecurityAccess] = field(default_factory=list)
+    TesterPresent: list[TesterPresent] = field(default_factory=list)
+    RoutineControl: RoutineControl = RoutineControl()
+
+    @staticmethod
+    def _json_default_converter(obj):
+        """数据类转换json时，不支持的类型转换规则"""
+        if isinstance(obj, bytes):
+            # 1. Base64 编码 (bytes -> bytes)
+            encoded_bytes = base64.b64encode(obj)
+            # 2. 转换为 UTF-8 字符串 (bytes -> str)
+            return encoded_bytes.decode('utf-8')
+
+        if isinstance(obj, DiagnosisStepTypeEnum):
+            return obj.value
+
+        # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    def to_json(self) -> str:
+        """数据类转json字符串"""
+        data_dict = asdict(self)
+        data_json = json.dumps(data_dict, default=self._json_default_converter)
+        return data_json
+
+    def to_dict(self) -> dict:
+        """数据类转dict"""
+        data_dict = asdict(self)
+        return data_dict
+
+
+DEFAULT_SERVICES = UdsService()
+DEFAULT_SERVICES.DiagnosticSessionControl = [
+    DiagnosticSessionControl("defaultSession", bytes.fromhex('1001')),
+    DiagnosticSessionControl("programmingSession", bytes.fromhex('1002')),
+    DiagnosticSessionControl("extendedDiagnosticSession", bytes.fromhex('1003')),
+]
+DEFAULT_SERVICES.ECUReset = [
+    ECUReset("hardReset", bytes.fromhex('1101')),
+    ECUReset("keyOffOnReset", bytes.fromhex('1102')),
+    ECUReset("softReset", bytes.fromhex('1103')),
+]
+DEFAULT_SERVICES.SecurityAccess = [
+    SecurityAccess("RequestSeed L1", bytes.fromhex('2701')),
+    SecurityAccess("RequestSeed L3", bytes.fromhex('2703')),
+    SecurityAccess("RequestSeed L5", bytes.fromhex('2705')),
+]
 
 
 class DiagnosisStepTypeEnum(Enum):
@@ -284,7 +425,6 @@ class DoIPConfig:
     is_oem_specific_use: bool = False
     oem_specific: int = 0
 
-
     def get_attr_names(self) -> tuple:
         """返回属性名字元组"""
         return tuple(field.name for field in fields(self))
@@ -385,3 +525,6 @@ class DoIPConfig:
         self.update_from_dict(data_dict)
 
 
+if __name__ == '__main__':
+    json_str = DEFAULT_SERVICES.to_dict()
+    pprint.pprint(json_str)

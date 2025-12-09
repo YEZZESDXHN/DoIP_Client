@@ -154,10 +154,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.error("父控件无效")
             return
         tree_view = DiagTreeView(parent=parent_widget)
-        tree_model = DiagTreeDataModel()
-        tree_view.setModel(tree_model)
-        tree_view.expandAll()  # 展开所有节点
-        tree_view.resizeColumnToContents(0)  # 设置第0列显示全部文本，不会截断
 
         logger.debug(f"父控件：{parent_widget.objectName()}")
 

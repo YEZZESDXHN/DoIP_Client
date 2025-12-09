@@ -6,7 +6,7 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, Qt, QDrag
 from PySide6.QtWidgets import QTreeView, QMenu, QMessageBox, QDialog, QHeaderView
 
 from UI.AddDiagServiceDialog import Ui_AddDiagServiceDialog
-from user_data import DiagnosisStepData, DiagnosisStepTypeEnum
+from user_data import DiagnosisStepData, DiagnosisStepTypeEnum, UdsService, DEFAULT_SERVICES
 from utils import hex_str_to_bytes, json_default_converter
 
 logger = logging.getLogger("UiCustom")
@@ -66,33 +66,35 @@ DEFAULT_SERVICES_TREE = {
 # 树形数据模型：存储bytes类型的自定义数据
 # ------------------------------
 class DiagTreeDataModel(QStandardItemModel):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, uds_service: UdsService = DEFAULT_SERVICES):
         super().__init__(parent)
         self.setHorizontalHeaderLabels(["诊断服务"])
-        self.services_tree = DEFAULT_SERVICES_TREE
-        self._init_default_nodes()
+        self.uds_service = uds_service
+        self.uds_service_dict = uds_service.to_dict()
+        self._init_nodes()
 
 
-    def _init_default_nodes(self):
+    def _init_nodes(self):
         """初始化默认节点（存储bytes类型数据）"""
         invisible_root = self.invisibleRootItem()
 
-        for _service, _sub_services in self.services_tree.items():
+        for _service, _sub_services in self.uds_service_dict.items():
             _service_item = QStandardItem(_service)
             invisible_root.appendRow(_service_item)
-
-            for _sub_service, _sub_service_data in _sub_services.items():
-
-                if isinstance(_sub_service_data, bytes):
+            if isinstance(_sub_services, dict):
+                for _sub_service, _sub_service_data in _sub_services.items():
                     _sub_service_item = QStandardItem(_sub_service)
-                    _sub_service_item.setData(_sub_service_data, Qt.ItemDataRole.UserRole)
                     _service_item.appendRow(_sub_service_item)
-                if isinstance(_sub_service_data, dict):
-                    for _name, _data in _sub_service_data.items():
-                        _item = QStandardItem(_name)
-                        _item.setData(_data, Qt.ItemDataRole.UserRole)
-                        _service_item.appendRow(_item)
-
+                    if isinstance(_sub_service_data, list):
+                        for _data in _sub_service_data:
+                            _data_item = QStandardItem(_data['name'])
+                            _data_item.setData(_data['payload'], Qt.ItemDataRole.UserRole)
+                            _data_item.appendRow(_sub_service_item)
+            elif isinstance(_sub_services, list):
+                for _sub_service in _sub_services:
+                    _sub_service_item = QStandardItem(_sub_service['name'])
+                    _sub_service_item.setData(_sub_service['payload'], Qt.ItemDataRole.UserRole)
+                    _service_item.appendRow(_sub_service_item)
 
     def add_child_node(self, parent_index: QModelIndex, node_name: str, custom_bytes: bytes = b""):
         """添加子节点（接收bytes类型数据）"""
@@ -125,7 +127,7 @@ class DiagTreeDataModel(QStandardItemModel):
         parent_item.removeRow(row)
         return True
 
-    def _get_node_level(self, index: QModelIndex) -> int:
+    def get_node_level(self, index: QModelIndex) -> int:
         """计算给定 QModelIndex 的层级（深度），根节点为 0"""
         level = 0
         temp_index = index
@@ -134,14 +136,28 @@ class DiagTreeDataModel(QStandardItemModel):
             temp_index = temp_index.parent()
         return level
 
-    def get_node_info(self, node_index: QModelIndex) -> dict:
+    def get_node_name_list(self, node_index: QModelIndex) -> list[str]:
+        """获取多级节点名字"""
+        if not node_index.isValid():
+            return []
+
+        name_list = []
+        node_text = node_index.data(Qt.ItemDataRole.DisplayRole)
+        name_list.append(node_text)
+        temp_index = node_index
+        while temp_index.parent().isValid():
+            temp_index = temp_index.parent()
+            name_list.insert(0, temp_index.data(Qt.ItemDataRole.DisplayRole))
+        return name_list
+
+    def get_node_info(self, node_index: QModelIndex):
         """获取节点信息（bytes转Hex字符串展示）"""
         if not node_index.isValid():
             return {}
         node_text = node_index.data(Qt.ItemDataRole.DisplayRole)
         custom_bytes = node_index.data(Qt.ItemDataRole.UserRole)  # 获取bytes数据
         # 计算节点层级
-        node_level = self._get_node_level(node_index)
+        node_level = self.get_node_level(node_index)
         # bytes转Hex字符串（大写），空bytes显示"无"
         hex_str = custom_bytes.hex().upper() if custom_bytes else ""
         return {
@@ -162,6 +178,9 @@ class DiagTreeView(QTreeView):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setModel(DiagTreeDataModel())
+        self.expandAll()  # 展开所有节点
+        self.resizeColumnToContents(0)  # 设置第0列显示全部文本，不会截断
         self._init_view()
         self._init_context_menu()
 
@@ -185,7 +204,10 @@ class DiagTreeView(QTreeView):
             return
 
         # 2. 获取节点文本（诊断项名称）
-        node_info = self.model().get_node_info(selected_index)
+        model = self.model()
+        if not isinstance(model, DiagTreeDataModel):
+            return
+        node_info = model.get_node_info(selected_index)
         if not node_info["raw_bytes"]:
             return
 
@@ -222,14 +244,19 @@ class DiagTreeView(QTreeView):
         self.add_root_act.triggered.connect(self._add_root_node)
         self.delete_act.triggered.connect(self._delete_node)
 
+    def _get_node_name_list(self, index: QModelIndex) -> list[str]:
+        """获取多级节点名字"""
+        model = self.model()
+        return model.get_node_name_list(index)
+
+
     def _get_node_level(self, index: QModelIndex) -> int:
         """计算给定 QModelIndex 的层级（深度），根节点为 0"""
-        level = 0
-        temp_index = index
-        while temp_index.parent().isValid():
-            level += 1
-            temp_index = temp_index.parent()
-        return level
+        model = self.model()
+        if not isinstance(model, DiagTreeDataModel):
+            return 0xff
+        return model.get_node_level(index)
+
     def _show_context_menu(self, pos: QPoint):
         """处理右键点击事件，根据节点深度动态启用/禁用菜单项"""
         # 获取被点击的 QModelIndex

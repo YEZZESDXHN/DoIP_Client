@@ -2,22 +2,22 @@ import logging
 import sqlite3
 from typing import Optional, List
 
-from user_data import DoIPConfig
+from user_data import DoIPConfig, DEFAULT_SERVICES
 
 logger = logging.getLogger('UDSOnIPClient.' + __name__)
 
 DOIP_CONFIG_TABLE_NAME = "DoIP_Config"
 CURRENT_CONFIG_TABLE_NAME = 'current_active_config'
+SERVICES_TABLE_NAME = 'services_table'
 
 
-class DoIPConfigDBManager:
+class DBManager:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.default_config = DoIPConfig()
         self.keys_tuple = self.default_config.get_attr_names()
         self.primary_key = DoIPConfig().get_attr_names()[0]
         self.init_config_database()
-
 
     def init_config_database(self):
         # --- 动态生成 CREATE TABLE SQL(doip config) ---
@@ -48,11 +48,19 @@ class DoIPConfigDBManager:
                         );
                         """
 
+        create_services_table_sql = f"""
+                        CREATE TABLE IF NOT EXISTS {SERVICES_TABLE_NAME} (
+                            config_name TEXT PRIMARY KEY,
+                            services_json TEXT NOT NULL
+                        )
+                    """
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(create_doip_config_sql)
                 cursor.execute(create_current_config_sql)
+                cursor.execute(create_services_table_sql)
                 conn.commit()
                 logger.info(f"数据库初始化完成！{DOIP_CONFIG_TABLE_NAME} ，{CURRENT_CONFIG_TABLE_NAME}表创建/验证成功")
 
@@ -76,9 +84,34 @@ class DoIPConfigDBManager:
                 else:
                     logger.info(f"表 {CURRENT_CONFIG_TABLE_NAME} 中已存在激活配置记录，跳过设置。")
 
+                active_config_name = self.get_active_config_name()
+                if self._check_services_is_exists(conn, active_config_name):
+                    pass
+                else:
+                    self.add_services_config(conn, active_config_name, DEFAULT_SERVICES.to_json())
+
+
         except sqlite3.Error as e:
             logger.exception(f"初始化数据库失败：{e}")
 
+    def _check_services_is_exists(self, conn: sqlite3.Connection, config_name: str) -> bool:
+        """
+        检查ServicesTable中是否存在指定配置名
+        :param conn: 数据库conn
+        :param config_name: 要检查的配置名
+        :return: 存在返回True，否则False
+        """
+        try:
+            cursor = conn.cursor()
+            cursor.execute(f"""
+                SELECT 1 FROM {SERVICES_TABLE_NAME} 
+                WHERE config_name = ?
+                LIMIT 1
+            """, (config_name,))  # 使用参数化查询，避免SQL注入
+            return cursor.fetchone() is not None
+        except sqlite3.Error as e:
+            logger.exception(f"检查配置存在性失败：{e}")
+            return False
     def _insert_default_doip_config(self, conn: sqlite3.Connection):
         """内部方法：将默认配置写入数据库"""
         # 构建 SQL 插入语句
@@ -99,6 +132,27 @@ class DoIPConfigDBManager:
             logger.info(f"成功写入默认配置: {self.default_config.config_name}")
         except sqlite3.Error as e:
             logger.exception(f"写入默认配置失败: {e}")
+
+    def add_services_config(self, conn: sqlite3.Connection, config_name: str, services_json: str) -> bool:
+        """
+        向ServicesTable添加配置（若已存在则更新）
+        :param conn
+        :param config_name: 配置名
+        :param services_json: 配置数据,JSON字符串
+        :return: 操作成功返回True，否则False
+        """
+        try:
+            cursor = conn.cursor()
+            cursor.execute(f"""
+                INSERT OR REPLACE INTO {SERVICES_TABLE_NAME} 
+                (config_name, services_json) VALUES (?, ?)
+            """, (config_name, services_json))
+            conn.commit()
+            logger.debug(f'添加/更新Service配置成功')
+            return True
+        except (sqlite3.Error, TypeError) as e:
+            logger.exception(f"添加/更新配置失败：{e}")
+            return False
 
     def _insert_default_doip_config_name(self, conn: sqlite3.Connection):
         """内部方法：首次将默认配置名称写入 current_active_config 表"""

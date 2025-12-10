@@ -331,6 +331,18 @@
         <string>DoIPTrace</string>
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout">
+        <property name="leftMargin">
+         <number>2</number>
+        </property>
+        <property name="topMargin">
+         <number>2</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
         <item>
          <widget class="QSplitter" name="splitter">
           <property name="orientation">
@@ -370,7 +382,7 @@
               <x>0</x>
               <y>0</y>
               <width>248</width>
-              <height>701</height>
+              <height>737</height>
              </rect>
             </property>
            </widget>
@@ -417,6 +429,21 @@
         <string>自动诊断流程</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,1">
+        <property name="spacing">
+         <number>6</number>
+        </property>
+        <property name="leftMargin">
+         <number>2</number>
+        </property>
+        <property name="topMargin">
+         <number>2</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
         <item>
          <layout class="QVBoxLayout" name="verticalLayout_7">
           <item>
@@ -446,7 +473,7 @@
           </property>
           <widget class="QTabWidget" name="tabWidget_2">
            <property name="currentIndex">
-            <number>1</number>
+            <number>0</number>
            </property>
            <widget class="QWidget" name="tab_DiagStepTree">
             <attribute name="title">
@@ -507,8 +534,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>1312</width>
-                  <height>641</height>
+                  <width>1326</width>
+                  <height>657</height>
                  </rect>
                 </property>
                </widget>
@@ -569,7 +596,6 @@
    <addaction name="menu_set"/>
    <addaction name="menu_about"/>
   </widget>
-  <widget class="QStatusBar" name="statusBar"/>
   <action name="action_database">
    <property name="text">
     <string>可视化数据库</string>

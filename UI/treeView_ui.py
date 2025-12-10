@@ -19,7 +19,7 @@ logger = logging.getLogger("UiCustom")
 # 树形数据模型：存储bytes类型的自定义数据
 # ------------------------------
 class DiagTreeDataModel(QStandardItemModel):
-    def __init__(self, parent=None, uds_service: UdsService = DEFAULT_SERVICES):
+    def __init__(self, uds_service: UdsService, parent=None):
         super().__init__(parent)
         self.setHorizontalHeaderLabels(["诊断服务"])
         self.uds_service = uds_service
@@ -32,7 +32,7 @@ class DiagTreeDataModel(QStandardItemModel):
         invisible_root = self.invisibleRootItem()
         self._init_nodes(invisible_root, uds_service_dict)
 
-    def _init_nodes(self, parent_node, data, current_path=''):
+    def _init_nodes(self, parent_node, data: dict, current_path=''):
         """
         递归地将字典或列表数据添加到 QStandardItem 树结构中。
 
@@ -203,9 +203,9 @@ class DiagTreeView(QTreeView):
 
     clicked_node_data = Signal(bytes)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, uds_service: UdsService = DEFAULT_SERVICES):
         super().__init__(parent)
-        self.setModel(DiagTreeDataModel())
+        self.setModel(DiagTreeDataModel(uds_service=uds_service))
         self.expandAll()  # 展开所有节点
         self.resizeColumnToContents(0)  # 设置第0列显示全部文本，不会截断
         self._init_view()

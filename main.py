@@ -129,6 +129,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 添加TreeView控件
         self.treeView_Diag = self._add_custom_tree_view(self.scrollArea_DiagTree)
         self.treeView_Diag_Process = self._add_custom_tree_view(self.scrollArea_DiagTreeForProcess)
+        self.treeView_Diag_Process.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self.treeView_Diag_Process.setModel(self.treeView_Diag.model())
         self.treeView_Diag_Process.expandAll()
         self.treeView_Diag_Process.setDragEnabled(True)  # 允许拖拽

@@ -1,5 +1,8 @@
+import dataclasses
 import json
 import logging
+import re
+from typing import List, Type, Optional, get_args
 
 from PySide6.QtCore import QModelIndex, Signal, QPoint, QMimeData, QByteArray, QDataStream, QIODevice
 from PySide6.QtGui import QStandardItemModel, QStandardItem, Qt, QDrag
@@ -11,56 +14,6 @@ from utils import hex_str_to_bytes, json_default_converter
 
 logger = logging.getLogger("UiCustom")
 
-DEFAULT_SERVICES_TREE = {
-            'DiagnosticSessionControl (0x10)': {
-                'defaultSession (01)': bytes.fromhex('1001'),
-                'programmingSession (02)': bytes.fromhex('1002'),
-                'extendedDiagnosticSession (03)': bytes.fromhex('1003'),
-                'safetySystemDiagnosticSession (04)': bytes.fromhex('1004'),
-            },
-            'ECUReset (0x11)': {
-                'hardReset (01)': bytes.fromhex('1101'),
-                'keyOffOnReset (02)': bytes.fromhex('1102'),
-                'softReset (03)': bytes.fromhex('1103'),
-                'enableRapidPowerShutDown (04)': bytes.fromhex('1104'),
-                'disableRapidPowerShutDown (05)': bytes.fromhex('1105'),
-            },
-            'ReadDataByIdentifier (0x22)': {
-
-            },
-            'InputOutputControlByIdentifier (0x2F)': {
-
-            },
-            'ReadDTCInformation (0x19)': {
-
-            },
-            'RequestDownload (0x34)': {
-
-            },
-            'RequestUpload (0x35)': {
-
-            },
-            'TransferData (0x36)': {
-
-            },
-            'RequestTransferExit (0x37)': {
-
-            },
-            'SecurityAccess (0x27)': {
-                'RequestSeed L1': bytes.fromhex('2701'),
-                'RequestSeed L3': bytes.fromhex('2703'),
-                'RequestSeed L5': bytes.fromhex('2705'),
-            },
-            'TesterPresent (0x3E)': {
-
-            },
-            'RoutineControl (0x31)': {
-                'startRoutine (01)': {},
-                'stopRoutine (02)': {},
-                'requestRoutineResults (03)': {},
-            }
-
-        }
 
 # ------------------------------
 # 树形数据模型：存储bytes类型的自定义数据
@@ -70,102 +23,176 @@ class DiagTreeDataModel(QStandardItemModel):
         super().__init__(parent)
         self.setHorizontalHeaderLabels(["诊断服务"])
         self.uds_service = uds_service
-        self.uds_service_dict = uds_service.to_dict()
-        self._init_nodes()
+        uds_service_dict = uds_service.to_dict()
 
+        self.payload_role = Qt.ItemDataRole.UserRole
+        self.path_role = Qt.ItemDataRole.UserRole + 1
+        self.node_type_role = Qt.ItemDataRole.UserRole + 2
 
-    def _init_nodes(self):
-        """初始化默认节点（存储bytes类型数据）"""
         invisible_root = self.invisibleRootItem()
+        self._init_nodes(invisible_root, uds_service_dict)
 
-        for _service, _sub_services in self.uds_service_dict.items():
-            _service_item = QStandardItem(_service)
-            invisible_root.appendRow(_service_item)
-            if isinstance(_sub_services, dict):
-                for _sub_service, _sub_service_data in _sub_services.items():
-                    _sub_service_item = QStandardItem(_sub_service)
-                    _service_item.appendRow(_sub_service_item)
-                    if isinstance(_sub_service_data, list):
-                        for _data in _sub_service_data:
-                            _data_item = QStandardItem(_data['name'])
-                            _data_item.setData(_data['payload'], Qt.ItemDataRole.UserRole)
-                            _data_item.appendRow(_sub_service_item)
-            elif isinstance(_sub_services, list):
-                for _sub_service in _sub_services:
-                    _sub_service_item = QStandardItem(_sub_service['name'])
-                    _sub_service_item.setData(_sub_service['payload'], Qt.ItemDataRole.UserRole)
-                    _service_item.appendRow(_sub_service_item)
+    def _init_nodes(self, parent_node, data, current_path=''):
+        """
+        递归地将字典或列表数据添加到 QStandardItem 树结构中。
 
-    def add_child_node(self, parent_index: QModelIndex, node_name: str, custom_bytes: bytes = b""):
-        """添加子节点（接收bytes类型数据）"""
+        """
+        if isinstance(data, dict):
+            # 遍历字典的键值对
+            for key, value in data.items():
+                # 创建一个新节点作为当前节点的子节点
+                new_path = key if not current_path else f"{current_path}.{key}"
+                node = QStandardItem(str(key))
+                node.setData(new_path, self.path_role)
+                if isinstance(value, list):
+                    node.setData(0, self.node_type_role)
+                else:
+                    node.setData(-1, self.node_type_role)
+                parent_node.appendRow(node)
+
+                # 递归调用自身处理值 (value)
+                self._init_nodes(node, value, new_path)
+
+        elif isinstance(data, list):
+            # 遍历列表中的每个项目 (item)
+            for index, item in enumerate(data):
+                if isinstance(item, dict) and 'name' in item and 'payload' in item:
+                    path = f"{current_path}[{index}]"
+                    # 假设列表项是带有 'name' 和 'payload' 的结构
+                    node = QStandardItem(item['name'])
+                    # 设置用户数据
+                    node.setData(item['payload'], self.path_role)
+                    node.setData(path, self.path_role)
+                    node.setData(1, self.node_type_role)
+                    parent_node.appendRow(node)
+
+    def add_operation_node(self, parent_index: QModelIndex, node_name: str, custom_bytes: bytes = b""):
+        """添加operation_node（接收bytes类型数据）"""
         if not parent_index.isValid() or not node_name.strip():
             return False
         parent_item = self.itemFromIndex(parent_index)
+        parent_path = self.get_node_path(parent_index)
+        obj = self.get_obj_from_path(parent_path)
+
         new_item = QStandardItem(node_name.strip())
-        new_item.setData(custom_bytes, Qt.ItemDataRole.UserRole)  # 存储bytes
+        new_item.setData(custom_bytes, self.payload_role)  # 存储bytes
+        new_item.setData(1, self.node_type_role)  # 终端节点
+        path = f"{parent_path}[{len(obj)}]"
+        new_item.setData(path, self.path_role)
         parent_item.appendRow(new_item)
+        data_type: Type = self.get_parent_node_data_type(parent_index)
+        if isinstance(obj, list):
+            obj.append(data_type(name=node_name, payload=custom_bytes))
+
         return True
 
-    def add_root_node(self, node_name: str):
-        """添加顶级根节点（接收bytes类型数据）"""
-        if not node_name.strip():
-            return False
-        invisible_root = self.invisibleRootItem()
-        new_root = QStandardItem(node_name.strip())
-        # new_root.setData(custom_bytes, Qt.ItemDataRole.UserRole)
-        invisible_root.appendRow(new_root)
-        return True
+    # def add_root_node(self, node_name: str):
+    #     """添加顶级根节点（接收bytes类型数据）"""
+    #     if not node_name.strip():
+    #         return False
+    #     invisible_root = self.invisibleRootItem()
+    #     new_root = QStandardItem(node_name.strip())
+    #     # new_root.setData(custom_bytes, Qt.ItemDataRole.UserRole)
+    #     invisible_root.appendRow(new_root)
+    #     return True
 
-    def delete_node(self, node_index: QModelIndex):
-        """删除节点"""
+    def delete_operation_node(self, node_index: QModelIndex):
+        """删除终端节点节点"""
         if not node_index.isValid():
             return False
+        if self.get_node_type(node_index) != 1:
+            return False
+        node_path = self.get_node_path(node_index)
+        parts: List[str] = self.split_path_to_parts(node_path)
         parent_item = self.itemFromIndex(node_index.parent())
         row = node_index.row()
         if not parent_item:
             parent_item = self.invisibleRootItem()
         parent_item.removeRow(row)
+        obj = self.uds_service
+        for part in parts[:-1]:
+            if not isinstance(obj, list):
+                obj = getattr(obj, part)
+            else:
+                obj = obj[int(part)]
+        if isinstance(obj, list):
+            obj.pop(int(parts[-1]))
+
         return True
 
-    def get_node_level(self, index: QModelIndex) -> int:
-        """计算给定 QModelIndex 的层级（深度），根节点为 0"""
-        level = 0
-        temp_index = index
-        while temp_index.parent().isValid():
-            level += 1
-            temp_index = temp_index.parent()
-        return level
-
-    def get_node_name_list(self, node_index: QModelIndex) -> list[str]:
-        """获取多级节点名字"""
-        if not node_index.isValid():
-            return []
-
-        name_list = []
-        node_text = node_index.data(Qt.ItemDataRole.DisplayRole)
-        name_list.append(node_text)
-        temp_index = node_index
-        while temp_index.parent().isValid():
-            temp_index = temp_index.parent()
-            name_list.insert(0, temp_index.data(Qt.ItemDataRole.DisplayRole))
-        return name_list
-
-    def get_node_info(self, node_index: QModelIndex):
+    def get_node_path(self, node_index: QModelIndex):
         """获取节点信息（bytes转Hex字符串展示）"""
         if not node_index.isValid():
             return {}
-        node_text = node_index.data(Qt.ItemDataRole.DisplayRole)
-        custom_bytes = node_index.data(Qt.ItemDataRole.UserRole)  # 获取bytes数据
-        # 计算节点层级
-        node_level = self.get_node_level(node_index)
-        # bytes转Hex字符串（大写），空bytes显示"无"
-        hex_str = custom_bytes.hex().upper() if custom_bytes else ""
-        return {
-            "text": node_text,
-            "hex_str": hex_str,       # 格式化后的Hex字符串
-            "raw_bytes": custom_bytes,# 原始bytes数据
-            "level": node_level
-        }
+        return node_index.data(self.path_role)
+
+    def get_parent_node_data_type(self, node_index: QModelIndex) -> Optional[Type]:
+        """只用于返回终端节点上一级节点的数据类型"""
+        if self.get_node_type(node_index) != 0:
+            return None
+        path = self.get_node_path(node_index)
+        parts: List[str] = self.split_path_to_parts(path)
+
+        obj = self.uds_service
+        for part in parts[:-1]:
+            if dataclasses.is_dataclass(obj):
+                obj = getattr(obj, part)
+        _type: Type = obj._get_field_type(parts[-1])
+        args = get_args(_type)
+        return args[0]
+
+    def get_obj(self, node_index: QModelIndex):
+        path = self.get_node_path(node_index)
+        parts: List[str] = self.split_path_to_parts(path)
+
+        obj = self.uds_service
+        for part in parts:
+            if not isinstance(obj, list):
+                obj = getattr(obj, part)
+            else:
+                obj = obj[int(part)]
+        return obj
+
+    @staticmethod
+    def split_path_to_parts(path: str) -> List[str]:
+        """
+        将点分和索引路径拆分为属性名和纯数字索引列表。
+
+        例如: "test.test.test[1]" -> ['test', 'test', 'test', '1']
+        """
+
+        # re.findall 遇到多个捕获组时，会返回元组列表：[('attr', ''), ('', 'index')]
+        raw_parts: List[tuple[str, str]] = re.findall(r'([^.\[\]]+)|\[(\d+)]', path)
+
+        # 清理步骤：使用列表推导式，从元组中提取唯一的非空字符串（属性名或纯数字索引）
+        parts: List[str] = [p[0] or p[1] for p in raw_parts]
+
+        return parts
+
+    def get_obj_from_path(self, path):
+        parts: List[str] = self.split_path_to_parts(path)
+
+        obj = self.uds_service
+        for part in parts:
+            if not isinstance(obj, list):
+                obj = getattr(obj, part)
+            else:
+                obj = obj[int(part)]
+        return obj
+
+    def get_node_info(self, node_index: QModelIndex):
+        path = self.get_node_path(node_index)
+        obj = self.get_obj_from_path(path)
+
+        return path, obj
+
+    def get_node_type(self, node_index: QModelIndex) -> int:
+        """
+        获取节点类型
+        return 1：终端节点，0：终端上一级节点，-1：终端上二级及以上节点
+        """
+        return node_index.data(self.node_type_role)
+
 
 
 
@@ -192,7 +219,7 @@ class DiagTreeView(QTreeView):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)  # 开启右键菜单
 
         # 绑定信号
-        # self.clicked.connect(self._on_node_clicked)
+        self.clicked.connect(self._on_node_clicked)
         self.doubleClicked.connect(self._on_sub_service_double_clicked)
         self.customContextMenuRequested.connect(self._show_context_menu)
 
@@ -203,14 +230,13 @@ class DiagTreeView(QTreeView):
         if not selected_index.isValid():
             return
 
-        # 2. 获取节点文本（诊断项名称）
         model = self.model()
         if not isinstance(model, DiagTreeDataModel):
             return
-        node_info = model.get_node_info(selected_index)
-        if not node_info["raw_bytes"]:
+        if model.get_node_type(selected_index) != 1:  # 非终端节点
             return
 
+        node_info = model.get_obj(selected_index)
         # 3. 封装拖拽数据（QMimeData）
         mime_data = QMimeData()
         # 自定义MIME类型（避免和其他拖拽冲突）
@@ -220,8 +246,8 @@ class DiagTreeView(QTreeView):
         stream = QDataStream(byte_array, QIODevice.WriteOnly)
         # json_str = json.dumps(node_info, ensure_ascii=False, indent=0, default=json_default_converter)
         diagnosis_step_data = DiagnosisStepData()
-        diagnosis_step_data.service = node_info['text']
-        diagnosis_step_data.send_data = node_info['raw_bytes']
+        diagnosis_step_data.service = node_info.name
+        diagnosis_step_data.send_data = node_info.payload
         diagnosis_step_data.step_type = DiagnosisStepTypeEnum.ExistingStep
         stream.writeQString(diagnosis_step_data.to_json())  # 写入诊断项名称
         mime_data.setData(mime_type, byte_array)
@@ -236,26 +262,20 @@ class DiagTreeView(QTreeView):
     def _init_context_menu(self):
         """初始化右键菜单"""
         self.context_menu = QMenu(self)
-        self.add_root_act = self.context_menu.addAction("添加服务")
+        # self.add_root_act = self.context_menu.addAction("添加服务")
         self.add_child_act = self.context_menu.addAction("添加子服务")
         self.context_menu.addSeparator()
         self.delete_act = self.context_menu.addAction("删除(子)服务")
-        self.add_child_act.triggered.connect(self._add_child_node)
-        self.add_root_act.triggered.connect(self._add_root_node)
-        self.delete_act.triggered.connect(self._delete_node)
+        self.add_child_act.triggered.connect(self._add_operation_node)
+        # self.add_root_act.triggered.connect(self._add_root_node)
+        self.delete_act.triggered.connect(self._delete_operation_node)
 
-    def _get_node_name_list(self, index: QModelIndex) -> list[str]:
-        """获取多级节点名字"""
-        model = self.model()
-        return model.get_node_name_list(index)
-
-
-    def _get_node_level(self, index: QModelIndex) -> int:
-        """计算给定 QModelIndex 的层级（深度），根节点为 0"""
-        model = self.model()
-        if not isinstance(model, DiagTreeDataModel):
-            return 0xff
-        return model.get_node_level(index)
+    # def _get_node_level(self, index: QModelIndex) -> int:
+    #     """计算给定 QModelIndex 的层级（深度），根节点为 0"""
+    #     model = self.model()
+    #     if not isinstance(model, DiagTreeDataModel):
+    #         return 0xff
+    #     return model.get_node_level(index)
 
     def _show_context_menu(self, pos: QPoint):
         """处理右键点击事件，根据节点深度动态启用/禁用菜单项"""
@@ -263,20 +283,21 @@ class DiagTreeView(QTreeView):
         clicked_index = self.indexAt(pos)
 
         # 根节点/空白区域被点击
-        if not clicked_index.isValid():
-            # 只能添加顶级服务
-            self.add_root_act.setEnabled(True)
-            self.add_child_act.setEnabled(False)
-            self.delete_act.setEnabled(False)
-        else:  # 有效节点被点击
-            node_level = self._get_node_level(clicked_index)
+        if clicked_index.isValid():
+            model = self.model()
+            if not isinstance(model, DiagTreeDataModel):
+                return
+            node_type = model.get_node_type(clicked_index)
 
-            if 0 <= node_level <= 1:
-                self.add_root_act.setEnabled(True)
+            if node_type == -1:
+                # self.add_root_act.setEnabled(True)
+                self.add_child_act.setEnabled(False)
+                self.delete_act.setEnabled(False)
+            elif node_type == 0:
+                # self.add_root_act.setEnabled(True)
                 self.add_child_act.setEnabled(True)
-                self.delete_act.setEnabled(True)
-            elif node_level > 1:
-                self.add_root_act.setEnabled(True)
+                self.delete_act.setEnabled(False)
+            elif node_type == 1:
                 self.add_child_act.setEnabled(False)
                 self.delete_act.setEnabled(True)
 
@@ -288,77 +309,67 @@ class DiagTreeView(QTreeView):
         model = self.model()
         if not isinstance(model, DiagTreeDataModel):
             return
-        node_info = model.get_node_info(index)
-        if not node_info:
-            return
-        if node_info['level'] >= 1:
-            self.clicked_node_data.emit(node_info.get('raw_bytes', bytes()))
 
+        if model.get_node_type(index) != 1:
+            return
+        node_obj = model.get_obj(index)
+        self.clicked_node_data.emit(node_obj.payload)
 
     def _on_node_clicked(self, index: QModelIndex):
         """节点点击：展示Hex字符串和字节长度"""
         model = self.model()
         if not isinstance(model, DiagTreeDataModel):
             return
-        node_info = model.get_node_info(index)
-        if not node_info:
-            return
-        # 组装展示信息：Hex字符串 + 字节长度
-        display_text = (
-            f"节点文本：{node_info['text']}\n"
-            f"Hex数据：{node_info['hex_str']}\n"
-            # f"字节长度：{len(node_info['raw_bytes'])}\n"
-            f"节点层级：{node_info['level']}"
-        )
+        path = model.get_node_path(index)
+        obj = model.get_obj_from_path(path)
+        node_type = model.get_node_type(index)
+        if node_type == 1:
+            display_text = (
+                f"节点Path：{path}\n"
+                f"Hex数据：{getattr(obj, 'payload', b'').hex(' ')}\n"
+            )
+        else:
+            display_text = (
+                f"节点Path：{path}\n"
+                f"node_type：{node_type}\n"
+            )
+
         QMessageBox.information(self, "节点信息", display_text)
 
-    def _add_child_node(self):
+    def _add_operation_node(self):
         """添加子节点：调用对话框获取bytes数据"""
         current_index = self.currentIndex()
         if not current_index.isValid():
             QMessageBox.warning(self, "提示", "请先选中一个节点再添加子节点！")
             return
-        current_level = self._get_node_level(current_index)
-        dialog = AddNodeDialog(parent=self, level=current_level, title="添加子服务")
+
+        dialog = AddNodeDialog(parent=self, title="添加子服务")
         if dialog.exec() == QDialog.Accepted:
             node_name, custom_bytes = dialog.get_inputs()
             model = self.model()
             if isinstance(model, DiagTreeDataModel):
-                success = model.add_child_node(current_index, node_name, custom_bytes)
+                success = model.add_operation_node(current_index, node_name, custom_bytes)
                 if success:
                     self.expand(current_index)
 
-    def _add_root_node(self):
-        """添加顶级根节点：调用对话框获取bytes数据"""
-        dialog = AddNodeDialog(parent=self, level=-1, title="添加服务")
-        dialog.lineEdit_Hex.setVisible(False)
-        dialog.label_Hex.setVisible(False)
-        dialog.label_note.setVisible(False)
-        if dialog.exec() == QDialog.Accepted:
-            node_name, custom_bytes = dialog.get_inputs()
-            model = self.model()
-            if isinstance(model, DiagTreeDataModel):
-                model.add_root_node(node_name)
-
-    def _delete_node(self):
+    def _delete_operation_node(self):
         """删除节点"""
         current_index = self.currentIndex()
         model = self.model()
         if not isinstance(model, DiagTreeDataModel):
             QMessageBox.warning(self, "提示", "数据模型异常！")
             return
-        success = model.delete_node(current_index)
+        success = model.delete_operation_node(current_index)
         if not success:
             QMessageBox.warning(self, "提示", "删除节点失败，请选中有效节点！")
 
 class AddNodeDialog(Ui_AddDiagServiceDialog, QDialog):
-    def __init__(self, level: int, parent=None, title="添加节点"):
+    def __init__(self, parent=None, title="添加节点"):
         super().__init__(parent)
         self.setupUi(self)
         self.setWindowTitle(title)
         self.node_name = ""
         self.custom_bytes = b""  # 存储转换后的bytes数据
-        self.clicked_node_level = level
 
         self.buttonBox.accepted.connect(self._on_accept)
 
@@ -376,7 +387,7 @@ class AddNodeDialog(Ui_AddDiagServiceDialog, QDialog):
         hex_input = self.lineEdit_Hex.text().strip()
 
         # 点击的level 1层级，添加子服务必须带有数据
-        if not hex_input and self.clicked_node_level == 1:
+        if not hex_input:
             QMessageBox.warning(self, "数据不能为空", "节请输入合法的十六进制字符串（如1A3F、FF00）")
             self.lineEdit_Hex.setFocus()  # 聚焦到输入框重新输入
             return

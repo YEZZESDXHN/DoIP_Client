@@ -12,99 +12,112 @@ from doipclient.messages import RoutingActivationRequest
 
 
 @dataclass
-class DiagnosticSessionControl:
+class _DiagnosticSessionControl:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class ECUReset:
+class _ECUReset:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class ReadDataByIdentifier:
+class _ReadDataByIdentifier:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class InputOutputControlByIdentifier:
+class _InputOutputControlByIdentifier:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class ReadDTCInformation:
+class _ReadDTCInformation:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class RequestDownload:
+class _RequestDownload:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class RequestUpload:
+class _RequestUpload:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class TransferData:
+class _TransferData:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class RequestTransferExit:
+class _RequestTransferExit:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class SecurityAccess:
+class _SecurityAccess:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class TesterPresent:
+class _TesterPresent:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class Routine:
+class _Routine:
     name: str = ''
     payload: bytes = b''
 
 
 @dataclass
-class RoutineControl:
-    startRoutine: list[Routine] = field(default_factory=list)
-    stopRoutine: list[Routine] = field(default_factory=list)
-    requestRoutineResults: list[Routine] = field(default_factory=list)
+class _RoutineControl:
+    startRoutine: list[_Routine] = field(default_factory=list)
+    stopRoutine: list[_Routine] = field(default_factory=list)
+    requestRoutineResults: list[_Routine] = field(default_factory=list)
+
+    def _get_field_type(self, field_name: str) -> Optional[Type]:
+        """辅助方法：获取属性的类型"""
+        if is_dataclass(self):
+            for _field in fields(self):
+                if _field.name == field_name:
+                    return _field.type
+        return None
 
 
 @dataclass
 class UdsService:
     """服务数据类"""
-    DiagnosticSessionControl: list[DiagnosticSessionControl] = field(default_factory=list)
-    ECUReset: list[ECUReset] = field(default_factory=list)
-    ReadDataByIdentifier: list[ReadDataByIdentifier] = field(default_factory=list)
-    InputOutputControlByIdentifier: list[InputOutputControlByIdentifier] = field(default_factory=list)
-    ReadDTCInformation: list[ReadDTCInformation] = field(default_factory=list)
-    RequestDownload: list[RequestDownload] = field(default_factory=list)
-    RequestUpload: list[RequestUpload] = field(default_factory=list)
-    TransferData: list[TransferData] = field(default_factory=list)
-    RequestTransferExit: list[RequestTransferExit] = field(default_factory=list)
-    SecurityAccess: list[SecurityAccess] = field(default_factory=list)
-    TesterPresent: list[TesterPresent] = field(default_factory=list)
-    RoutineControl: RoutineControl = RoutineControl()
+    DiagnosticSessionControl: list[_DiagnosticSessionControl] = field(default_factory=list)
+    ECUReset: list[_ECUReset] = field(default_factory=list)
+    ReadDataByIdentifier: list[_ReadDataByIdentifier] = field(default_factory=list)
+    InputOutputControlByIdentifier: list[_InputOutputControlByIdentifier] = field(default_factory=list)
+    ReadDTCInformation: list[_ReadDTCInformation] = field(default_factory=list)
+    RequestDownload: list[_RequestDownload] = field(default_factory=list)
+    RequestUpload: list[_RequestUpload] = field(default_factory=list)
+    TransferData: list[_TransferData] = field(default_factory=list)
+    RequestTransferExit: list[_RequestTransferExit] = field(default_factory=list)
+    SecurityAccess: list[_SecurityAccess] = field(default_factory=list)
+    TesterPresent: list[_TesterPresent] = field(default_factory=list)
+    RoutineControl: _RoutineControl = _RoutineControl()
+
+    def _get_field_type(self, field_name: str) -> Optional[Type]:
+        """辅助方法：获取属性的类型"""
+        # if is_dataclass(self):
+        return self.__annotations__.get(field_name)
 
     @staticmethod
     def _json_default_converter(obj):
@@ -135,19 +148,19 @@ class UdsService:
 
 DEFAULT_SERVICES = UdsService()
 DEFAULT_SERVICES.DiagnosticSessionControl = [
-    DiagnosticSessionControl("defaultSession", bytes.fromhex('1001')),
-    DiagnosticSessionControl("programmingSession", bytes.fromhex('1002')),
-    DiagnosticSessionControl("extendedDiagnosticSession", bytes.fromhex('1003')),
+    _DiagnosticSessionControl("defaultSession", bytes.fromhex('1001')),
+    _DiagnosticSessionControl("programmingSession", bytes.fromhex('1002')),
+    _DiagnosticSessionControl("extendedDiagnosticSession", bytes.fromhex('1003')),
 ]
 DEFAULT_SERVICES.ECUReset = [
-    ECUReset("hardReset", bytes.fromhex('1101')),
-    ECUReset("keyOffOnReset", bytes.fromhex('1102')),
-    ECUReset("softReset", bytes.fromhex('1103')),
+    _ECUReset("hardReset", bytes.fromhex('1101')),
+    _ECUReset("keyOffOnReset", bytes.fromhex('1102')),
+    _ECUReset("softReset", bytes.fromhex('1103')),
 ]
 DEFAULT_SERVICES.SecurityAccess = [
-    SecurityAccess("RequestSeed L1", bytes.fromhex('2701')),
-    SecurityAccess("RequestSeed L3", bytes.fromhex('2703')),
-    SecurityAccess("RequestSeed L5", bytes.fromhex('2705')),
+    _SecurityAccess("RequestSeed L1", bytes.fromhex('2701')),
+    _SecurityAccess("RequestSeed L3", bytes.fromhex('2703')),
+    _SecurityAccess("RequestSeed L5", bytes.fromhex('2705')),
 ]
 
 
@@ -210,9 +223,9 @@ class DiagnosisStepData:
     def _get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""
         if is_dataclass(self):
-            for field in fields(self):
-                if field.name == field_name:
-                    return field.type
+            for _field in fields(self):
+                if _field.name == field_name:
+                    return _field.type
         return None
 
     def update_from_dict(self, data_dict: dict):
@@ -526,5 +539,7 @@ class DoIPConfig:
 
 
 if __name__ == '__main__':
-    json_str = DEFAULT_SERVICES.to_dict()
-    pprint.pprint(json_str)
+    # json_str = DEFAULT_SERVICES.to_dict()
+    # pprint.pprint(json_str)
+    _type = DEFAULT_SERVICES._get_field_type('DiagnosticSessionControl')
+    print(_type)

@@ -23,16 +23,15 @@ class DiagTreeDataModel(QStandardItemModel):
         super().__init__(parent)
         self.setHorizontalHeaderLabels(["诊断服务"])
         self.uds_service = uds_service
-        uds_service_dict = uds_service.to_dict()
 
         self.payload_role = Qt.ItemDataRole.UserRole
         self.path_role = Qt.ItemDataRole.UserRole + 1
         self.node_type_role = Qt.ItemDataRole.UserRole + 2
 
-        invisible_root = self.invisibleRootItem()
-        self._init_nodes(invisible_root, uds_service_dict)
+        self.invisible_root = self.invisibleRootItem()
+        self.load_uds_service_to_tree_nodes(self.invisible_root, self.uds_service.to_dict())
 
-    def _init_nodes(self, parent_node, data: dict, current_path=''):
+    def load_uds_service_to_tree_nodes(self, parent_node, data: dict, current_path=''):
         """
         递归地将字典或列表数据添加到 QStandardItem 树结构中。
 
@@ -51,7 +50,7 @@ class DiagTreeDataModel(QStandardItemModel):
                 parent_node.appendRow(node)
 
                 # 递归调用自身处理值 (value)
-                self._init_nodes(node, value, new_path)
+                self.load_uds_service_to_tree_nodes(node, value, new_path)
 
         elif isinstance(data, list):
             # 遍历列表中的每个项目 (item)
@@ -201,6 +200,7 @@ class DiagTreeView(QTreeView):
 
     clicked_node_data = Signal(bytes)
     status_bar_message = Signal(str)
+    data_change_signal = Signal()
 
     def __init__(self, parent=None, uds_service: UdsService = DEFAULT_SERVICES):
         super().__init__(parent)
@@ -221,6 +221,13 @@ class DiagTreeView(QTreeView):
         self.clicked.connect(self._on_node_clicked)
         self.doubleClicked.connect(self._on_sub_service_double_clicked)
         self.customContextMenuRequested.connect(self._show_context_menu)
+
+    def load_uds_service_to_tree_nodes(self):
+        model = self.model()
+        if isinstance(model, DiagTreeDataModel):
+            model.invisible_root.removeRows(0, model.invisible_root.rowCount())
+            model.load_uds_service_to_tree_nodes(model.invisible_root, model.uds_service.to_dict())
+            self.expandAll()
 
     def startDrag(self, supported_actions: Qt.DropAction):
         """重写拖拽开始逻辑：封装选中的节点数据"""
@@ -351,6 +358,7 @@ class DiagTreeView(QTreeView):
             if isinstance(model, DiagTreeDataModel):
                 success = model.add_operation_node(current_index, node_name, custom_bytes)
                 if success:
+                    self.data_change_signal.emit()
                     self.expand(current_index)
 
     def _delete_operation_node(self):
@@ -363,6 +371,8 @@ class DiagTreeView(QTreeView):
         success = model.delete_operation_node(current_index)
         if not success:
             QMessageBox.warning(self, "提示", "删除节点失败，请选中有效节点！")
+        else:
+            self.data_change_signal.emit()
 
 class AddNodeDialog(Ui_AddDiagServiceDialog, QDialog):
     def __init__(self, parent=None, title="添加节点"):

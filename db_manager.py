@@ -18,6 +18,7 @@ class DBManager:
         self.keys_tuple = self.default_config.get_attr_names()
         self.primary_key = DoIPConfig().get_attr_names()[0]
         self.init_config_database()
+        self.init_services_database()
 
     def init_config_database(self):
         # --- 动态生成 CREATE TABLE SQL(doip config) ---
@@ -47,20 +48,11 @@ class DBManager:
                             active_config_name TEXT NOT NULL
                         );
                         """
-
-        create_services_table_sql = f"""
-                        CREATE TABLE IF NOT EXISTS {SERVICES_TABLE_NAME} (
-                            config_name TEXT PRIMARY KEY,
-                            services_json TEXT NOT NULL
-                        )
-                    """
-
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(create_doip_config_sql)
                 cursor.execute(create_current_config_sql)
-                cursor.execute(create_services_table_sql)
                 conn.commit()
                 logger.info(f"数据库初始化完成！{DOIP_CONFIG_TABLE_NAME} ，{CURRENT_CONFIG_TABLE_NAME}表创建/验证成功")
 
@@ -84,15 +76,61 @@ class DBManager:
                 else:
                     logger.info(f"表 {CURRENT_CONFIG_TABLE_NAME} 中已存在激活配置记录，跳过设置。")
 
+        except sqlite3.Error as e:
+            logger.exception(f"初始化数据库失败：{e}")
+
+    def init_services_database(self):
+        create_services_table_sql = f"""
+                                CREATE TABLE IF NOT EXISTS {SERVICES_TABLE_NAME} (
+                                    config_name TEXT PRIMARY KEY,
+                                    services_json TEXT NOT NULL
+                                )
+                            """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(create_services_table_sql)
+                conn.commit()
                 active_config_name = self.get_active_config_name()
                 if self._check_services_is_exists(conn, active_config_name):
                     pass
                 else:
-                    self.add_services_config(conn, active_config_name, DEFAULT_SERVICES.to_json())
-
-
+                    self.add_services_config(active_config_name, DEFAULT_SERVICES.to_json())
+                    logger.debug(f'{SERVICES_TABLE_NAME}表创建成功')
+                logger.info(f"services数据库初始化完成！{SERVICES_TABLE_NAME}表创建/验证成功")
         except sqlite3.Error as e:
-            logger.exception(f"初始化数据库失败：{e}")
+            logger.exception(f"services初始化数据库失败：{e}")
+
+    def get_services_json(self, config_name: str):
+        """
+        从服务配置表中获取指定config_name对应的services_json
+
+        参数:
+            config_name: 要查询的配置名称（主键）
+
+        返回:
+            若存在对应记录，返回services_json字符串；否则返回None
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                query_sql = f"""
+                                SELECT services_json 
+                                FROM {SERVICES_TABLE_NAME} 
+                                WHERE config_name = ?
+                            """
+                # 执行查询
+                cursor.execute(query_sql, (config_name,))
+
+                # 获取结果（fetchone返回单条记录，格式为元组，取第一个元素）
+                result = cursor.fetchone()
+                return result[0] if result else None
+        except Exception as e:
+            # 捕获异常（如表不存在、连接错误等）
+            logger.exception(f"获取services_json失败: {str(e)}")
+            return None
+
+
 
     def _check_services_is_exists(self, conn: sqlite3.Connection, config_name: str) -> bool:
         """
@@ -133,24 +171,24 @@ class DBManager:
         except sqlite3.Error as e:
             logger.exception(f"写入默认配置失败: {e}")
 
-    def add_services_config(self, conn: sqlite3.Connection, config_name: str, services_json: str) -> bool:
+    def add_services_config(self, config_name: str, services_json: str) -> bool:
         """
         向ServicesTable添加配置（若已存在则更新）
-        :param conn
         :param config_name: 配置名
         :param services_json: 配置数据,JSON字符串
         :return: 操作成功返回True，否则False
         """
         try:
-            cursor = conn.cursor()
-            cursor.execute(f"""
-                INSERT OR REPLACE INTO {SERVICES_TABLE_NAME} 
-                (config_name, services_json) VALUES (?, ?)
-            """, (config_name, services_json))
-            conn.commit()
-            logger.debug(f'添加/更新Service配置成功')
-            return True
-        except (sqlite3.Error, TypeError) as e:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(f"""
+                                INSERT OR REPLACE INTO {SERVICES_TABLE_NAME} 
+                                (config_name, services_json) VALUES (?, ?)
+                            """, (config_name, services_json))
+                conn.commit()
+                logger.debug(f'添加/更新Service配置成功')
+                return True
+        except Exception as e:
             logger.exception(f"添加/更新配置失败：{e}")
             return False
 

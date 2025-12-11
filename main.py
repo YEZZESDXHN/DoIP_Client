@@ -16,7 +16,7 @@ from UI.DoIPTraceTable_ui import DoIPTraceTableView
 from UI.sql_data_panel import SQLTablePanel
 from UI.treeView_ui import DiagTreeView, DiagTreeDataModel
 from db_manager import DBManager
-from user_data import DoIPConfig, DoIPMessageStruct
+from user_data import DoIPConfig, DoIPMessageStruct, UdsService
 from utils import get_ethernet_ips
 from pathlib import Path
 
@@ -50,6 +50,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.db_path = 'Database/database.db'
         self.init_database(self.db_path)
+        self.uds_services: UdsService = UdsService()
         self._init_current_doip_config()
 
         # 初始化UI、客户端、信号、IP列表
@@ -127,13 +128,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_DoIPTrace_Automated_Process.trace_model = self.tableView_DoIPTrace.trace_model
         self.tableView_DoIPTrace_Automated_Process.setModel(self.tableView_DoIPTrace.trace_model)
 
-
+        self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_doip_config.config_name))
         # 添加TreeView控件
         self.treeView_DoIPTraceService = self._add_custom_tree_view(self.scrollArea_DiagTree)
         self.treeView_Diag_Process = self._add_custom_tree_view(self.scrollArea_DiagTreeForProcess)
         self.treeView_Diag_Process.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self.treeView_Diag_Process.setModel(self.treeView_DoIPTraceService.model())
-        self.treeView_Diag_Process.expandAll()
         self.treeView_Diag_Process.setDragEnabled(True)  # 允许拖拽
         self.treeView_Diag_Process.setDragDropMode(QAbstractItemView.DragOnly)  # 仅作为拖拽源
         self.treeView_Diag_Process.setDefaultDropAction(Qt.CopyAction)
@@ -147,6 +147,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.comboBox_ChooseConfig.addItem(config)
             self.comboBox_ChooseConfig.setCurrentText(self.current_doip_config.config_name)
 
+    @Slot()
+    def _save_services_to_db(self):
+        self.db_manager.add_services_config(self.current_doip_config.config_name, self.uds_services.to_json())
+
 
     def _add_custom_tree_view(self, parent_widget):
         """
@@ -156,7 +160,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not parent_widget:
             logger.error("父控件无效")
             return
-        tree_view = DiagTreeView(parent=parent_widget)
+        tree_view = DiagTreeView(parent=parent_widget, uds_service=self.uds_services)
 
         logger.debug(f"父控件：{parent_widget.objectName()}")
 
@@ -264,6 +268,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboBox_ChooseConfig.currentIndexChanged.connect(self._on_doip_config_chaneged)
 
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
+        self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
         self.treeView_Diag_Process.status_bar_message.connect(self.status_bar_show_message)
 
 
@@ -292,6 +297,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         config_name = self.comboBox_ChooseConfig.currentText()
         self.current_doip_config = self.db_manager.query_doip_config(config_name)
         self.db_manager.set_active_config(config_name)
+        self.db_manager.init_services_database()
+        self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_doip_config.config_name))
+        self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()
 
     def set_tester_ip(self, index: int):
         """设置测试机IP"""

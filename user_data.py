@@ -1,11 +1,12 @@
 import base64
 import binascii
+import dataclasses
 import enum
 import json
 import pprint
 from dataclasses import dataclass, asdict, fields, is_dataclass, field
 from enum import Enum
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, get_args, get_origin
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
@@ -144,6 +145,42 @@ class UdsService:
         """数据类转dict"""
         data_dict = asdict(self)
         return data_dict
+
+    def update_from_dict(self, data_dict: dict):
+        """从dict更新数据类"""
+        for key, value in data_dict.items():
+            if not hasattr(self, key):
+                continue
+            field_type = self._get_field_type(key)
+            current_obj = getattr(self, key, None)
+
+            try:
+                if get_origin(field_type) is list and isinstance(value, list) and isinstance(current_obj, list):
+                    current_obj.clear()
+                    args = get_args(field_type)
+                    for list_item in value:
+                        if isinstance(list_item, dict) and 'payload' in list_item:
+                            if isinstance(list_item['payload'], bytes):
+                                pass
+                            elif isinstance(list_item['payload'], str):
+                                try:
+                                    # 尝试Base64解码（失败则说明不是Base64字符串，跳过）
+                                    bytes_decode = base64.b64decode(list_item['payload'].encode('utf-8'))
+                                except (binascii.Error, ValueError):
+                                    bytes_decode = b''
+                                list_item['payload'] = bytes_decode
+                            cls = args[0](**list_item)
+                            current_obj.append(cls)
+                elif dataclasses.is_dataclass(field_type) and isinstance(value, dict) and dataclasses.is_dataclass(current_obj):
+                    self.update_from_dict(value)
+
+            except Exception as e:
+                print(f'更新失败：{e}')
+
+    def update_from_json(self, json_str: str):
+        """从json更新数据类"""
+        data_dict = json.loads(json_str)
+        self.update_from_dict(data_dict)
 
 
 DEFAULT_SERVICES = UdsService()
@@ -539,7 +576,31 @@ class DoIPConfig:
 
 
 if __name__ == '__main__':
-    # json_str = DEFAULT_SERVICES.to_dict()
-    # pprint.pprint(json_str)
-    _type = DEFAULT_SERVICES._get_field_type('DiagnosticSessionControl')
-    print(_type)
+    # default_dict = DEFAULT_SERVICES.to_dict()
+    # test_uds_service = UdsService()
+    # print('==============default_dict===========')
+    # pprint.pprint(default_dict)
+    #
+    # print('==============test_uds_service_dict===========')
+    # test_uds_service.update_from_dict(default_dict)
+    # test_uds_service_dict = test_uds_service.to_dict()
+    # pprint.pprint(test_uds_service_dict)
+    #
+    # if default_dict == test_uds_service_dict:
+    #     print('same')
+
+    default_json = DEFAULT_SERVICES.to_json()
+    test_uds_service = UdsService()
+    print('==============default_dict===========')
+    pprint.pprint(default_json)
+
+    print('==============test_uds_service_dict===========')
+    test_uds_service.update_from_json(default_json)
+    test_uds_service_json = test_uds_service.to_json()
+    pprint.pprint(test_uds_service_json)
+
+    if DEFAULT_SERVICES == test_uds_service:
+        print('same')
+
+    # _type = DEFAULT_SERVICES._get_field_type('DiagnosticSessionControl')
+    # print(_type)

@@ -194,14 +194,13 @@ class DiagTreeDataModel(QStandardItemModel):
         return node_index.data(self.node_type_role)
 
 
-
-
 # ------------------------------
 # 自定义树形视图：处理bytes数据的交互
 # ------------------------------
 class DiagTreeView(QTreeView):
 
     clicked_node_data = Signal(bytes)
+    status_bar_message = Signal(str)
 
     def __init__(self, parent=None, uds_service: UdsService = DEFAULT_SERVICES):
         super().__init__(parent)
@@ -324,17 +323,19 @@ class DiagTreeView(QTreeView):
         obj = model.get_obj_from_path(path)
         node_type = model.get_node_type(index)
         if node_type == 1:
-            display_text = (
-                f"节点Path：{path}\n"
-                f"Hex数据：{getattr(obj, 'payload', b'').hex(' ')}\n"
-            )
-        else:
-            display_text = (
-                f"节点Path：{path}\n"
-                f"node_type：{node_type}\n"
-            )
+            payload = getattr(obj, 'payload', b'')
+            if isinstance(payload, bytes):
+                if len(payload) > 10:
+                    display_text = f"{payload[:10].hex(' ')}...\n"
+                else:
+                    display_text = f"{payload[:10].hex(' ')}\n"
+                self.status_bar_message.emit(display_text)
+        # else:
+        #     display_text = (
+        #         f"Path：{path}"
+        #     )
 
-        QMessageBox.information(self, "节点信息", display_text)
+        # QMessageBox.information(self, "节点信息", display_text)
 
     def _add_operation_node(self):
         """添加子节点：调用对话框获取bytes数据"""

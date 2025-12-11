@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
     QGridLayout, QGroupBox, QHBoxLayout, QLabel,
     QLineEdit, QMainWindow, QMenu, QMenuBar,
     QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy,
-    QSpacerItem, QSplitter, QStatusBar, QTabWidget,
-    QVBoxLayout, QWidget)
+    QSpacerItem, QSplitter, QTabWidget, QVBoxLayout,
+    QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -188,6 +188,7 @@ class Ui_MainWindow(object):
         self.tab_DoIPTrace.setObjectName(u"tab_DoIPTrace")
         self.horizontalLayout = QHBoxLayout(self.tab_DoIPTrace)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalLayout.setContentsMargins(2, 2, 2, 0)
         self.splitter = QSplitter(self.tab_DoIPTrace)
         self.splitter.setObjectName(u"splitter")
         self.splitter.setOrientation(Qt.Orientation.Horizontal)
@@ -205,7 +206,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 248, 701))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 248, 737))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         self.splitter.addWidget(self.scrollArea_DiagTree)
         self.layoutWidget1 = QWidget(self.splitter)
@@ -240,7 +241,9 @@ class Ui_MainWindow(object):
         self.tab_AutomatedDiagProcess = QWidget()
         self.tab_AutomatedDiagProcess.setObjectName(u"tab_AutomatedDiagProcess")
         self.verticalLayout_6 = QVBoxLayout(self.tab_AutomatedDiagProcess)
+        self.verticalLayout_6.setSpacing(6)
         self.verticalLayout_6.setObjectName(u"verticalLayout_6")
+        self.verticalLayout_6.setContentsMargins(2, 2, 2, 0)
         self.verticalLayout_7 = QVBoxLayout()
         self.verticalLayout_7.setObjectName(u"verticalLayout_7")
         self.pushButton = QPushButton(self.tab_AutomatedDiagProcess)
@@ -279,7 +282,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTreeForProcess.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 1312, 641))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 1326, 657))
         self.scrollArea_DiagTreeForProcess.setWidget(self.scrollAreaWidgetContents_2)
 
         self.verticalLayout_4.addWidget(self.scrollArea_DiagTreeForProcess)
@@ -315,9 +318,6 @@ class Ui_MainWindow(object):
         self.menu_tool = QMenu(self.menubar)
         self.menu_tool.setObjectName(u"menu_tool")
         MainWindow.setMenuBar(self.menubar)
-        self.statusBar = QStatusBar(MainWindow)
-        self.statusBar.setObjectName(u"statusBar")
-        MainWindow.setStatusBar(self.statusBar)
 
         self.menubar.addAction(self.menu_tool.menuAction())
         self.menubar.addAction(self.menu_set.menuAction())
@@ -327,7 +327,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
 
         self.tabWidget.setCurrentIndex(1)
-        self.tabWidget_2.setCurrentIndex(1)
+        self.tabWidget_2.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(MainWindow)

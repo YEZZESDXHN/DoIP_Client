@@ -58,7 +58,6 @@ class DoIPTraceTableModel(QAbstractTableModel):
 
         # 显示数据
         if role == Qt.ItemDataRole.DisplayRole:
-            test = getattr(self._data[row], col_name, '')
             return getattr(self._data[row], col_name, '')
 
     def append_trace_data(self, table_view_data: DoIPMessageStruct):

@@ -1,7 +1,10 @@
 import json
 import logging
+from functools import lru_cache
+from typing import List, Any
 
-from PySide6.QtCore import QEvent, Qt, Slot, QDataStream, QIODevice, QModelIndex, QSize, QRect, QPoint
+from PySide6.QtCore import QEvent, Qt, Slot, QDataStream, QIODevice, QModelIndex, QSize, QRect, QPoint, \
+    QAbstractTableModel
 from PySide6.QtGui import QAction, QStandardItemModel, QStandardItem, QPainter, QMouseEvent
 from PySide6.QtWidgets import QComboBox, QTreeView, QSizePolicy, QWidget, QStyledItemDelegate, QTableView, QScrollBar, \
     QMenu, QAbstractItemView, QLineEdit, QCheckBox, QStyle, QApplication, QStyleOptionButton
@@ -16,20 +19,6 @@ class ColumnEditDelegate(QStyledItemDelegate):
         super().__init__(parent)
         self.no_edit_columns = {1}  # 禁止编辑的列号
 
-
-    def paint(self, painter, option, index):
-        column_index = index.column()
-        if column_index == 0:
-            check_style = QStyleOptionButton()
-            check_style.rect = option.rect
-            if bool(index.data()) is True:
-                check_style.state = QStyle.State_Enabled | QStyle.State_On
-            elif bool(index.data()) is False:
-                check_style.state = QStyle.State_Enabled | QStyle.State_Off
-            QApplication.style().drawControl(QStyle.CE_CheckBox, check_style, painter)
-
-        else:
-            return super(ColumnEditDelegate, self).paint(painter, option, index)
     def createEditor(self, parent, option, index):
         # 判断当前列是否禁止编辑
         column_index = index.column()
@@ -37,35 +26,128 @@ class ColumnEditDelegate(QStyledItemDelegate):
             return None  # 返回None = 不创建编辑器 → 禁止编辑
 
         if column_index == 0:
-            editor = QCheckBox(parent)
-            editor.setContextMenuPolicy(Qt.NoContextMenu)
-            return editor
-        # 允许编辑的列，创建默认编辑器（如QLineEdit）
+            return None
 
+        # 允许编辑的列，创建默认编辑器（如QLineEdit）
         editor = QLineEdit(parent)
         editor.setContextMenuPolicy(Qt.NoContextMenu)
         return editor
 
     def setModelData(self, editor, model, index):
         if index.column() == 0:
-            if isinstance(editor, QCheckBox):
-                model.setData(index, bool(editor.isChecked()))
+            pass
+
         else:
             return super(ColumnEditDelegate, self).setModelData(editor, model, index)
 
-class DiagProcessTableModel(QStandardItemModel):
-    def __init__(self, parent=None):
-        super().__init__(parent)
 
-        self.setHorizontalHeaderLabels(DiagnosisStepData().get_attr_names())
+class DiagProcessTableModel(QAbstractTableModel):
+    def __init__(self):
+        super().__init__()
+        self._data: List[DiagnosisStepData] = []
+        self._headers = DiagnosisStepData().get_attr_names()[:5]
+
+        # 绑定一个内部方法用于缓存
+        self._get_row_tuple_cached = lru_cache(maxsize=100)(self._get_row_tuple)
+
+    def _get_row_tuple(self, row: int):
+        try:
+            return self._data[row].to_tuple()
+        except IndexError:
+            return None  # 或者返回一个空元组
+
+    def headerData(self, section: int, orientation: Qt.Orientation,
+                   role: int = Qt.ItemDataRole.DisplayRole):
+        """重写表头方法，显示列名"""
+        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+            if 0 <= section < len(self._headers):
+                return self._headers[section]
+        return None
+
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return len(self._data)
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return len(self._headers)
+
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None
+
+        row = index.row()
+        row_tuple = self._get_row_tuple_cached(row)
+        col = index.column()
+
+        # 显示数据
+        if col == 0 and role == Qt.ItemDataRole.CheckStateRole:
+            return Qt.CheckState.Checked if row_tuple[col] == 'True' else Qt.CheckState.Unchecked
+        elif role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
+            return row_tuple[col]
+        return None
+
+    def setData(self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole) -> bool:
+        if not index.isValid():
+            return False
+
+        row = index.row()
+        col = index.column()
+        self._get_row_tuple_cached.cache_clear()
+
+        # 1. 处理用户切换复选框状态 (CheckStateRole)
+        if col == 0 and role == Qt.ItemDataRole.CheckStateRole:
+            self._data[row].enable = bool(value)
+            # 通知视图该索引的数据已改变
+            self.dataChanged.emit(index, index, [role])
+            return True
+
+        # 2. 处理文本编辑 (EditRole)
+        if role == Qt.ItemDataRole.EditRole:
+            self._data[row].update_by_value(self._headers[col], value)
+
+            # 通知视图数据已改变
+            self.dataChanged.emit(index, index, [role])
+            return True
+
+        return False
+
+
+    def flags(self, index: QModelIndex):
+        if not index.isValid():
+            return Qt.ItemFlag.NoItemFlags
+
+        # 获取默认标志位
+        default_flags = super().flags(index)
+        flags = default_flags | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+
+        col = index.column()
+        # 检查是否是第 0 列
+        if col == 0:
+            # 在默认标志位上添加 Qt.ItemIsUserCheckable
+            return flags | Qt.ItemFlag.ItemIsUserCheckable
+        elif col == 1:
+            return flags
+        elif col in (2, 3):
+            row = index.row()
+            if self._data[row].step_type == DiagnosisStepTypeEnum.ExistingStep:
+                return flags
+
+        return flags | Qt.ItemFlag.ItemIsEditable
 
     def add_normal_test_step(self):
-        item_list = [QStandardItem(str(item)) for item in DiagnosisStepData().to_tuple()]
-        self.appendRow(item_list)
+        test_step = DiagnosisStepData()
+        # 插入新行到模型末尾（局部刷新）
+        insert_row_idx = len(self._data)  # 新行的索引（末尾）
+        # 通知视图：即将在insert_row_idx位置插入1行
+        self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
+        self._data.append(test_step)
+        # 通知视图：插入操作完成
+        self.endInsertRows()
 
     def add_existing_step(self, step_data: DiagnosisStepData):
-        item_list = [QStandardItem(str(item)) for item in step_data.to_tuple()]
-        self.appendRow(item_list)
+        insert_row_idx = len(self._data)
+        self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
+        self._data.append(step_data)
+        self.endInsertRows()
 
 
 

@@ -92,11 +92,10 @@ class _RoutineControl:
 
     def _get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""
-        if is_dataclass(self):
-            for _field in fields(self):
-                if _field.name == field_name:
-                    return _field.type
-        return None
+        if not is_dataclass(self):
+            return None
+        cls = type(self)
+        return cls.__annotations__.get(field_name)
 
 
 @dataclass
@@ -117,8 +116,10 @@ class UdsService:
 
     def _get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""
-        # if is_dataclass(self):
-        return self.__annotations__.get(field_name)
+        if not is_dataclass(self):
+            return None
+        cls = type(self)
+        return cls.__annotations__.get(field_name)
 
     @staticmethod
     def _json_default_converter(obj):
@@ -215,10 +216,13 @@ class DiagnosisStepData:
     send_data: bytes = b''
     exp_resp_data: bytes = b''
 
+    case_id: int = 0
+    step_sequence: int = 0
+
     def get_attr_names(self) -> tuple:
         """返回属性名字元组"""
         # fields(self) 按定义顺序返回所有数据属性，提取 name 组成元组
-        return tuple(field.name for field in fields(self))
+        return tuple(_field.name for _field in fields(self))
 
     def to_tuple(self) -> tuple:
         """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
@@ -259,12 +263,40 @@ class DiagnosisStepData:
 
     def _get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""
-        if is_dataclass(self):
-            for _field in fields(self):
-                if _field.name == field_name:
-                    return _field.type
-        return None
+        if not is_dataclass(self):
+            return None
+        cls = type(self)
+        return cls.__annotations__.get(field_name)
 
+    def update_by_value(self, attr_name: str, value: Any) -> bool:
+        if not hasattr(self, attr_name):
+            return False
+        field_type = self._get_field_type(attr_name)
+        try:
+            if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
+                _value = field_type(value)
+                setattr(self, attr_name, _value)
+            # 处理基础类型转换（如字符串转数字）
+            elif field_type in (int, float, bool, str) and value is not None:
+                # bool类型特殊处理（避免"False"被转成True）
+                if field_type == bool and isinstance(value, str):
+                    _value = value.lower() in ("true", "1", "yes")
+                    setattr(self, attr_name, _value)
+                else:
+                    _value = field_type(value)
+                    setattr(self, attr_name, _value)
+            elif field_type is bytes:
+                if isinstance(value, bytes):
+                    setattr(self, attr_name, value)
+                elif isinstance(value, str):
+                    try:
+                        setattr(self, attr_name, bytes.fromhex(value))
+                    except:
+                        setattr(self, attr_name, b'')
+        except Exception as e:
+            print(f"警告：属性{attr_name}赋值失败（{str(e)}）")
+            return False
+        return True
     def update_from_dict(self, data_dict: dict):
         """从dict更新数据类"""
         for key, value in data_dict.items():
@@ -409,11 +441,10 @@ class DoIPMessageStruct:
 
     def _get_field_type(self, field_name: str) -> Optional[type]:
         """辅助方法：获取属性的类型"""
-        if is_dataclass(self):
-            for field in fields(self):
-                if field.name == field_name:
-                    return field.type
-        return None
+        if not is_dataclass(self):
+            return None
+        cls = type(self)
+        return cls.__annotations__.get(field_name)
 
     def update_from_dict(self, data_dict: dict):
         """从dict更新数据类"""
@@ -525,11 +556,10 @@ class DoIPConfig:
 
     def _get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""
-        if is_dataclass(self):
-            for field in fields(self):
-                if field.name == field_name:
-                    return field.type
-        return None
+        if not is_dataclass(self):
+            return None
+        cls = type(self)
+        return cls.__annotations__.get(field_name)
 
     def update_from_dict(self, data_dict: dict):
         """从dict更新数据类"""

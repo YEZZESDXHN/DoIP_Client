@@ -77,7 +77,7 @@ class DBManager:
                     logger.info(f"表 {CURRENT_CONFIG_TABLE_NAME} 中已存在激活配置记录，跳过设置。")
 
         except sqlite3.Error as e:
-            logger.exception(f"初始化数据库失败：{e}")
+            logger.exception(f"初始化数据库失败：{str(e)}")
 
     def init_services_database(self):
         create_services_table_sql = f"""
@@ -99,7 +99,7 @@ class DBManager:
                     logger.debug(f'{SERVICES_TABLE_NAME}表创建成功')
                 logger.info(f"services数据库初始化完成！{SERVICES_TABLE_NAME}表创建/验证成功")
         except sqlite3.Error as e:
-            logger.exception(f"services初始化数据库失败：{e}")
+            logger.exception(f"services初始化数据库失败：{str(e)}")
 
     def get_services_json(self, config_name: str):
         """
@@ -148,7 +148,7 @@ class DBManager:
             """, (config_name,))  # 使用参数化查询，避免SQL注入
             return cursor.fetchone() is not None
         except sqlite3.Error as e:
-            logger.exception(f"检查配置存在性失败：{e}")
+            logger.exception(f"检查配置存在性失败：{str(e)}")
             return False
     def _insert_default_doip_config(self, conn: sqlite3.Connection):
         """内部方法：将默认配置写入数据库"""
@@ -169,7 +169,7 @@ class DBManager:
             conn.commit()
             logger.info(f"成功写入默认配置: {self.default_config.config_name}")
         except sqlite3.Error as e:
-            logger.exception(f"写入默认配置失败: {e}")
+            logger.exception(f"写入默认配置失败: {str(e)}")
 
     def add_services_config(self, config_name: str, services_json: str) -> bool:
         """
@@ -189,7 +189,7 @@ class DBManager:
                 logger.debug(f'添加/更新Service配置成功')
                 return True
         except Exception as e:
-            logger.exception(f"添加/更新配置失败：{e}")
+            logger.exception(f"添加/更新配置失败：{str(e)}")
             return False
 
     def _insert_default_doip_config_name(self, conn: sqlite3.Connection):
@@ -205,7 +205,7 @@ class DBManager:
             conn.commit()
             logger.info(f"成功将 '{DoIPConfig().config_name}' 设置为当前激活配置。")
         except sqlite3.Error as e:
-            logger.exception(f"设置激活配置名称失败: {e}")
+            logger.exception(f"设置激活配置名称失败: {str(e)}")
 
     def set_active_config(self, new_config_name: str) -> bool:
         """
@@ -247,7 +247,7 @@ class DBManager:
                     return False
 
         except sqlite3.Error as e:
-            logger.exception(f"更新当前激活配置名称失败：{e}")
+            logger.exception(f"更新当前激活配置名称失败：{str(e)}")
             return False
 
     def get_active_config_name(self) -> Optional[str]:
@@ -262,7 +262,7 @@ class DBManager:
                     return result[0]
                 return None
         except sqlite3.Error as e:
-            logger.exception(f"获取当前激活配置名称失败：{e}")
+            logger.exception(f"获取当前激活配置名称失败：{str(e)}")
             return None
 
     def add_doip_config(self, config: DoIPConfig) -> bool:
@@ -283,10 +283,10 @@ class DBManager:
             logger.info(f"新增 DOIP 配置成功：{config}")
             return True
         except sqlite3.IntegrityError as e:
-            logger.error(f"新增配置失败（主键重复/约束冲突）：{config.config_name} - {e}")
+            logger.error(f"新增配置失败（主键重复/约束冲突）：{config.config_name} - {str(e)}")
             return False
         except sqlite3.Error as e:
-            logger.exception(f"新增配置异常：{config.config_name} - {e}")
+            logger.exception(f"新增配置异常：{config.config_name} - {str(e)}")
             return False
 
     def query_doip_config(self, config_name: str) -> Optional[DoIPConfig]:
@@ -309,7 +309,7 @@ class DBManager:
                 logger.warning(f"未找到配置：{config_name}")
                 return None
         except sqlite3.Error as e:
-            logger.exception(f"查询配置异常：{config_name} - {e}")
+            logger.exception(f"查询配置异常：{config_name} - {str(e)}")
             return None
 
     def query_all_doip_configs(self) -> List[DoIPConfig]:
@@ -332,7 +332,7 @@ class DBManager:
             logger.info(f"查询到 {len(config_list)} 条配置")
             return config_list
         except sqlite3.Error as e:
-            logger.exception(f"查询所有配置异常：{e}")
+            logger.exception(f"查询所有配置异常：{str(e)}")
             return []
 
     def update_doip_config(self, config: DoIPConfig) -> bool:
@@ -360,7 +360,7 @@ class DBManager:
                     logger.warning(f"更新失败：未找到配置 {config.config_name}")
                     return False
         except sqlite3.Error as e:
-            logger.exception(f"更新配置异常：{config.config_name} - {e}")
+            logger.exception(f"更新配置异常：{config.config_name} - {str(e)}")
             return False
 
     def delete_doip_config(self, config_name: str) -> bool:
@@ -381,7 +381,7 @@ class DBManager:
                     logger.warning(f"删除失败：未找到配置 {config_name}")
                     return False
         except sqlite3.Error as e:
-            logger.exception(f"删除配置异常：{config_name} - {e}")
+            logger.exception(f"删除配置异常：{config_name} - {str(e)}")
             return False
 
     def get_all_config_names(self) -> List[str]:
@@ -400,5 +400,5 @@ class DBManager:
             logger.info(f"查询到 {len(config_names)} 个配置名称")
             return config_names
         except sqlite3.Error as e:
-            logger.exception(f"查询所有配置名称异常：{e}")
+            logger.exception(f"查询所有配置名称异常：{str(e)}")
             return []

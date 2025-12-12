@@ -175,7 +175,7 @@ class UdsService:
                     self.update_from_dict(value)
 
             except Exception as e:
-                print(f'更新失败：{e}')
+                print(f'更新失败：{str(e)}')
 
     def update_from_json(self, json_str: str):
         """从json更新数据类"""
@@ -296,7 +296,7 @@ class DiagnosisStepData:
 
             except (ValueError, TypeError, enum.EnumError) as e:
                 # 类型转换失败时打印提示，保留原值（也可改为raise抛出异常）
-                print(f"警告：属性{key}赋值失败（{e}），原值：{current_value}，待赋值：{value}")
+                print(f"警告：属性{key}赋值失败（{str(e)}），原值：{current_value}，待赋值：{value}")
                 continue
 
                 # 4. 最终赋值（仅当值有效时）

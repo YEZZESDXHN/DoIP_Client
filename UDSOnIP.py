@@ -140,8 +140,8 @@ class QUDSOnIPClient(QObject):
                          f'vm_specific={self.vm_specific}')
             self.info_signal.emit(info_message)
         except Exception as e:
-            error_message = f"DoIP连接失败:{e}"
-            logger.exception(e)
+            error_message = f"DoIP连接失败:{str(e)}"
+            logger.exception(str(e))
             self.doip_connect_state.emit(False)
             self.error_signal.emit(error_message)
             return
@@ -156,9 +156,9 @@ class QUDSOnIPClient(QObject):
                 self.uds_on_ip_client = None
 
                 self.doip_connect_state.emit(False)
-                logger.exception(e)
+                logger.exception(str(e))
                 error_message = f'uds client 创建失败'
-                self.info_signal.emit(f"{error_message},{e}")
+                self.info_signal.emit(f"{error_message},{str(e)}")
 
     def send_payload(self, payload: bytes):
         if self.uds_on_ip_client:
@@ -202,7 +202,7 @@ class QUDSOnIPClient(QObject):
                 )
                 self.doip_response.emit(resp_table_view_data)
                 self.error_signal.emit(e)
-                logger.debug(f'timeout:{e}')
+                logger.debug(f'timeout:{str(e)}')
             except NegativeResponseException as negative_response:
                 response = negative_response.response
                 resp_data = response.original_payload
@@ -220,11 +220,11 @@ class QUDSOnIPClient(QObject):
                 resp_table_view_data.update_data_by_data_bytes()
                 self.doip_response.emit(resp_table_view_data)
             except InvalidResponseException as e:
-                logger.debug(f'InvalidResponseException:{e}')
+                logger.debug(f'InvalidResponseException:{str(e)}')
             except UnexpectedResponseException as e:
-                logger.debug(f'UnexpectedResponseException:{e}')
+                logger.debug(f'UnexpectedResponseException:{str(e)}')
             except ConfigError as e:
-                logger.debug(f'ConfigError:{e}')
+                logger.debug(f'ConfigError:{str(e)}')
             except Exception as e:
                 try:
                     resp_table_view_data = DoIPMessageStruct(
@@ -236,7 +236,7 @@ class QUDSOnIPClient(QObject):
                 except:
                     pass
                 self.error_signal.emit(e)
-                logger.exception(e)
+                logger.exception(str(e))
         else:
             info_message = f'DoIP未连接'
             logger.info(info_message)

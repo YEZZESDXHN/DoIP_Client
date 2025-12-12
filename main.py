@@ -65,7 +65,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             current_config_name = self.db_manager.get_active_config_name()
             self.current_doip_config = self.db_manager.query_doip_config(current_config_name)
         except Exception as e:
-            logger.exception(f'{e}')
+            logger.exception(f'{str(e)}')
 
             self.current_doip_config = DoIPConfig(
                 config_name='default',
@@ -134,6 +134,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.treeView_Diag_Process = self._add_custom_tree_view(self.scrollArea_DiagTreeForProcess)
         self.treeView_Diag_Process.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self.treeView_Diag_Process.setModel(self.treeView_DoIPTraceService.model())
+        self.treeView_Diag_Process.expandAll()
         self.treeView_Diag_Process.setDragEnabled(True)  # 允许拖拽
         self.treeView_Diag_Process.setDragDropMode(QAbstractItemView.DragOnly)  # 仅作为拖拽源
         self.treeView_Diag_Process.setDefaultDropAction(Qt.CopyAction)
@@ -300,6 +301,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.db_manager.init_services_database()
         self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_doip_config.config_name))
         self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()
+        self.treeView_Diag_Process.expandAll()
 
     def set_tester_ip(self, index: int):
         """设置测试机IP"""
@@ -322,9 +324,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             byte_data = bytes.fromhex(hex_str)
             self.send_raw_doip_payload(byte_data)
         except ValueError as e:
-            logger.error(f"十六进制数据格式错误：{e}，输入内容：{hex_str}")
+            logger.error(f"十六进制数据格式错误：{str(e)}，输入内容：{hex_str}")
         except Exception as e:
-            logger.exception(f"发送DoIP数据失败：{e}")
+            logger.exception(f"发送DoIP数据失败：{str(e)}")
 
     @Slot(bytes)
     def send_raw_doip_payload(self, byte_data: bytes):
@@ -338,7 +340,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.pushButton_SendDoIP.setDisabled(True)
             logger.debug(f"已发送DoIP数据到传输层：{byte_data.hex()}")
         except Exception as e:
-            logger.exception(f"发送DoIP数据失败：{e}")
+            logger.exception(f"发送DoIP数据失败：{str(e)}")
 
     def change_doip_connect_state(self):
         """切换DoIP连接状态（连接/断开）"""
@@ -438,7 +440,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         self.comboBox_ChooseConfig.setCurrentText(self.current_doip_config.config_name)
                     except Exception as e:
                         self.db_manager.set_active_config('')
-                        logger.exception(e)
+                        logger.exception(str(e))
                 else:
                     self.comboBox_ChooseConfig.clear()
             elif isinstance(config_panel.config, DoIPConfig):
@@ -477,7 +479,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._update_ip_combobox()
             logger.debug(f"已获取本地IP列表，共{len(self.ip_list) - 1}个可用IP")
         except Exception as e:
-            logger.error(f"获取IP列表失败：{e}")
+            logger.error(f"获取IP列表失败：{str(e)}")
 
     def _refresh_ip_list(self) -> None:
         """刷新本地IP列表到下拉框"""

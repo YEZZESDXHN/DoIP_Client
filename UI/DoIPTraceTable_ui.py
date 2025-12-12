@@ -152,7 +152,7 @@ class DoIPTraceTableView(QTableView):
                 self.setColumnHidden(_id, not state)
             logger.debug(f"初始化列显示，{self._column_visible}")
         except Exception as e:
-            logger.exception(f'初始化列显示失败：{e}')
+            logger.exception(f'初始化列显示失败：{str(e)}')
 
     def _bind_scroll_listener(self):
         """绑定滚动条监听，控制自动滚动"""
@@ -270,7 +270,7 @@ class DoIPTraceTableView(QTableView):
             logger.debug(f"Text文件导出成功（所有列）：{file_path}")
         except Exception as e:
             QMessageBox.critical(self, "失败", f"导出Text文件出错：{str(e)}")
-            logger.error(f"Text文件导出失败：{e}")
+            logger.error(f"Text文件导出失败：{str(e)}")
 
         # --------------------- 导出为Excel文件 ---------------------
 
@@ -335,7 +335,7 @@ class DoIPTraceTableView(QTableView):
             logger.debug(f"Excel文件导出成功（所有列）：{file_path}")
         except Exception as e:
             QMessageBox.critical(self, "失败", f"导出Excel文件出错：{str(e)}")
-            logger.error(f"Excel文件导出失败：{e}")
+            logger.error(f"Excel文件导出失败：{str(e)}")
 
     def _copy_cell_data(self, index: QModelIndex):
         """复制选中单元格的内容到剪贴板"""
@@ -383,7 +383,7 @@ class DoIPTraceTableView(QTableView):
             if self._auto_scroll:
                 self.scrollToBottom()  # 自动滚动到底部
         except ValueError as e:
-            logger.error(f"添加表格数据失败：{e}")
+            logger.error(f"添加表格数据失败：{str(e)}")
 
     def clear_trace_data(self):
         """对外暴露的接口：清空表格数据"""

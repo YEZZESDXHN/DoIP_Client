@@ -145,7 +145,7 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
             try:
                 self.config.oem_specific = int(self.lineEdit_OEMSpecific.text())
             except Exception as e:
-                logger.exception(e)
+                logger.exception(str(e))
 
 
         else:

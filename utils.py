@@ -68,7 +68,7 @@ def get_ethernet_ips() -> Dict:
                     ethernet_ips[adapter.nice_name] = ips_v4
 
     except Exception as e:
-        print(f"获取网卡信息失败: {e}")
+        print(f"获取网卡信息失败: {str(e)}")
         return {}
 
     return ethernet_ips
@@ -105,7 +105,7 @@ def hex_str_to_int(hex_str: str) -> int:
         # 捕获原始的 ValueError，并抛出包含定制信息的新的 ValueError
         custom_error_msg = (
             f"十六进制转换失败。输入字符串: '{hex_str}\n"
-            f"详细原因: {e}"
+            f"详细原因: {str(e)}"
         )
         raise ValueError(custom_error_msg)
 

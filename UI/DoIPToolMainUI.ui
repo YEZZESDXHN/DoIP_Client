@@ -381,8 +381,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>248</width>
-              <height>737</height>
+              <width>246</width>
+              <height>707</height>
              </rect>
             </property>
            </widget>
@@ -413,6 +413,12 @@
             </item>
             <item>
              <widget class="QGroupBox" name="groupBox_DoIPTrace">
+              <property name="minimumSize">
+               <size>
+                <width>500</width>
+                <height>0</height>
+               </size>
+              </property>
               <property name="title">
                <string/>
               </property>
@@ -477,12 +483,43 @@
            </property>
            <widget class="QWidget" name="tab_DiagStepTree">
             <attribute name="title">
-             <string>Tab 1</string>
+             <string>UDS测试流程</string>
             </attribute>
+            <layout class="QHBoxLayout" name="horizontalLayout_2">
+             <property name="spacing">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QScrollArea" name="scrollArea">
+               <property name="widgetResizable">
+                <bool>true</bool>
+               </property>
+               <widget class="QWidget" name="scrollAreaWidgetContents_3">
+                <property name="geometry">
+                 <rect>
+                  <x>0</x>
+                  <y>0</y>
+                  <width>835</width>
+                  <height>639</height>
+                 </rect>
+                </property>
+               </widget>
+              </widget>
+             </item>
+            </layout>
            </widget>
            <widget class="QWidget" name="tab_DiagServiceTree">
             <attribute name="title">
-             <string>Tab 2</string>
+             <string>诊断服务</string>
             </attribute>
             <layout class="QVBoxLayout" name="verticalLayout_4">
              <property name="spacing">
@@ -534,8 +571,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>1326</width>
-                  <height>657</height>
+                  <width>844</width>
+                  <height>639</height>
                  </rect>
                 </property>
                </widget>
@@ -549,6 +586,12 @@
             <enum>Qt::Orientation::Vertical</enum>
            </property>
            <widget class="QGroupBox" name="groupBox_AutomatedDiagProcessTable">
+            <property name="minimumSize">
+             <size>
+              <width>500</width>
+              <height>0</height>
+             </size>
+            </property>
             <property name="title">
              <string/>
             </property>
@@ -573,7 +616,7 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>22</height>
+     <height>33</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_about">

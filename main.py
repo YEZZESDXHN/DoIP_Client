@@ -8,13 +8,13 @@ from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
-from UI.AutomaticDiagnosisProcess_ui import DiagProcessTableView, DiagProcessTableModel
+from UI.AutomaticDiagnosisProcess_ui import DiagProcessTableView, DiagProcessTableModel, DiagProcessCaseTreeView
 from UI.DoIPConfigPanel_ui import DoIPConfigPanel
 from UI.DoIPToolMainUI import Ui_MainWindow
 from UDSOnIP import QUDSOnIPClient
 from UI.DoIPTraceTable_ui import DoIPTraceTableView
 from UI.sql_data_panel import SQLTablePanel
-from UI.treeView_ui import DiagTreeView, DiagTreeDataModel
+from UI.UdsServicesTreeView_ui import UdsServicesTreeView, UdsServicesModel
 from db_manager import DBManager
 from user_data import DoIPConfig, DoIPMessageStruct, UdsService
 from utils import get_ethernet_ips
@@ -141,6 +141,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.diag_process_table_view = self._add_diag_process_table_view(self.groupBox_AutomatedDiagProcessTable)
 
+        self.treeView_uds_case = self._add_uds_case_tree_view(self.scrollArea_UdsCaseTree)
 
         doip_config_names = self.db_manager.get_all_config_names()
         if self.current_doip_config.config_name in doip_config_names:
@@ -152,6 +153,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _save_services_to_db(self):
         self.db_manager.add_services_config(self.current_doip_config.config_name, self.uds_services.to_json())
 
+    def _add_uds_case_tree_view(self, parent_widget):
+        if not parent_widget:
+            logger.error("父控件无效")
+            return
+        tree_view = DiagProcessCaseTreeView(parent=parent_widget, db_manager=self.db_manager)
+
+        logger.debug(f"父控件：{parent_widget.objectName()}")
+
+        # 获取或创建布局
+        layout = parent_widget.layout()
+        if layout is None:
+            layout = QHBoxLayout(parent_widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+
+        # 添加表格并设置拉伸因子（核心：让表格铺满）
+        layout.addWidget(tree_view)
+        layout.setStretchFactor(tree_view, 1)
+
+        # 设置父控件尺寸策略（确保父控件也铺满上层）
+        parent_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        return tree_view
 
     def _add_custom_tree_view(self, parent_widget):
         """
@@ -161,7 +185,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not parent_widget:
             logger.error("父控件无效")
             return
-        tree_view = DiagTreeView(parent=parent_widget, uds_service=self.uds_services)
+        tree_view = UdsServicesTreeView(parent=parent_widget, uds_service=self.uds_services)
 
         logger.debug(f"父控件：{parent_widget.objectName()}")
 

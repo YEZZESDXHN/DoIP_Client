@@ -1,14 +1,18 @@
+import copy
 import json
+import pandas as pd
 import logging
 from functools import lru_cache
-from typing import List, Any
+from typing import List, Any, Optional
 
 from PySide6.QtCore import QEvent, Qt, Slot, QDataStream, QIODevice, QModelIndex, QSize, QRect, QPoint, \
-    QAbstractTableModel
-from PySide6.QtGui import QAction, QStandardItemModel, QStandardItem, QPainter, QMouseEvent
+    QAbstractTableModel, QAbstractItemModel
+from PySide6.QtGui import QAction, QStandardItemModel, QStandardItem, QPainter, QMouseEvent, QIcon
 from PySide6.QtWidgets import QComboBox, QTreeView, QSizePolicy, QWidget, QStyledItemDelegate, QTableView, QScrollBar, \
-    QMenu, QAbstractItemView, QLineEdit, QCheckBox, QStyle, QApplication, QStyleOptionButton
-from user_data import DiagnosisStepData, DiagnosisStepTypeEnum
+    QMenu, QAbstractItemView, QLineEdit, QCheckBox, QStyle, QApplication, QStyleOptionButton, QFileIconProvider
+
+from db_manager import DBManager
+from user_data import DiagnosisStepData, DiagnosisStepTypeEnum, DiagCase
 from utils import json_custom_decoder
 
 logger = logging.getLogger("UiCustom.DiagnosisProcess")
@@ -39,7 +43,6 @@ class ColumnEditDelegate(QStyledItemDelegate):
 
         else:
             return super(ColumnEditDelegate, self).setModelData(editor, model, index)
-
 
 class DiagProcessTableModel(QAbstractTableModel):
     def __init__(self):
@@ -148,10 +151,6 @@ class DiagProcessTableModel(QAbstractTableModel):
         self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
         self._data.append(step_data)
         self.endInsertRows()
-
-
-
-
 
 class DiagProcessTableView(QTableView):
     """DoIP追踪表格，优化布局和交互"""
@@ -295,4 +294,226 @@ class DiagProcessTableView(QTableView):
         self.add_existing_step(diagnosis_step_data)
 
         event.acceptProposedAction()
+
+
+class DiagProcessCaseModel(QStandardItemModel):
+    """自定义树形模型"""
+    def __init__(self, db_manager: DBManager, parent=None):
+        super().__init__(parent)
+        self.setHorizontalHeaderLabels(["诊断服务"])
+        self.case_id_role = Qt.ItemDataRole.UserRole + 1
+        self.case_typr_role = Qt.ItemDataRole.UserRole + 2
+        # 创建根节点
+        self.root_item = self.invisibleRootItem()
+        self.cases: list[DiagCase] = []
+        self.db_manager: DBManager = db_manager
+        self.cases = self.get_cases_from_db()
+
+        self.folder_icon = QFileIconProvider().icon(QFileIconProvider.IconType.Folder)
+        self.root_item.setIcon(self.folder_icon)
+
+        self.setup_cases_to_tree_nodes(self.root_item, self.cases)
+
+    def setup_cases_to_tree_nodes(self, root, cases: list[DiagCase]):
+        # 1. 将列表转为 DataFrame
+        if not cases:
+            return
+        case_df = pd.DataFrame(cases)
+        case_df_sorted = case_df.sort_values(
+            by=["level"],
+            ascending=[True],  # 升序
+        )
+
+        # 将排序后的 DataFrame 转回 DiagCase 列表
+        sorted_cases = [
+            DiagCase.from_dict(row.to_dict())
+            for _, row in case_df_sorted.iterrows()
+        ]
+        id_to_node = {}
+        for case in sorted_cases:
+            node = QStandardItem(case.case_name)
+            if case.type == 1:
+                node.setIcon(self.folder_icon)
+            node.setData(case.id, self.case_id_role)
+            id_to_node[case.id] = node  # 缓存！
+
+            if case.parent_id == -1:
+                root.appendRow(node)
+            else:
+                parent_node = id_to_node[case.parent_id]
+                parent_node.appendRow(node)
+
+    def get_cases_from_db(self) -> list[DiagCase]:
+        return self.db_manager.get_current_config_uds_cases()
+
+    def get_node_type(self, node_index: QModelIndex) -> int:
+        """
+        获取节点类型
+        return 1：group，0：case
+        """
+        return node_index.data(self.case_typr_role)
+
+
+class DiagProcessCaseTreeView(QTreeView):
+    def __init__(self, db_manager: DBManager, parent=None):
+        super().__init__(parent)
+        self.db_manager = db_manager
+        self.setModel(DiagProcessCaseModel(self.db_manager, parent))
+        self.resizeColumnToContents(0)
+        self.expandAll()
+        self.temp_case: DiagCase = DiagCase()
+        _model = self.model()
+        if isinstance(_model, DiagProcessCaseModel):
+            self.model = _model
+        self.model.itemChanged.connect(self.on_item_edited)
+
+        self._init_view()
+        self._init_context_menu()
+
+    def _init_context_menu(self):
+        """初始化右键菜单"""
+        self.context_menu = QMenu(self)
+        self.add_case_act = self.context_menu.addAction("添加Case")
+        self.add_group_act = self.context_menu.addAction("添加分组")
+        self.delete_act = self.context_menu.addAction("删除")
+
+        self.add_case_act.triggered.connect(self._add_case)
+        self.add_group_act.triggered.connect(self._add_group)
+        self.delete_act.triggered.connect(self._delete_node)
+
+        self.setEditTriggers(
+            QTreeView.EditTrigger.DoubleClicked
+        )
+
+    def on_item_edited(self, item: QStandardItem):
+        self.temp_case.case_name = item.text()
+        self.model.cases.append(copy.deepcopy(self.temp_case))
+        self.db_manager.upsert_case(self.temp_case)
+        self.temp_case = DiagCase()
+
+    def _add_case(self):
+        current_index = self.currentIndex()
+
+        self.temp_case = DiagCase(
+            type=0,
+            level=0,
+            config_name=self.db_manager.get_active_config_name()
+        )
+        self.temp_case.id = self.db_manager.upsert_case(self.temp_case)
+        self.temp_case.case_name = f"请输入名称_{self.temp_case.id}"
+        self.db_manager.upsert_case(self.temp_case)
+        if current_index.isValid():
+            self.temp_case.parent_id = current_index.data(self.model.case_id_role)
+            self.temp_case.level = self.get_node_level(current_index) + 1
+            node = QStandardItem(self.temp_case.case_name)  # 提示文字
+            node.setData(self.temp_case.id, self.model.case_id_role)
+            current_item = self.model.itemFromIndex(current_index)
+            current_item.appendRow(node)
+
+            new_row = current_item.rowCount() - 1  # 最后一行是刚加的节点
+            new_node_index = self.model.index(new_row, 0, current_index)
+            self.expand(current_index)
+            self.edit(new_node_index)
+        else:
+            node = QStandardItem(self.temp_case.case_name)
+            node.setData(self.temp_case.id, self.model.case_id_role)
+            self.model.root_item.appendRow(node)
+
+            new_row = self.model.root_item.rowCount() - 1  # 最后一行是刚加的节点
+            new_node_index = self.model.index(new_row, 0, QModelIndex())
+            self.edit(new_node_index)
+
+
+    def _add_group(self):
+        current_index = self.currentIndex()
+
+        self.temp_case = DiagCase(
+            type=1,
+            level=0,
+            config_name=self.db_manager.get_active_config_name()
+        )
+        self.temp_case.id = self.db_manager.upsert_case(self.temp_case)
+        self.temp_case.case_name = f"请输入名称_{self.temp_case.id}"
+        self.db_manager.upsert_case(self.temp_case)
+        if current_index.isValid():
+            self.temp_case.parent_id = current_index.data(self.model.case_id_role)
+            self.temp_case.level = self.get_node_level(current_index) + 1
+            node = QStandardItem(self.temp_case.case_name)  # 提示文字
+            node.setData(self.temp_case.id, self.model.case_id_role)
+            node.setIcon(self.model.folder_icon)
+            current_item = self.model.itemFromIndex(current_index)
+            current_item.appendRow(node)
+
+            new_row = current_item.rowCount() - 1  # 最后一行是刚加的节点
+            new_node_index = self.model.index(new_row, 0, current_index)
+            self.expand(current_index)
+            self.edit(new_node_index)
+        else:
+            node = QStandardItem(self.temp_case.case_name)
+            node.setData(self.temp_case.id, self.model.case_id_role)
+            node.setIcon(self.model.folder_icon)
+            self.model.root_item.appendRow(node)
+
+            new_row = self.model.root_item.rowCount() - 1  # 最后一行是刚加的节点
+            new_node_index = self.model.index(new_row, 0, QModelIndex())
+            self.edit(new_node_index)
+
+
+
+
+
+    def get_node_level(self, node_index: QModelIndex):
+        """
+       获取节点的层级（根节点层级为0，子节点+1，依此类推）
+       :param node_index: 目标节点的QModelIndex
+       :return: 节点层级（int），无效索引返回-1
+       """
+        if not node_index.isValid():
+            return -1  # 无效索引返回-1
+
+        level = 0
+        current_index = node_index
+
+        # 向上递归找父节点，直到根节点（父索引无效）
+        while current_index.parent().isValid():
+            level += 1
+            current_index = current_index.parent()
+
+        return level
+
+    def _delete_node(self):
+        pass
+
+    def _init_view(self):
+        """初始化视图配置"""
+        self.setEditTriggers(QTreeView.EditTrigger.NoEditTriggers)
+        self.setSelectionMode(QTreeView.SelectionMode.SingleSelection)  # 单选
+        self.setIndentation(20)  # 缩进距离
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)  # 开启右键菜单
+
+        # 绑定信号
+        # self.clicked.connect(self._on_node_clicked)
+        # self.doubleClicked.connect(self._on_sub_service_double_clicked)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+
+    def _show_context_menu(self, pos: QPoint):
+        """处理右键点击事件，根据节点深度动态启用/禁用菜单项"""
+        # 获取被点击的 QModelIndex
+        clicked_index = self.indexAt(pos)
+
+        # 根节点/空白区域被点击
+        if clicked_index.isValid():
+            node_type = self.model.get_node_type(clicked_index)
+
+            if node_type == 0:  # case
+                self.add_case_act.setEnabled(False)
+                self.add_group_act.setEnabled(False)
+                self.delete_act.setEnabled(True)
+            elif node_type == 1:  # group
+                self.add_case_act.setEnabled(True)
+                self.add_group_act.setEnabled(True)
+                self.delete_act.setEnabled(True)
+
+        global_pos = self.mapToGlobal(pos)
+        self.context_menu.exec(global_pos)
 

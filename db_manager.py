@@ -2,13 +2,14 @@ import logging
 import sqlite3
 from typing import Optional, List
 
-from user_data import DoIPConfig, DEFAULT_SERVICES
+from user_data import DoIPConfig, DEFAULT_SERVICES, DiagCase
 
 logger = logging.getLogger('UDSOnIPClient.' + __name__)
 
 DOIP_CONFIG_TABLE_NAME = "DoIP_Config"
 CURRENT_CONFIG_TABLE_NAME = 'current_active_config'
 SERVICES_TABLE_NAME = 'services_table'
+CASE_TABLE_NAME = 'uds_cases'
 
 
 class DBManager:
@@ -19,6 +20,7 @@ class DBManager:
         self.primary_key = DoIPConfig().get_attr_names()[0]
         self.init_config_database()
         self.init_services_database()
+        self.init_case_database()
 
     def init_config_database(self):
         # --- 动态生成 CREATE TABLE SQL(doip config) ---
@@ -100,6 +102,189 @@ class DBManager:
                 logger.info(f"services数据库初始化完成！{SERVICES_TABLE_NAME}表创建/验证成功")
         except sqlite3.Error as e:
             logger.exception(f"services初始化数据库失败：{str(e)}")
+
+    def init_case_database(self):
+        primary_key = DiagCase().get_attr_names()[0]
+        field_definitions = []
+        for field, value in DiagCase().to_dict().items():
+            # 确定 SQL 类型和约束
+            sql_type = 'TEXT' if isinstance(value, str) else 'INTEGER'
+            constraints = 'PRIMARY KEY AUTOINCREMENT' if field == primary_key else 'NOT NULL'
+
+            # 添加 DEFAULT 子句（如果不是主键）
+            if field != primary_key:
+                constraints += f" DEFAULT {repr(value)}"
+
+            field_definitions.append(f"{field} {sql_type} {constraints}")
+
+        fields_sql = ',\n'.join(field_definitions)
+        create_case_table_sql = f"""
+                        CREATE TABLE IF NOT EXISTS {CASE_TABLE_NAME} (
+                            {fields_sql}
+                        );
+                        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(create_case_table_sql)
+                conn.commit()
+
+                logger.info(f"case数据库初始化完成！{CASE_TABLE_NAME}表创建/验证成功")
+        except sqlite3.Error as e:
+            logger.exception(f"case初始化数据库失败：{str(e)}")
+
+    def upsert_case(self, case: DiagCase) -> Optional[int]:
+        """
+        插入或更新诊断案例数据（UPSERT）
+        :param case: DiagCase 对象
+        :return: 成功返回记录ID，失败返回None
+        """
+        if not isinstance(case, DiagCase):
+            logger.error("传入的不是有效的DiagCase对象")
+            return None
+
+        try:
+            # 转换为字典
+            case_dict = case.to_dict()
+            primary_key = DiagCase().get_attr_names()[0]
+
+            # 提取字段和值
+            fields = list(case_dict.keys())
+            values = list(case_dict.values())
+
+            # 构建插入SQL（使用SQLite的UPSERT语法 ON CONFLICT）
+            placeholders = ', '.join(['?'] * len(fields))
+            update_clause = ', '.join([f"{field}=excluded.{field}" for field in fields if field != primary_key])
+
+            insert_sql = f"""
+                INSERT INTO {CASE_TABLE_NAME} ({', '.join(fields)})
+                VALUES ({placeholders})
+                ON CONFLICT({primary_key}) DO UPDATE SET
+                {update_clause}
+            """
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # 执行插入/更新
+                cursor.execute(insert_sql, values)
+
+                # 获取插入/更新后的ID
+                if case_dict[primary_key] is None:  # 新增记录
+                    case_id = cursor.lastrowid
+                else:  # 更新记录
+                    case_id = case_dict[primary_key]
+
+                conn.commit()
+
+                logger.info(f"案例数据{'新增' if case_dict[primary_key] == 0 else '更新'}成功，ID: {case_id}")
+                return case_id
+
+        except sqlite3.Error as e:
+            logger.exception(f"案例数据插入/更新失败：{str(e)}")
+            return None
+
+    def batch_upsert_cases(self, cases: list[DiagCase]) -> tuple[int, list[int]]:
+        """
+        批量插入/更新诊断案例
+        :param cases: DiagCase 对象列表
+        :return: (成功数量, 成功ID列表)
+        """
+        if not cases or not isinstance(cases, list):
+            logger.error("传入的案例列表无效")
+            return 0, []
+
+        success_count = 0
+        success_ids = []
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                primary_key = DiagCase().get_attr_names()[0]
+
+                for case in cases:
+                    if not isinstance(case, DiagCase):
+                        logger.warning("跳过无效的案例对象")
+                        continue
+
+                    case_dict = case.to_dict()
+                    fields = list(case_dict.keys())
+                    values = list(case_dict.values())
+
+                    placeholders = ', '.join(['?'] * len(fields))
+                    update_clause = ', '.join([f"{field}=excluded.{field}" for field in fields if field != primary_key])
+
+                    insert_sql = f"""
+                        INSERT INTO {CASE_TABLE_NAME} ({', '.join(fields)})
+                        VALUES ({placeholders})
+                        ON CONFLICT({primary_key}) DO UPDATE SET
+                        {update_clause}
+                    """
+
+                    try:
+                        cursor.execute(insert_sql, values)
+                        # 获取ID
+                        if case_dict[primary_key] == 0:
+                            case_id = cursor.lastrowid
+                        else:
+                            case_id = case_dict[primary_key]
+
+                        success_count += 1
+                        success_ids.append(case_id)
+                    except sqlite3.Error as e:
+                        logger.warning(f"单个案例处理失败：{str(e)}，案例数据：{case_dict}")
+
+                conn.commit()
+                logger.info(f"批量处理完成，成功{success_count}/{len(cases)}条记录")
+                return success_count, success_ids
+
+        except sqlite3.Error as e:
+            logger.exception(f"批量插入/更新失败：{str(e)}")
+            return success_count, success_ids
+
+    def get_current_config_uds_cases(self) -> list[DiagCase]:
+        """获取当前配置下所有的case"""
+        cases = []
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                # 设置行工厂，使查询结果可以通过列名访问
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+
+                # 获取当前激活的配置名
+                active_config_name = self.get_active_config_name()
+
+                # 构建查询SQL：查询当前配置下的所有case（排除group类型，如需包含可去掉type条件）
+                query_sql = f"""
+                                    SELECT * FROM {CASE_TABLE_NAME} 
+                                    WHERE config_name = ? 
+                                """
+
+                # 执行查询（使用参数化查询防止SQL注入）
+                cursor.execute(query_sql, (active_config_name,))
+
+                # 获取所有结果并转换为DiagCase对象
+                rows = cursor.fetchall()
+                for row in rows:
+                    # 将sqlite3.Row转换为字典
+                    row_dict = dict(row)
+                    # 从字典创建DiagCase实例
+                    case = DiagCase.from_dict(row_dict)
+                    cases.append(case)
+
+                logger.info(f"成功获取当前配置[{active_config_name}]下的case，共{len(cases)}条")
+
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e).lower():
+                logger.error(f"表{CASE_TABLE_NAME}不存在，请先初始化数据库：{str(e)}")
+            else:
+                logger.exception(f"数据库操作错误（获取case）：{str(e)}")
+        except sqlite3.Error as e:
+            logger.exception(f"数据库查询失败（获取case）：{str(e)}")
+        except Exception as e:
+            # 捕获其他所有异常
+            logger.exception(f"获取当前配置下的case失败: {str(e)}")
+
+        return cases
+
 
     def get_services_json(self, config_name: str):
         """

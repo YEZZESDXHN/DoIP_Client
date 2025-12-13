@@ -206,7 +206,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 707))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 248, 737))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         self.splitter.addWidget(self.scrollArea_DiagTree)
         self.layoutWidget1 = QWidget(self.splitter)
@@ -269,15 +269,15 @@ class Ui_MainWindow(object):
         self.horizontalLayout_2.setSpacing(0)
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.horizontalLayout_2.setContentsMargins(-1, 0, 0, 0)
-        self.scrollArea = QScrollArea(self.tab_DiagStepTree)
-        self.scrollArea.setObjectName(u"scrollArea")
-        self.scrollArea.setWidgetResizable(True)
+        self.scrollArea_UdsCaseTree = QScrollArea(self.tab_DiagStepTree)
+        self.scrollArea_UdsCaseTree.setObjectName(u"scrollArea_UdsCaseTree")
+        self.scrollArea_UdsCaseTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 835, 639))
-        self.scrollArea.setWidget(self.scrollAreaWidgetContents_3)
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 837, 677))
+        self.scrollArea_UdsCaseTree.setWidget(self.scrollAreaWidgetContents_3)
 
-        self.horizontalLayout_2.addWidget(self.scrollArea)
+        self.horizontalLayout_2.addWidget(self.scrollArea_UdsCaseTree)
 
         self.tabWidget_2.addTab(self.tab_DiagStepTree, "")
         self.tab_DiagServiceTree = QWidget()
@@ -297,7 +297,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTreeForProcess.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 844, 639))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 846, 677))
         self.scrollArea_DiagTreeForProcess.setWidget(self.scrollAreaWidgetContents_2)
 
         self.verticalLayout_4.addWidget(self.scrollArea_DiagTreeForProcess)
@@ -326,7 +326,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
         self.menu_set = QMenu(self.menubar)
@@ -342,7 +342,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(2)
         self.tabWidget_2.setCurrentIndex(0)
 
 

@@ -1,3 +1,4 @@
+# from __future__ import annotations
 import base64
 import binascii
 import dataclasses
@@ -11,6 +12,80 @@ from typing import Any, Optional, Type, get_args, get_origin
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
 
+
+@dataclass
+class DiagCase:
+    id: Optional[int] = None
+    case_name: str = ''
+    config_name: str = ''
+    type: int = 0  # 0:case,1:group
+    level: int = 0
+    parent_id: int = -1  # -1:顶级节点
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "DiagCase":
+        """从字典转回 DiagCase 对象（兼容 DataFrame 行转对象）"""
+        return cls(
+            id=data.get("id", 0),
+            case_name=data.get("case_name", ""),
+            config_name=data.get("config_name", ""),
+            type=data.get("type", 0),
+            level=data.get("level", 0),
+            parent_id=data.get("parent_id")
+        )
+
+    def get_attr_names(self) -> tuple:
+        """返回属性名字元组"""
+        # fields(self) 按定义顺序返回所有数据属性，提取 name 组成元组
+        return tuple(_field.name for _field in fields(self))
+
+    def to_tuple(self) -> tuple:
+        """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
+        tuple_values = []
+        for _field in fields(self):
+            value = getattr(self, _field.name)
+            tuple_values.append(value)
+        return tuple(tuple_values)
+
+    def to_json(self) -> str:
+        """数据类转json字符串"""
+        data_dict = asdict(self)
+        data_json = json.dumps(data_dict)
+        return data_json
+
+    def to_dict(self) -> dict:
+        """数据类转dict"""
+        data_dict = asdict(self)
+        return data_dict
+
+    def _get_field_type(self, field_name: str) -> Optional[Type]:
+        """辅助方法：获取属性的类型"""
+        if not is_dataclass(self):
+            return None
+        cls = type(self)
+        return cls.__annotations__.get(field_name)
+
+    def update_from_dict(self, data_dict: dict):
+        """从dict更新数据类"""
+        for key, value in data_dict.items():
+            if not hasattr(self, key):
+                continue
+            field_type = self._get_field_type(key)
+
+            try:
+
+                if field_type in (Optional[int], float, str) and value is not None:
+                    setattr(self, key, value)
+
+            except Exception as e:
+                # 类型转换失败时打印提示，保留原值（也可改为raise抛出异常）
+                print(f"警告：属性{key}赋值失败（{e}）,待赋值：{value}")
+                continue
+
+    def update_from_json(self, json_str: str):
+        """从json更新数据类"""
+        data_dict = json.loads(json_str)
+        self.update_from_dict(data_dict)
 
 @dataclass
 class _DiagnosticSessionControl:

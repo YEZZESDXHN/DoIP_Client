@@ -4,3 +4,4 @@ test.py
 *.xlsx
 *.log.*
 GenericUDS.cdd
+*.db

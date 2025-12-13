@@ -276,7 +276,7 @@
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <property name="elideMode">
        <enum>Qt::TextElideMode::ElideNone</enum>
@@ -381,8 +381,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>246</width>
-              <height>707</height>
+              <width>248</width>
+              <height>737</height>
              </rect>
             </property>
            </widget>
@@ -499,7 +499,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QScrollArea" name="scrollArea">
+              <widget class="QScrollArea" name="scrollArea_UdsCaseTree">
                <property name="widgetResizable">
                 <bool>true</bool>
                </property>
@@ -508,8 +508,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>835</width>
-                  <height>639</height>
+                  <width>837</width>
+                  <height>677</height>
                  </rect>
                 </property>
                </widget>
@@ -571,8 +571,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>844</width>
-                  <height>639</height>
+                  <width>846</width>
+                  <height>677</height>
                  </rect>
                 </property>
                </widget>
@@ -616,7 +616,7 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>33</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_about">

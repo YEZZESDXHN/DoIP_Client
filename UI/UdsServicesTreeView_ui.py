@@ -18,7 +18,7 @@ logger = logging.getLogger("UiCustom")
 # ------------------------------
 # 树形数据模型：存储bytes类型的自定义数据
 # ------------------------------
-class DiagTreeDataModel(QStandardItemModel):
+class UdsServicesModel(QStandardItemModel):
     def __init__(self, uds_service: UdsService, parent=None):
         super().__init__(parent)
         self.setHorizontalHeaderLabels(["诊断服务"])
@@ -196,7 +196,7 @@ class DiagTreeDataModel(QStandardItemModel):
 # ------------------------------
 # 自定义树形视图：处理bytes数据的交互
 # ------------------------------
-class DiagTreeView(QTreeView):
+class UdsServicesTreeView(QTreeView):
 
     clicked_node_data = Signal(bytes)
     status_bar_message = Signal(str)
@@ -204,7 +204,7 @@ class DiagTreeView(QTreeView):
 
     def __init__(self, parent=None, uds_service: UdsService = DEFAULT_SERVICES):
         super().__init__(parent)
-        self.setModel(DiagTreeDataModel(uds_service=uds_service))
+        self.setModel(UdsServicesModel(uds_service=uds_service))
         self.expandAll()  # 展开所有节点
         self.resizeColumnToContents(0)  # 设置第0列显示全部文本，不会截断
         self._init_view()
@@ -224,7 +224,7 @@ class DiagTreeView(QTreeView):
 
     def load_uds_service_to_tree_nodes(self):
         model = self.model()
-        if isinstance(model, DiagTreeDataModel):
+        if isinstance(model, UdsServicesModel):
             model.invisible_root.removeRows(0, model.invisible_root.rowCount())
             model.load_uds_service_to_tree_nodes(model.invisible_root, model.uds_service.to_dict())
             self.expandAll()
@@ -237,7 +237,7 @@ class DiagTreeView(QTreeView):
             return
 
         model = self.model()
-        if not isinstance(model, DiagTreeDataModel):
+        if not isinstance(model, UdsServicesModel):
             return
         if model.get_node_type(selected_index) != 1:  # 非终端节点
             return
@@ -279,7 +279,7 @@ class DiagTreeView(QTreeView):
     # def _get_node_level(self, index: QModelIndex) -> int:
     #     """计算给定 QModelIndex 的层级（深度），根节点为 0"""
     #     model = self.model()
-    #     if not isinstance(model, DiagTreeDataModel):
+    #     if not isinstance(model, UdsServicesModel):
     #         return 0xff
     #     return model.get_node_level(index)
 
@@ -291,7 +291,7 @@ class DiagTreeView(QTreeView):
         # 根节点/空白区域被点击
         if clicked_index.isValid():
             model = self.model()
-            if not isinstance(model, DiagTreeDataModel):
+            if not isinstance(model, UdsServicesModel):
                 return
             node_type = model.get_node_type(clicked_index)
 
@@ -313,7 +313,7 @@ class DiagTreeView(QTreeView):
     def _on_sub_service_double_clicked(self, index: QModelIndex):
         """双击服务，为一级节点时获取节点数据并发送"""
         model = self.model()
-        if not isinstance(model, DiagTreeDataModel):
+        if not isinstance(model, UdsServicesModel):
             return
 
         if model.get_node_type(index) != 1:
@@ -324,7 +324,7 @@ class DiagTreeView(QTreeView):
     def _on_node_clicked(self, index: QModelIndex):
         """节点点击：展示Hex字符串和字节长度"""
         model = self.model()
-        if not isinstance(model, DiagTreeDataModel):
+        if not isinstance(model, UdsServicesModel):
             return
         path = model.get_node_path(index)
         obj = model.get_obj_from_path(path)
@@ -355,7 +355,7 @@ class DiagTreeView(QTreeView):
         if dialog.exec() == QDialog.Accepted:
             node_name, custom_bytes = dialog.get_inputs()
             model = self.model()
-            if isinstance(model, DiagTreeDataModel):
+            if isinstance(model, UdsServicesModel):
                 success = model.add_operation_node(current_index, node_name, custom_bytes)
                 if success:
                     self.data_change_signal.emit()
@@ -365,7 +365,7 @@ class DiagTreeView(QTreeView):
         """删除节点"""
         current_index = self.currentIndex()
         model = self.model()
-        if not isinstance(model, DiagTreeDataModel):
+        if not isinstance(model, UdsServicesModel):
             QMessageBox.warning(self, "提示", "数据模型异常！")
             return
         success = model.delete_operation_node(current_index)

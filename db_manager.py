@@ -133,6 +133,43 @@ class DBManager:
         except sqlite3.Error as e:
             logger.exception(f"case初始化数据库失败：{str(e)}")
 
+    def delete_case(self, case_id: int):
+        if case_id <= 0:
+            logger.warning(f"删除Case失败：无效的ID（{case_id}），ID必须为正整数")
+            return False
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # 2. 先检查该ID是否存在（避免误判删除成功）
+                cursor.execute(
+                    f"SELECT 1 FROM {CASE_TABLE_NAME} WHERE id = ?",
+                    (case_id,)
+                )
+                if not cursor.fetchone():
+                    logger.warning(f"删除Case失败：ID={case_id} 的记录不存在")
+                    return False
+
+                # 3. 执行单个删除操作
+                cursor.execute(
+                    f"DELETE FROM {CASE_TABLE_NAME} WHERE id = ?",
+                    (case_id,)
+                )
+                conn.commit()
+
+                # 4. 验证删除结果（rowcount 为受影响的行数）
+                if cursor.rowcount == 1:
+                    logger.info(f"成功删除单个Case：ID={case_id}")
+                    return True
+                else:
+                    logger.error(f"删除Case异常：ID={case_id} 匹配但未删除（rowcount={cursor.rowcount}）")
+                    return False
+
+        except sqlite3.Error as e:
+            logger.exception(f"删除单个Case失败（ID={case_id}）：{str(e)}")
+            return False
+
     def upsert_case(self, case: DiagCase) -> Optional[int]:
         """
         插入或更新诊断案例数据（UPSERT）

@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import logging
 from functools import lru_cache
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Dict
 
 from PySide6.QtCore import QEvent, Qt, Slot, QDataStream, QIODevice, QModelIndex, QSize, QRect, QPoint, \
     QAbstractTableModel, QAbstractItemModel
@@ -296,79 +296,274 @@ class DiagProcessTableView(QTableView):
         event.acceptProposedAction()
 
 
-class DiagProcessCaseModel(QStandardItemModel):
-    """自定义树形模型"""
+class DiagCaseNode:
+    """树形节点封装类"""
+
+    def __init__(self, case: DiagCase, parent: Optional["DiagCaseNode"] = None):
+        self.case = case
+        self.parent = parent
+        self.children: List["DiagCaseNode"] = []
+
+    def add_child(self, child: "DiagCaseNode"):
+        self.children.append(child)
+
+    def remove_child(self, child: "DiagCaseNode"):
+        if child in self.children:
+            self.children.remove(child)
+
+    def child_count(self) -> int:
+        return len(self.children)
+
+    def child_at_index(self, index: int) -> Optional["DiagCaseNode"]:
+        if 0 <= index < len(self.children):
+            return self.children[index]
+        return None
+
+    def row_index(self) -> int:
+        """获取自身在父节点中的行索引"""
+        if self.parent:
+            return self.parent.children.index(self)
+        return 0
+
+
+class DiagProcessCaseModel(QAbstractItemModel):
+    """自定义树形模型（基于 QAbstractItemModel）"""
+    # 自定义角色
+    CaseIdRole = Qt.ItemDataRole.UserRole + 1
+    CaseTypeRole = Qt.ItemDataRole.UserRole + 2
+
     def __init__(self, db_manager: DBManager, parent=None):
         super().__init__(parent)
-        self.setHorizontalHeaderLabels(["诊断服务"])
-        self.case_id_role = Qt.ItemDataRole.UserRole + 1
-        self.case_typr_role = Qt.ItemDataRole.UserRole + 2
-        # 创建根节点
-        self.root_item = self.invisibleRootItem()
-        self.cases: list[DiagCase] = []
-        self.db_manager: DBManager = db_manager
-        self.cases = self.get_cases_from_db()
-
+        self.db_manager = db_manager
+        self.root_node = DiagCaseNode(DiagCase(id=-1, case_name="Root", type=1))
         self.folder_icon = QFileIconProvider().icon(QFileIconProvider.IconType.Folder)
-        self.root_item.setIcon(self.folder_icon)
+        self._build_tree_from_db()
 
-        self.setup_cases_to_tree_nodes(self.root_item, self.cases)
+    def _build_tree_from_db(self):
+        """从数据库构建树形结构"""
+        self.beginResetModel()
+        # 清空现有节点
+        self.root_node.children.clear()
 
-    def setup_cases_to_tree_nodes(self, root, cases: list[DiagCase]):
-        # 1. 将列表转为 DataFrame
+        # 获取并排序案例
+        cases = self.db_manager.get_current_config_uds_cases()
         if not cases:
+            self.endResetModel()
             return
-        case_df = pd.DataFrame(cases)
-        case_df_sorted = case_df.sort_values(
-            by=["level"],
-            ascending=[True],  # 升序
-        )
 
-        # 将排序后的 DataFrame 转回 DiagCase 列表
-        sorted_cases = [
-            DiagCase.from_dict(row.to_dict())
-            for _, row in case_df_sorted.iterrows()
-        ]
-        id_to_node = {}
+        # 按层级排序
+        case_df = pd.DataFrame([c.__dict__ for c in cases])
+        case_df_sorted = case_df.sort_values(by=["level"], ascending=True)
+        sorted_cases = [DiagCase.from_dict(row.to_dict()) for _, row in case_df_sorted.iterrows()]
+
+        # 构建ID到节点的映射
+        id_to_node: Dict[int, DiagCaseNode] = {}
+        id_to_node[-1] = self.root_node
+
+        # 先创建所有节点
         for case in sorted_cases:
-            node = QStandardItem(case.case_name)
-            if case.type == 1:
-                node.setIcon(self.folder_icon)
-            node.setData(case.id, self.case_id_role)
-            id_to_node[case.id] = node  # 缓存！
+            node = DiagCaseNode(case)
+            id_to_node[case.id] = node
 
-            if case.parent_id == -1:
-                root.appendRow(node)
-            else:
-                parent_node = id_to_node[case.parent_id]
-                parent_node.appendRow(node)
+        # 建立父子关系
+        for case in sorted_cases:
+            node = id_to_node[case.id]
+            parent_node = id_to_node.get(case.parent_id, self.root_node)
+            parent_node.add_child(node)
+            node.parent = parent_node
 
-    def get_cases_from_db(self) -> list[DiagCase]:
-        return self.db_manager.get_current_config_uds_cases()
+        self.endResetModel()
 
-    def get_node_type(self, node_index: QModelIndex) -> int:
-        """
-        获取节点类型
-        return 1：group，0：case
-        """
-        return node_index.data(self.case_typr_role)
+    def index(self, row: int, column: int, parent: QModelIndex = QModelIndex()) -> QModelIndex:
+        if not self.hasIndex(row, column, parent):
+            return QModelIndex()
+
+        parent_node: DiagCaseNode = self.root_node
+        if parent.isValid():
+            parent_node = parent.internalPointer()
+
+        child_node = parent_node.child_at_index(row)
+        if child_node:
+            return self.createIndex(row, column, child_node)
+        return QModelIndex()
+
+    def parent(self, index: QModelIndex) -> QModelIndex:
+        if not index.isValid():
+            return QModelIndex()
+
+        child_node: DiagCaseNode = index.internalPointer()
+        parent_node = child_node.parent
+
+        if parent_node == self.root_node or not parent_node:
+            return QModelIndex()
+
+        return self.createIndex(parent_node.row_index(), 0, parent_node)
+
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        if parent.column() > 0:
+            return 0
+
+        parent_node: DiagCaseNode = self.root_node
+        if parent.isValid():
+            parent_node = parent.internalPointer()
+
+        return parent_node.child_count()
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return 1  # 只显示一列（诊断服务）
+
+    def data(self, index: QModelIndex, role: Qt.ItemDataRole = Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None
+
+        node: DiagCaseNode = index.internalPointer()
+        case = node.case
+
+        # 显示文本
+        if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole:
+            return case.case_name
+
+        # 图标
+        elif role == Qt.ItemDataRole.DecorationRole:
+            if case.type == 1:  # 分组显示文件夹图标
+                return self.folder_icon
+
+        # 自定义角色（Case ID）
+        elif role == self.CaseIdRole:
+            return case.id
+
+        # 自定义角色（Case 类型）
+        elif role == self.CaseTypeRole:
+            return case.type
+
+        return None
+
+    def setData(self, index: QModelIndex, value: Any, role: Qt.ItemDataRole = Qt.ItemDataRole.EditRole) -> bool:
+        if not index.isValid() or role != Qt.ItemDataRole.EditRole:
+            return False
+
+        node: DiagCaseNode = index.internalPointer()
+        old_name = node.case.case_name
+        new_name = str(value).strip()
+
+        if new_name and new_name != old_name:
+            self.beginResetModel()
+            node.case.case_name = new_name
+            self.db_manager.upsert_case(node.case)  # 更新数据库
+            self.endResetModel()
+            self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
+            return True
+        return False
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlag:
+        if not index.isValid():
+            return Qt.ItemFlag.NoItemFlags
+
+        base_flags = Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+        # 所有节点都可编辑
+        return base_flags | Qt.ItemFlag.ItemIsEditable
+
+    def headerData(self, section: int, orientation: Qt.Orientation,
+                   role: Qt.ItemDataRole = Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole and section == 0:
+            return "诊断服务"
+        return None
+
+    def add_case_node(self, parent_index: QModelIndex, is_group: bool = False) -> QModelIndex:
+        """新增案例/分组节点"""
+        # 创建新的DiagCase
+        new_case = DiagCase(
+            type=1 if is_group else 0,
+            level=0,
+            config_name=self.db_manager.get_active_config_name()
+        )
+        new_case.id = self.db_manager.upsert_case(new_case)
+        new_case.case_name = f"请输入名称_{new_case.id}"
+
+        # 处理父节点
+        parent_node: DiagCaseNode = self.root_node
+        if parent_index.isValid():
+            parent_node = parent_index.internalPointer()
+            new_case.parent_id = parent_node.case.id
+            new_case.level = self._get_node_level(parent_index) + 1
+
+        # 更新数据库
+        self.db_manager.upsert_case(new_case)
+
+        # 添加到模型
+        self.beginInsertRows(parent_index, parent_node.child_count(), parent_node.child_count())
+        new_node = DiagCaseNode(new_case, parent_node)
+        parent_node.add_child(new_node)
+        self.endInsertRows()
+
+        # 返回新节点的索引
+        new_index = self.index(parent_node.child_count() - 1, 0, parent_index)
+        return new_index
+
+    def delete_node(self, index: QModelIndex) -> bool:
+        """删除节点（含子节点）"""
+        if not index.isValid():
+            return False
+
+        node: DiagCaseNode = index.internalPointer()
+        parent_node = node.parent
+        if not parent_node:
+            return False
+
+        # 递归删除所有子节点（数据库）
+        def _delete_children(child_node: DiagCaseNode):
+            for child in child_node.children:
+                _delete_children(child)
+                self.db_manager.delete_case(child.case.id)
+
+        _delete_children(node)
+
+        # 删除当前节点
+        self.beginRemoveRows(self.parent(index), node.row_index(), node.row_index())
+        parent_node.remove_child(node)
+        self.db_manager.delete_case(node.case.id)
+        self.endRemoveRows()
+        return True
+
+    def _get_node_level(self, index: QModelIndex) -> int:
+        """获取节点层级"""
+        level = 0
+        current = index
+        while current.parent().isValid():
+            level += 1
+            current = current.parent()
+        return level
+
+    def refresh_model(self):
+        """刷新模型数据"""
+        self._build_tree_from_db()
 
 
 class DiagProcessCaseTreeView(QTreeView):
     def __init__(self, db_manager: DBManager, parent=None):
         super().__init__(parent)
         self.db_manager = db_manager
-        self.setModel(DiagProcessCaseModel(self.db_manager, parent))
-        self.resizeColumnToContents(0)
-        self.expandAll()
-        self.temp_case: DiagCase = DiagCase()
-        _model = self.model()
-        if isinstance(_model, DiagProcessCaseModel):
-            self.model = _model
-        self.model.itemChanged.connect(self.on_item_edited)
+        self.model = DiagProcessCaseModel(db_manager, self)
+        self.setModel(self.model)
+        self._right_click_pos = None
 
+        # 视图初始化
         self._init_view()
         self._init_context_menu()
+
+        # 初始展开所有节点
+        self.expandAll()
+        self.resizeColumnToContents(0)
+
+    def _init_view(self):
+        """初始化视图配置"""
+        self.setSelectionMode(QTreeView.SelectionMode.SingleSelection)
+        self.setIndentation(20)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        # 双击编辑
+        self.setEditTriggers(QTreeView.EditTrigger.DoubleClicked)
+        # 绑定右键菜单信号
+        self.customContextMenuRequested.connect(self._show_context_menu)
 
     def _init_context_menu(self):
         """初始化右键菜单"""
@@ -377,143 +572,55 @@ class DiagProcessCaseTreeView(QTreeView):
         self.add_group_act = self.context_menu.addAction("添加分组")
         self.delete_act = self.context_menu.addAction("删除")
 
-        self.add_case_act.triggered.connect(self._add_case)
-        self.add_group_act.triggered.connect(self._add_group)
+        # 绑定菜单事件
+        self.add_case_act.triggered.connect(lambda: self._add_node(is_group=False))
+        self.add_group_act.triggered.connect(lambda: self._add_node(is_group=True))
         self.delete_act.triggered.connect(self._delete_node)
 
-        self.setEditTriggers(
-            QTreeView.EditTrigger.DoubleClicked
-        )
-
-    def on_item_edited(self, item: QStandardItem):
-        self.temp_case.case_name = item.text()
-        self.model.cases.append(copy.deepcopy(self.temp_case))
-        self.db_manager.upsert_case(self.temp_case)
-        self.temp_case = DiagCase()
-
-    def _add_case(self):
-        current_index = self.currentIndex()
-
-        self.temp_case = DiagCase(
-            type=0,
-            level=0,
-            config_name=self.db_manager.get_active_config_name()
-        )
-        self.temp_case.id = self.db_manager.upsert_case(self.temp_case)
-        self.temp_case.case_name = f"请输入名称_{self.temp_case.id}"
-        self.db_manager.upsert_case(self.temp_case)
-        if current_index.isValid():
-            self.temp_case.parent_id = current_index.data(self.model.case_id_role)
-            self.temp_case.level = self.get_node_level(current_index) + 1
-            node = QStandardItem(self.temp_case.case_name)  # 提示文字
-            node.setData(self.temp_case.id, self.model.case_id_role)
-            current_item = self.model.itemFromIndex(current_index)
-            current_item.appendRow(node)
-
-            new_row = current_item.rowCount() - 1  # 最后一行是刚加的节点
-            new_node_index = self.model.index(new_row, 0, current_index)
-            self.expand(current_index)
-            self.edit(new_node_index)
-        else:
-            node = QStandardItem(self.temp_case.case_name)
-            node.setData(self.temp_case.id, self.model.case_id_role)
-            self.model.root_item.appendRow(node)
-
-            new_row = self.model.root_item.rowCount() - 1  # 最后一行是刚加的节点
-            new_node_index = self.model.index(new_row, 0, QModelIndex())
-            self.edit(new_node_index)
-
-
-    def _add_group(self):
-        current_index = self.currentIndex()
-
-        self.temp_case = DiagCase(
-            type=1,
-            level=0,
-            config_name=self.db_manager.get_active_config_name()
-        )
-        self.temp_case.id = self.db_manager.upsert_case(self.temp_case)
-        self.temp_case.case_name = f"请输入名称_{self.temp_case.id}"
-        self.db_manager.upsert_case(self.temp_case)
-        if current_index.isValid():
-            self.temp_case.parent_id = current_index.data(self.model.case_id_role)
-            self.temp_case.level = self.get_node_level(current_index) + 1
-            node = QStandardItem(self.temp_case.case_name)  # 提示文字
-            node.setData(self.temp_case.id, self.model.case_id_role)
-            node.setIcon(self.model.folder_icon)
-            current_item = self.model.itemFromIndex(current_index)
-            current_item.appendRow(node)
-
-            new_row = current_item.rowCount() - 1  # 最后一行是刚加的节点
-            new_node_index = self.model.index(new_row, 0, current_index)
-            self.expand(current_index)
-            self.edit(new_node_index)
-        else:
-            node = QStandardItem(self.temp_case.case_name)
-            node.setData(self.temp_case.id, self.model.case_id_role)
-            node.setIcon(self.model.folder_icon)
-            self.model.root_item.appendRow(node)
-
-            new_row = self.model.root_item.rowCount() - 1  # 最后一行是刚加的节点
-            new_node_index = self.model.index(new_row, 0, QModelIndex())
-            self.edit(new_node_index)
-
-
-
-
-
-    def get_node_level(self, node_index: QModelIndex):
-        """
-       获取节点的层级（根节点层级为0，子节点+1，依此类推）
-       :param node_index: 目标节点的QModelIndex
-       :return: 节点层级（int），无效索引返回-1
-       """
-        if not node_index.isValid():
-            return -1  # 无效索引返回-1
-
-        level = 0
-        current_index = node_index
-
-        # 向上递归找父节点，直到根节点（父索引无效）
-        while current_index.parent().isValid():
-            level += 1
-            current_index = current_index.parent()
-
-        return level
-
-    def _delete_node(self):
-        pass
-
-    def _init_view(self):
-        """初始化视图配置"""
-        self.setEditTriggers(QTreeView.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(QTreeView.SelectionMode.SingleSelection)  # 单选
-        self.setIndentation(20)  # 缩进距离
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)  # 开启右键菜单
-
-        # 绑定信号
-        # self.clicked.connect(self._on_node_clicked)
-        # self.doubleClicked.connect(self._on_sub_service_double_clicked)
-        self.customContextMenuRequested.connect(self._show_context_menu)
-
     def _show_context_menu(self, pos: QPoint):
-        """处理右键点击事件，根据节点深度动态启用/禁用菜单项"""
-        # 获取被点击的 QModelIndex
+        """显示右键菜单（根据节点类型动态控制菜单）"""
         clicked_index = self.indexAt(pos)
+        self._right_click_pos = pos
+        # 重置菜单状态
+        self.add_case_act.setEnabled(False)
+        self.add_group_act.setEnabled(False)
+        self.delete_act.setEnabled(False)
 
-        # 根节点/空白区域被点击
         if clicked_index.isValid():
-            node_type = self.model.get_node_type(clicked_index)
-
-            if node_type == 0:  # case
-                self.add_case_act.setEnabled(False)
-                self.add_group_act.setEnabled(False)
-                self.delete_act.setEnabled(True)
-            elif node_type == 1:  # group
+            # 获取节点类型
+            node_type = clicked_index.data(self.model.CaseTypeRole)
+            if node_type == 1:  # 分组节点
                 self.add_case_act.setEnabled(True)
                 self.add_group_act.setEnabled(True)
                 self.delete_act.setEnabled(True)
+            elif node_type == 0:  # 案例节点
+                self.delete_act.setEnabled(True)
+        else:
+            self.add_case_act.setEnabled(True)
+            self.add_group_act.setEnabled(True)
 
-        global_pos = self.mapToGlobal(pos)
-        self.context_menu.exec(global_pos)
+
+        # 显示菜单
+        self.context_menu.exec(self.mapToGlobal(pos))
+
+    def _add_node(self, is_group: bool):
+        """添加案例/分组节点"""
+        current_index = self.indexAt(self._right_click_pos)
+        # 新增节点
+        new_index = self.model.add_case_node(current_index, is_group)
+        if new_index.isValid():
+            # 展开父节点
+            self.expand(current_index)
+            # 立即进入编辑状态
+            self.edit(new_index)
+
+    def _delete_node(self):
+        """删除选中节点"""
+        current_index = self.indexAt(self._right_click_pos)
+        if current_index.isValid():
+            self.model.delete_node(current_index)
+
+    def get_node_level(self, index: QModelIndex) -> int:
+        """获取节点层级（对外暴露）"""
+        return self.model._get_node_level(index)
 

@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import List, Any, Optional, Dict
 
 from PySide6.QtCore import QEvent, Qt, Slot, QDataStream, QIODevice, QModelIndex, QSize, QRect, QPoint, \
-    QAbstractTableModel, QAbstractItemModel
+    QAbstractTableModel, QAbstractItemModel, Signal
 from PySide6.QtGui import QAction, QStandardItemModel, QStandardItem, QPainter, QMouseEvent, QIcon
 from PySide6.QtWidgets import QComboBox, QTreeView, QSizePolicy, QWidget, QStyledItemDelegate, QTableView, QScrollBar, \
     QMenu, QAbstractItemView, QLineEdit, QCheckBox, QStyle, QApplication, QStyleOptionButton, QFileIconProvider
@@ -540,6 +540,7 @@ class DiagProcessCaseModel(QAbstractItemModel):
 
 
 class DiagProcessCaseTreeView(QTreeView):
+    clicked_case_id = Signal(int)
     def __init__(self, db_manager: DBManager, parent=None):
         super().__init__(parent)
         self.db_manager = db_manager
@@ -550,6 +551,7 @@ class DiagProcessCaseTreeView(QTreeView):
         # 视图初始化
         self._init_view()
         self._init_context_menu()
+        self.clicked.connect(self._on_node_clicked)
 
         # 初始展开所有节点
         self.expandAll()
@@ -602,6 +604,12 @@ class DiagProcessCaseTreeView(QTreeView):
 
         # 显示菜单
         self.context_menu.exec(self.mapToGlobal(pos))
+
+    def _on_node_clicked(self, index: QModelIndex):
+        node = index.internalPointer()
+        case = node.case
+        if case.type == 0:
+            self.clicked_case_id.emit(case.id)
 
     def _add_node(self, is_group: bool):
         """添加案例/分组节点"""

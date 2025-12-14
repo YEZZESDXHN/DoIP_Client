@@ -337,6 +337,8 @@ class UdsServicesTreeView(QTreeView):
                 else:
                     display_text = f"{payload[:10].hex(' ')}\n"
                 self.status_bar_message.emit(display_text)
+        else:
+            self.status_bar_message.emit('')
         # else:
         #     display_text = (
         #         f"Path：{path}"

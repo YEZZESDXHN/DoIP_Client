@@ -285,6 +285,7 @@ class DiagnosisStepTypeEnum(Enum):
 @dataclass
 class DiagnosisStepData:
     """诊断自动化测试步骤的数据类"""
+    id: Optional[int] = None
     enable: bool = True
     step_type: DiagnosisStepTypeEnum = DiagnosisStepTypeEnum.NormalStep
     service: str = ''
@@ -335,6 +336,20 @@ class DiagnosisStepData:
         data_dict = asdict(self)
         data_json = json.dumps(data_dict, default=self._json_default_converter)
         return data_json
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        data_dict = asdict(self)
+        for key, value in data_dict.items():
+            if isinstance(value, bytes):
+                encoded_bytes = base64.b64encode(value)
+                data_dict[key] = encoded_bytes.decode('utf-8')
+            elif isinstance(value, Enum):
+                data_dict[key] = value.value
+            elif isinstance(value, bool):
+                data_dict[key] = 'true' if value else 'false'
+
+        return data_dict
 
     def _get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""

@@ -48,7 +48,7 @@ class DiagProcessTableModel(QAbstractTableModel):
     def __init__(self):
         super().__init__()
         self._data: List[DiagnosisStepData] = []
-        self._headers = DiagnosisStepData().get_attr_names()[:5]
+        self._headers = DiagnosisStepData().get_attr_names()[1:6]
 
         # 绑定一个内部方法用于缓存
         self._get_row_tuple_cached = lru_cache(maxsize=100)(self._get_row_tuple)
@@ -78,7 +78,7 @@ class DiagProcessTableModel(QAbstractTableModel):
             return None
 
         row = index.row()
-        row_tuple = self._get_row_tuple_cached(row)
+        row_tuple = self._get_row_tuple_cached(row)[1:6]
         col = index.column()
 
         # 显示数据

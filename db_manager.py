@@ -2,7 +2,7 @@ import logging
 import sqlite3
 from typing import Optional, List
 
-from user_data import DoIPConfig, DEFAULT_SERVICES, DiagCase
+from user_data import DoIPConfig, DEFAULT_SERVICES, DiagCase, DiagnosisStepData
 
 logger = logging.getLogger('UDSOnIPClient.' + __name__)
 
@@ -10,6 +10,7 @@ DOIP_CONFIG_TABLE_NAME = "DoIP_Config"
 CURRENT_CONFIG_TABLE_NAME = 'current_active_config'
 SERVICES_TABLE_NAME = 'services_table'
 CASE_TABLE_NAME = 'uds_cases'
+CASE_STEP_TABLE_NAME = 'uds_case_step'
 
 
 class DBManager:
@@ -21,6 +22,7 @@ class DBManager:
         self.init_config_database()
         self.init_services_database()
         self.init_case_database()
+        self.init_case_step_database()
 
     def init_config_database(self):
         # --- 动态生成 CREATE TABLE SQL(doip config) ---
@@ -132,6 +134,128 @@ class DBManager:
                 logger.info(f"case数据库初始化完成！{CASE_TABLE_NAME}表创建/验证成功")
         except sqlite3.Error as e:
             logger.exception(f"case初始化数据库失败：{str(e)}")
+
+    def init_case_step_database(self):
+        """初始化诊断步骤表"""
+        # 实例化数据类获取字段信息
+        step_data = DiagnosisStepData()
+        # 获取主键（取第一个字段作为主键，可根据实际需求调整）
+        primary_key = step_data.get_attr_names()[0]
+        field_definitions = []
+
+        for field, value in step_data.to_dict().items():
+            # 确定 SQL 类型和约束
+            sql_type = 'TEXT' if isinstance(value, str) else 'INTEGER'
+            constraints = 'PRIMARY KEY AUTOINCREMENT' if field == primary_key else 'NOT NULL'
+
+            # 添加 DEFAULT 子句（如果不是主键）
+            if field != primary_key:
+                constraints += f" DEFAULT {repr(value)}"
+
+            field_definitions.append(f"{field} {sql_type} {constraints}")
+
+        fields_sql = ',\n'.join(field_definitions)
+        # 构建创建表SQL
+        create_step_table_sql = f"""
+            CREATE TABLE IF NOT EXISTS {CASE_STEP_TABLE_NAME} (
+                {fields_sql}
+            );
+        """
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(create_step_table_sql)
+                conn.commit()
+                logger.info(f"诊断步骤数据库初始化完成！{CASE_STEP_TABLE_NAME}表创建/验证成功")
+        except sqlite3.Error as e:
+            logger.exception(f"诊断步骤初始化数据库失败：{str(e)}")
+
+    def delete_case_step(self, step_id: int):
+        if step_id <= 0:
+            logger.warning(f"删除step失败：无效的ID（{step_id}），ID必须为正整数")
+            return False
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # 2. 先检查该ID是否存在（避免误判删除成功）
+                cursor.execute(
+                    f"SELECT 1 FROM {CASE_STEP_TABLE_NAME} WHERE id = ?",
+                    (step_id,)
+                )
+                if not cursor.fetchone():
+                    logger.warning(f"删除Case失败：ID={step_id} 的记录不存在")
+                    return False
+
+                # 3. 执行单个删除操作
+                cursor.execute(
+                    f"DELETE FROM {CASE_TABLE_NAME} WHERE id = ?",
+                    (step_id,)
+                )
+                conn.commit()
+
+                # 4. 验证删除结果（rowcount 为受影响的行数）
+                if cursor.rowcount == 1:
+                    logger.info(f"成功删除单个step：ID={step_id}")
+                    return True
+                else:
+                    logger.error(f"删除step异常：ID={step_id} 匹配但未删除（rowcount={cursor.rowcount}）")
+                    return False
+
+        except sqlite3.Error as e:
+            logger.exception(f"删除单个step失败（ID={step_id}）：{str(e)}")
+            return False
+
+    def upsert_case_step(self, case_step: DiagnosisStepData) -> Optional[int]:
+        """
+        插入或更新诊断案例数据（UPSERT）
+        :param case_step: DiagnosisStepData 对象
+        :return: 成功返回记录ID，失败返回None
+        """
+        if not isinstance(case_step, DiagnosisStepData):
+            logger.error("传入的不是有效的DiagnosisStepData对象")
+            return None
+
+        try:
+            # 转换为字典
+            case_dict = case_step.to_dict()
+            primary_key = case_step.get_attr_names()[0]
+
+            # 提取字段和值
+            fields = list(case_dict.keys())
+            values = list(case_dict.values())
+
+            # 构建插入SQL（使用SQLite的UPSERT语法 ON CONFLICT）
+            placeholders = ', '.join(['?'] * len(fields))
+            update_clause = ', '.join([f"{field}=excluded.{field}" for field in fields if field != primary_key])
+
+            insert_sql = f"""
+                INSERT INTO {CASE_STEP_TABLE_NAME} ({', '.join(fields)})
+                VALUES ({placeholders})
+                ON CONFLICT({primary_key}) DO UPDATE SET
+                {update_clause}
+            """
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # 执行插入/更新
+                cursor.execute(insert_sql, values)
+
+                # 获取插入/更新后的ID
+                if case_dict[primary_key] is None:  # 新增记录
+                    case_id = cursor.lastrowid
+                else:  # 更新记录
+                    case_id = case_dict[primary_key]
+
+                conn.commit()
+
+                logger.info(f"案例数据{'新增' if case_dict[primary_key] == 0 else '更新'}成功，ID: {case_id}")
+                return case_id
+
+        except sqlite3.Error as e:
+            logger.exception(f"案例数据插入/更新失败：{str(e)}")
+            return None
 
     def delete_case(self, case_id: int):
         if case_id <= 0:

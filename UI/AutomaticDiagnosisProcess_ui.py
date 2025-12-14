@@ -45,19 +45,27 @@ class ColumnEditDelegate(QStyledItemDelegate):
             return super(ColumnEditDelegate, self).setModelData(editor, model, index)
 
 class DiagProcessTableModel(QAbstractTableModel):
-    def __init__(self):
+    def __init__(self, db_manager: DBManager):
         super().__init__()
+        self.db_manager = db_manager
         self._data: List[DiagnosisStepData] = []
+        self._data_dict: dict[int, DiagnosisStepData] = {}
         self._headers = DiagnosisStepData().get_attr_names()[1:6]
+        self.current_case_id = None
 
-        # 绑定一个内部方法用于缓存
-        self._get_row_tuple_cached = lru_cache(maxsize=100)(self._get_row_tuple)
+    def get_case_step_from_db(self, case_id):
+        self.beginResetModel()
+        self.current_case_id = case_id
+        if not self.current_case_id:
+            self._data.clear()
+            self._data_dict.clear()
 
-    def _get_row_tuple(self, row: int):
-        try:
-            return self._data[row].to_tuple()
-        except IndexError:
-            return None  # 或者返回一个空元组
+        self._data.clear()
+        self._data_dict.clear()
+        self._data = self.db_manager.get_and_fix_steps_by_case_id(self.current_case_id)
+        for __data in self._data:
+            self._data_dict[__data.id] = __data
+        self.endResetModel()
 
     def headerData(self, section: int, orientation: Qt.Orientation,
                    role: int = Qt.ItemDataRole.DisplayRole):
@@ -78,7 +86,7 @@ class DiagProcessTableModel(QAbstractTableModel):
             return None
 
         row = index.row()
-        row_tuple = self._get_row_tuple_cached(row)[1:6]
+        row_tuple = self._data[row].to_tuple()[1:6]
         col = index.column()
 
         # 显示数据
@@ -94,7 +102,6 @@ class DiagProcessTableModel(QAbstractTableModel):
 
         row = index.row()
         col = index.column()
-        self._get_row_tuple_cached.cache_clear()
 
         # 1. 处理用户切换复选框状态 (CheckStateRole)
         if col == 0 and role == Qt.ItemDataRole.CheckStateRole:
@@ -140,26 +147,34 @@ class DiagProcessTableModel(QAbstractTableModel):
         test_step = DiagnosisStepData()
         # 插入新行到模型末尾（局部刷新）
         insert_row_idx = len(self._data)  # 新行的索引（末尾）
+        test_step.step_sequence = insert_row_idx
+        test_step.case_id = self.current_case_id
         # 通知视图：即将在insert_row_idx位置插入1行
         self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
         self._data.append(test_step)
+        self.db_manager.upsert_case_step(test_step)
         # 通知视图：插入操作完成
         self.endInsertRows()
 
     def add_existing_step(self, step_data: DiagnosisStepData):
         insert_row_idx = len(self._data)
+        step_data.step_sequence = insert_row_idx
+        step_data.case_id = self.current_case_id
         self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
         self._data.append(step_data)
+        self.db_manager.upsert_case_step(step_data)
         self.endInsertRows()
 
 class DiagProcessTableView(QTableView):
     """DoIP追踪表格，优化布局和交互"""
 
-    def __init__(self, parent=None):
+    def __init__(self, db_manager: DBManager, parent=None):
         super().__init__(parent)
+        self.db_manager = db_manager
+        self.model = DiagProcessTableModel(self.db_manager)
+        self.setModel(self.model)
         self._auto_scroll = True  # 自动滚动开关
         self._headers = DiagnosisStepData().get_attr_names()
-
 
         self._init_ui()  # 初始化UI
         self._bind_scroll_listener()  # 绑定滚动监听
@@ -239,14 +254,10 @@ class DiagProcessTableView(QTableView):
             logger.debug("表格滚动到底部，开启自动滚动")
 
     def add_normal_test_step(self):
-        model = self.model()
-        if isinstance(model, DiagProcessTableModel):
-            model.add_normal_test_step()
+        self.model.add_normal_test_step()
 
     def add_existing_step(self, step_data: DiagnosisStepData):
-        model = self.model()
-        if isinstance(model, DiagProcessTableModel):
-            model.add_existing_step(step_data)
+        self.model.add_existing_step(step_data)
     def clear_test_step(self):
         pass
 
@@ -277,6 +288,9 @@ class DiagProcessTableView(QTableView):
         """TableView接收拖拽数据，解析字典"""
         mime_data = event.mimeData()
         mime_type = "application/x-diag-item"
+
+        if self.model.current_case_id is None:
+            return
 
         if not mime_data.hasFormat(mime_type):
             event.ignore()

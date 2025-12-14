@@ -149,6 +149,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.comboBox_ChooseConfig.addItem(config)
             self.comboBox_ChooseConfig.setCurrentText(self.current_doip_config.config_name)
 
+        self.treeView_uds_case.clicked_case_id.connect(self.diag_process_table_view.model.get_case_step_from_db)
+
     @Slot()
     def _save_services_to_db(self):
         self.db_manager.add_services_config(self.current_doip_config.config_name, self.uds_services.to_json())
@@ -209,9 +211,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not parent_widget:
             logger.error("父控件无效")
             return
-        diag_process_table_view = DiagProcessTableView(parent=parent_widget)
-        diag_process_table_model = DiagProcessTableModel()
-        diag_process_table_view.setModel(diag_process_table_model)
+        diag_process_table_view = DiagProcessTableView(parent=parent_widget, db_manager=self.db_manager)
+        # diag_process_table_model = DiagProcessTableModel()
+        # diag_process_table_view.setModel(diag_process_table_model)
         logger.debug(f"父控件：{parent_widget.objectName()}")
 
 

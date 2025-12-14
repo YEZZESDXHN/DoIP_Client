@@ -257,6 +257,112 @@ class DBManager:
             logger.exception(f"案例数据插入/更新失败：{str(e)}")
             return None
 
+    def get_case_steps_by_case_id(self, case_id: int) -> List[DiagnosisStepData]:
+        """
+        根据case_id读取步骤，并按step_sequence排序
+
+        Args:
+            case_id: 用例ID
+
+        Returns:
+            排序后的步骤列表
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # 查询指定case_id的所有步骤，按step_sequence升序排列
+                cursor.execute(f"""
+                    SELECT * FROM {CASE_STEP_TABLE_NAME} 
+                    WHERE case_id = ? 
+                    ORDER BY step_sequence ASC
+                """, (case_id,))
+
+                # 获取列名
+                columns = [desc[0] for desc in cursor.description]
+                # 转换为DiagnosisStepData对象列表
+                steps = []
+                for row in cursor.fetchall():
+                    row_dict = dict(zip(columns, row))
+                    step = DiagnosisStepData()
+                    step = step.update_from_dict(row_dict)
+                    steps.append(step)
+
+                logger.info(f"成功读取case_id={case_id}的步骤，共{len(steps)}条")
+                return steps
+
+        except sqlite3.Error as e:
+            logger.exception(f"读取case_id={case_id}的步骤失败：{str(e)}")
+            return []
+
+    def fix_case_step_sequence(self, case_id: int) -> bool:
+        """
+        修复指定case_id的步骤序列，确保step_sequence从1开始连续递增
+
+        Args:
+            case_id: 用例ID
+
+        Returns:
+            是否成功修复
+        """
+        try:
+            # 1. 读取当前步骤
+            steps = self.get_case_steps_by_case_id(case_id)
+            if not steps:
+                logger.info(f"case_id={case_id}没有步骤需要修复")
+                return True
+
+            # 2. 检查是否需要修复
+            need_fix = False
+            for idx, step in enumerate(steps):
+                expected_sequence = idx + 1
+                if step.step_sequence != expected_sequence:
+                    need_fix = True
+                    break
+
+            if not need_fix:
+                logger.info(f"case_id={case_id}的步骤序列已经是连续的，无需修复")
+                return True
+
+            # 3. 执行修复
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # 按当前顺序更新step_sequence
+                for idx, step in enumerate(steps):
+                    new_sequence = idx + 1
+                    if step.step_sequence != new_sequence:
+                        logger.info(
+                            f"更新case_id={case_id}步骤ID={step.id}的sequence: {step.step_sequence} -> {new_sequence}")
+                        cursor.execute(f"""
+                            UPDATE {CASE_STEP_TABLE_NAME} 
+                            SET step_sequence = ? 
+                            WHERE id = ?
+                        """, (new_sequence, step.id))
+
+                conn.commit()
+                logger.info(f"成功修复case_id={case_id}的步骤序列，共更新{len(steps)}条记录")
+                return True
+
+        except sqlite3.Error as e:
+            logger.exception(f"修复case_id={case_id}的步骤序列失败：{str(e)}")
+            return False
+
+    def get_and_fix_steps_by_case_id(self, case_id: int) -> List[DiagnosisStepData]:
+        """
+        读取指定case_id的步骤，自动修复序列问题后返回
+
+        Args:
+            case_id: 用例ID
+
+        Returns:
+            修复后的步骤列表
+        """
+        # 先修复序列
+        self.fix_case_step_sequence(case_id)
+        # 重新读取修复后的步骤
+        return self.get_case_steps_by_case_id(case_id)
+
+
     def delete_case(self, case_id: int):
         if case_id <= 0:
             logger.warning(f"删除Case失败：无效的ID（{case_id}），ID必须为正整数")

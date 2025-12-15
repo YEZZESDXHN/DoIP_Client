@@ -283,6 +283,17 @@ class DiagnosisStepTypeEnum(Enum):
     ExistingStep = "已有配置"
 
 
+class DiagnosisStepAddressEnum(Enum):
+    Physical = "Phy"
+    Function = "Fun"
+
+
+class DiagnosisStepTestResultEnum(Enum):
+    NotRun = "NotRun"
+    Pass = "Pass"
+    Fail = "Failed"
+    Running = "Running"
+
 @dataclass
 class DiagnosisStepData:
     """诊断自动化测试步骤的数据类"""
@@ -290,8 +301,13 @@ class DiagnosisStepData:
     enable: bool = True
     step_type: DiagnosisStepTypeEnum = DiagnosisStepTypeEnum.NormalStep
     service: str = ''
+    address: DiagnosisStepAddressEnum = DiagnosisStepAddressEnum.Physical
     send_data: bytes = b''
     exp_resp_data: bytes = b''
+    delay: int = 50
+    retry_times: int = 0
+    is_stop_when_fail: bool = True
+    result: DiagnosisStepTestResultEnum = DiagnosisStepTestResultEnum.NotRun
 
     case_id: int = 0
     step_sequence: int = 0
@@ -313,7 +329,6 @@ class DiagnosisStepData:
     def to_tuple(self) -> tuple:
         """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
         tuple_values = []
-        print('to_tuple')
         for field in fields(self):
             value = getattr(self, field.name)
             # 对枚举类型字段，提取其value；其他字段直接用原值
@@ -336,7 +351,7 @@ class DiagnosisStepData:
             # 2. 转换为 UTF-8 字符串 (bytes -> str)
             return encoded_bytes.decode('utf-8')
 
-        if isinstance(obj, DiagnosisStepTypeEnum):
+        elif isinstance(obj, Enum):
             return obj.value
 
         # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError

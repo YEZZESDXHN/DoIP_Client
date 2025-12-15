@@ -50,7 +50,7 @@ class DiagProcessTableModel(QAbstractTableModel):
         self.db_manager = db_manager
         self._data: List[DiagnosisStepData] = []
         self._data_dict: dict[int, DiagnosisStepData] = {}
-        self._headers = DiagnosisStepData().get_attr_names()[1:6]
+        self._headers = DiagnosisStepData().get_attr_names()[1:11]
         self.current_case_id = None
 
     def clear(self):
@@ -94,7 +94,7 @@ class DiagProcessTableModel(QAbstractTableModel):
             return None
 
         row = index.row()
-        row_tuple = self._data[row].to_tuple[1:6]
+        row_tuple = self._data[row].to_tuple[1:11]
         col = index.column()
 
         # 显示数据

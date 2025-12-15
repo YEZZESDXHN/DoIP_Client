@@ -53,12 +53,20 @@ class DiagProcessTableModel(QAbstractTableModel):
         self._headers = DiagnosisStepData().get_attr_names()[1:6]
         self.current_case_id = None
 
+    def clear(self):
+        self.current_case_id = None
+        self.beginResetModel()
+        self._data.clear()
+        self._data_dict.clear()
+        self.endResetModel()
+
     def get_case_step_from_db(self, case_id):
         self.beginResetModel()
         self.current_case_id = case_id
         if not self.current_case_id:
             self._data.clear()
             self._data_dict.clear()
+            self.endResetModel()
 
         self._data.clear()
         self._data_dict.clear()
@@ -113,7 +121,7 @@ class DiagProcessTableModel(QAbstractTableModel):
         # 2. 处理文本编辑 (EditRole)
         if role == Qt.ItemDataRole.EditRole:
             self._data[row].update_by_value(self._headers[col], value)
-
+            self.db_manager.upsert_case_step(self._data[row])
             # 通知视图数据已改变
             self.dataChanged.emit(index, index, [role])
             return True
@@ -152,6 +160,7 @@ class DiagProcessTableModel(QAbstractTableModel):
         # 通知视图：即将在insert_row_idx位置插入1行
         self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
         self._data.append(test_step)
+        self._data_dict[test_step.id] = test_step
         self.db_manager.upsert_case_step(test_step)
         # 通知视图：插入操作完成
         self.endInsertRows()
@@ -162,6 +171,7 @@ class DiagProcessTableModel(QAbstractTableModel):
         step_data.case_id = self.current_case_id
         self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
         self._data.append(step_data)
+        self._data_dict[step_data.id] = step_data
         self.db_manager.upsert_case_step(step_data)
         self.endInsertRows()
 
@@ -179,6 +189,9 @@ class DiagProcessTableView(QTableView):
         self._init_ui()  # 初始化UI
         self._bind_scroll_listener()  # 绑定滚动监听
         self._init_data_context_menu()
+
+    def clear(self):
+        self.model.clear()
 
     def _init_ui(self):
         """初始化表格UI属性，确保铺满布局"""
@@ -570,6 +583,9 @@ class DiagProcessCaseTreeView(QTreeView):
         # 初始展开所有节点
         self.expandAll()
         self.resizeColumnToContents(0)
+
+    def refresh(self):
+        self.model._build_tree_from_db()
 
     def _init_view(self):
         """初始化视图配置"""

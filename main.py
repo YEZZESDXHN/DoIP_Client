@@ -328,6 +328,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_doip_config.config_name))
         self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()
         self.treeView_Diag_Process.expandAll()
+        self.treeView_uds_case.refresh()
+        self.diag_process_table_view.clear()
 
     def set_tester_ip(self, index: int):
         """设置测试机IP"""

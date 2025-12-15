@@ -284,7 +284,7 @@ class DBManager:
                 for row in cursor.fetchall():
                     row_dict = dict(zip(columns, row))
                     step = DiagnosisStepData()
-                    step = step.update_from_dict(row_dict)
+                    step.update_from_dict(row_dict)
                     steps.append(step)
 
                 logger.info(f"成功读取case_id={case_id}的步骤，共{len(steps)}条")

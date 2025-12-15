@@ -7,7 +7,7 @@ import json
 import pprint
 from dataclasses import dataclass, asdict, fields, is_dataclass, field
 from enum import Enum
-from functools import lru_cache
+from functools import cached_property
 from typing import Any, Optional, Type, get_args, get_origin, Dict
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
@@ -301,26 +301,19 @@ class DiagnosisStepData:
         # fields(self) 按定义顺序返回所有数据属性，提取 name 组成元组
         return tuple(_field.name for _field in fields(self))
 
-    def __hash__(self):
-        return hash(self.id)
-
-    # 重写 __eq__：基于 id 判断两个实例是否相等（配合 __hash__）
-    def __eq__(self, other):
-        if not isinstance(other, DiagnosisStepData):
-            return False
-        return self.id == other.id
-
     def __setattr__(self, name, value):
         # 1. 先执行默认的属性赋值逻辑
         super().__setattr__(name, value)
         # 2. 若存在 to_tuple 缓存，自动清空
-        if hasattr(self, 'to_tuple') and hasattr(self.to_tuple, 'cache_clear'):
-            self.to_tuple.cache_clear()
+        cache_attr_name = 'to_tuple'
+        if hasattr(self, cache_attr_name):
+            delattr(self, cache_attr_name)
 
-    @lru_cache(maxsize=None)
+    @cached_property
     def to_tuple(self) -> tuple:
         """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
         tuple_values = []
+        print('to_tuple')
         for field in fields(self):
             value = getattr(self, field.name)
             # 对枚举类型字段，提取其value；其他字段直接用原值

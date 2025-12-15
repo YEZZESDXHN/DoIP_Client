@@ -94,7 +94,7 @@ class DiagProcessTableModel(QAbstractTableModel):
             return None
 
         row = index.row()
-        row_tuple = self._data[row].to_tuple()[1:6]
+        row_tuple = self._data[row].to_tuple[1:6]
         col = index.column()
 
         # 显示数据

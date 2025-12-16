@@ -11,7 +11,7 @@ from udsoncan.configs import default_client_config
 from UI.AutomaticDiagnosisProcess_ui import DiagProcessTableView, DiagProcessTableModel, DiagProcessCaseTreeView
 from UI.DoIPConfigPanel_ui import DoIPConfigPanel
 from UI.DoIPToolMainUI import Ui_MainWindow
-from UDSOnIP import QUDSOnIPClient
+from UDSClient import QUDSClient
 from UI.DoIPTraceTable_ui import DoIPTraceTableView
 from UI.sql_data_panel import SQLTablePanel
 from UI.UdsServicesTreeView_ui import UdsServicesTreeView, UdsServicesModel
@@ -40,8 +40,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tester_ip_address: Optional[str] = None
         self.current_doip_config: Optional[DoIPConfig] = None
         self.db_manager: Optional[DBManager] = None
-        self.uds_on_ip_client = None
-        self.uds_on_ip_client_thread = None
+        self.uds_client = None
+        self.uds_client_thread = None
         self.auto_reconnect_tcp = True
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
@@ -93,14 +93,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _init_doip_client(self):
         """初始化DoIP客户端和线程"""
         # 创建线程和客户端实例
-        self.uds_on_ip_client_thread = QThread()
-        self.uds_on_ip_client = QUDSOnIPClient()
+        self.uds_client_thread = QThread()
+        self.uds_client = QUDSClient()
 
         # 将客户端移到子线程，避免阻塞主线程
-        self.uds_on_ip_client.moveToThread(self.uds_on_ip_client_thread)
+        self.uds_client.moveToThread(self.uds_client_thread)
 
         # 启动线程
-        self.uds_on_ip_client_thread.start()
+        self.uds_client_thread.start()
         logger.info("DoIP客户端线程已启动")
 
     def _init_ui(self):
@@ -122,8 +122,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView_DoIPTrace_Automated_Process = self._add_custom_table_view(self.groupBox_AutomatedDiagTrace)
 
         # 共用同一数据模型，需要取消以下两个信号连接
-        # self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
-        # self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        # self.uds_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        # self.uds_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
         # 搜索关键字可以在_connect_doip_client_signals中可以找到
         self.tableView_DoIPTrace_Automated_Process.trace_model = self.tableView_DoIPTrace.trace_model
         self.tableView_DoIPTrace_Automated_Process.setModel(self.tableView_DoIPTrace.trace_model)
@@ -284,8 +284,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboBox_TesterIP.currentIndexChanged.connect(self.set_tester_ip)
 
         # 自定义信号（传递给DoIP客户端）
-        self.connect_or_disconnect_doip_signal.connect(self.uds_on_ip_client.change_doip_connect_state)
-        self.doip_send_raw_payload_signal.connect(self.uds_on_ip_client.send_payload)
+        self.connect_or_disconnect_doip_signal.connect(self.uds_client.change_doip_connect_state)
+        self.doip_send_raw_payload_signal.connect(self.uds_client.send_payload)
 
         # treeView双击信号获取触发send_raw_doip_payload发送数据
         self.treeView_DoIPTraceService.clicked_node_data.connect(self.send_raw_doip_payload)
@@ -301,19 +301,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _connect_doip_client_signals(self):
         """连接DoIP客户端的信号到槽函数"""
-        if not self.uds_on_ip_client:
+        if not self.uds_client:
             logger.warning("DoIP客户端未初始化，无法连接信号")
             return
 
-        self.uds_on_ip_client.doip_connect_state.connect(self._update_doip_connect_state)
+        self.uds_client.doip_connect_state.connect(self._update_doip_connect_state)
 
-        self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace.add_trace_data)
-        self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace.add_trace_data)
+        self.uds_client.doip_response.connect(self.tableView_DoIPTrace.add_trace_data)
+        self.uds_client.doip_request.connect(self.tableView_DoIPTrace.add_trace_data)
 
-        # self.uds_on_ip_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
-        # self.uds_on_ip_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        # self.uds_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
+        # self.uds_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
 
-        self.uds_on_ip_client.doip_response.connect(self.doip_response_callback)
+        self.uds_client.doip_response.connect(self.doip_response_callback)
 
     @Slot(dict)
     def doip_response_callback(self, data: DoIPMessageStruct):
@@ -382,11 +382,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _update_doip_client_config(self) -> None:
         """批量更新DoIP客户端配置"""
-        if not self.uds_on_ip_client:
+        if not self.uds_client:
             logger.warning("DoIP客户端未初始化，跳过配置更新")
             return
 
-        client = self.uds_on_ip_client
+        client = self.uds_client
         client.ecu_ip_address = self.current_doip_config.dut_ipv4_address
         client.ecu_logical_address = self.current_doip_config.dut_logical_address
         client.tcp_port = self.current_doip_config.tcp_port
@@ -523,9 +523,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def closeEvent(self, event) -> None:
         """重写关闭事件，优雅退出线程"""
         # 停止DoIP客户端线程
-        if self.uds_on_ip_client_thread:
-            self.uds_on_ip_client_thread.quit()
-            if self.uds_on_ip_client_thread.wait(3000):  # 等待3秒超时
+        if self.uds_client_thread:
+            self.uds_client_thread.quit()
+            if self.uds_client_thread.wait(3000):  # 等待3秒超时
                 logger.info("DoIP客户端线程已正常停止")
             else:
                 logger.warning("DoIP客户端线程强制退出")

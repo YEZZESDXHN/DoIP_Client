@@ -71,7 +71,7 @@ class MyDoIPClient(DoIPClient):
             self._wrap_socket(ssl_context)
 
 
-class QUDSOnIPClient(QObject):
+class QUDSClient(QObject):
     error_signal = Signal(str)
     info_signal = Signal(str)
 

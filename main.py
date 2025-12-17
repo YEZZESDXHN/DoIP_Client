@@ -40,7 +40,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tester_ip_address: Optional[str] = None
         self.current_doip_config: Optional[DoIPConfig] = None
         self.db_manager: Optional[DBManager] = None
-        self.uds_client = None
+        self.uds_client: Optional[QUDSClient] = None
         self.uds_client_thread = None
         self.auto_reconnect_tcp = True
         self.uds_request_timeout: Optional[float] = None
@@ -278,6 +278,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButton_EditConfig.clicked.connect(self.open_edit_config_panel)
         self.pushButton_CreateConfig.clicked.connect(self.open_create_config_panel)
         self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
+
+        self.toolButton_LoadExternalScript.clicked.connect(self.uds_client.load_external_script)
+        self.pushButton_ExternalScriptRun.clicked.connect(self.uds_client.run_external_script)
+        self.pushButton_ExternalScriptStop.clicked.connect(self.uds_client.stop_external_script)
 
         # 复选框和下拉框信号
         self.checkBox_AotuReconnect.stateChanged.connect(self.set_auto_reconnect_tcp)

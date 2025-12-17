@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
     QGridLayout, QGroupBox, QHBoxLayout, QLabel,
     QLineEdit, QMainWindow, QMenu, QMenuBar,
     QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy,
-    QSpacerItem, QSplitter, QTabWidget, QVBoxLayout,
-    QWidget)
+    QSpacerItem, QSplitter, QTabWidget, QToolButton,
+    QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -206,7 +206,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 248, 737))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 707))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         self.splitter.addWidget(self.scrollArea_DiagTree)
         self.layoutWidget1 = QWidget(self.splitter)
@@ -274,7 +274,7 @@ class Ui_MainWindow(object):
         self.scrollArea_UdsCaseTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 837, 677))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 835, 639))
         self.scrollArea_UdsCaseTree.setWidget(self.scrollAreaWidgetContents_3)
 
         self.horizontalLayout_2.addWidget(self.scrollArea_UdsCaseTree)
@@ -297,7 +297,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTreeForProcess.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 846, 677))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 246, 26))
         self.scrollArea_DiagTreeForProcess.setWidget(self.scrollAreaWidgetContents_2)
 
         self.verticalLayout_4.addWidget(self.scrollArea_DiagTreeForProcess)
@@ -320,13 +320,28 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_6.setStretch(1, 1)
         self.tabWidget.addTab(self.tab_AutomatedDiagProcess, "")
+        self.tab_ExternalScript = QWidget()
+        self.tab_ExternalScript.setObjectName(u"tab_ExternalScript")
+        self.pushButton_ExternalScriptRun = QPushButton(self.tab_ExternalScript)
+        self.pushButton_ExternalScriptRun.setObjectName(u"pushButton_ExternalScriptRun")
+        self.pushButton_ExternalScriptRun.setGeometry(QRect(70, 70, 95, 28))
+        self.pushButton_ExternalScriptStop = QPushButton(self.tab_ExternalScript)
+        self.pushButton_ExternalScriptStop.setObjectName(u"pushButton_ExternalScriptStop")
+        self.pushButton_ExternalScriptStop.setGeometry(QRect(70, 120, 95, 28))
+        self.toolButton_LoadExternalScript = QToolButton(self.tab_ExternalScript)
+        self.toolButton_LoadExternalScript.setObjectName(u"toolButton_LoadExternalScript")
+        self.toolButton_LoadExternalScript.setGeometry(QRect(500, 10, 24, 24))
+        self.lineEdit_ExternalScriptPath = QLineEdit(self.tab_ExternalScript)
+        self.lineEdit_ExternalScriptPath.setObjectName(u"lineEdit_ExternalScriptPath")
+        self.lineEdit_ExternalScriptPath.setGeometry(QRect(80, 10, 311, 24))
+        self.tabWidget.addTab(self.tab_ExternalScript, "")
 
         self.verticalLayout_5.addWidget(self.tabWidget)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
         self.menu_set = QMenu(self.menubar)
@@ -342,7 +357,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabWidget.setCurrentIndex(2)
+        self.tabWidget.setCurrentIndex(3)
         self.tabWidget_2.setCurrentIndex(0)
 
 
@@ -371,6 +386,10 @@ class Ui_MainWindow(object):
         self.groupBox_AutomatedDiagProcessTable.setTitle("")
         self.groupBox_AutomatedDiagTrace.setTitle("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_AutomatedDiagProcess), QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u8bca\u65ad\u6d41\u7a0b", None))
+        self.pushButton_ExternalScriptRun.setText(QCoreApplication.translate("MainWindow", u"Run", None))
+        self.pushButton_ExternalScriptStop.setText(QCoreApplication.translate("MainWindow", u"Stop", None))
+        self.toolButton_LoadExternalScript.setText(QCoreApplication.translate("MainWindow", u"...", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_ExternalScript), QCoreApplication.translate("MainWindow", u"\u5916\u90e8\u811a\u672c", None))
         self.menu_about.setTitle(QCoreApplication.translate("MainWindow", u"\u5173\u4e8e", None))
         self.menu_set.setTitle(QCoreApplication.translate("MainWindow", u"\u8bbe\u7f6e", None))
         self.menu_tool.setTitle(QCoreApplication.translate("MainWindow", u"\u5de5\u5177", None))

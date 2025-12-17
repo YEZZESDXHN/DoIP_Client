@@ -276,7 +276,7 @@
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>3</number>
       </property>
       <property name="elideMode">
        <enum>Qt::TextElideMode::ElideNone</enum>
@@ -381,8 +381,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>248</width>
-              <height>737</height>
+              <width>246</width>
+              <height>707</height>
              </rect>
             </property>
            </widget>
@@ -508,8 +508,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>837</width>
-                  <height>677</height>
+                  <width>835</width>
+                  <height>639</height>
                  </rect>
                 </property>
                </widget>
@@ -571,8 +571,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>846</width>
-                  <height>677</height>
+                  <width>246</width>
+                  <height>26</height>
                  </rect>
                 </property>
                </widget>
@@ -606,6 +606,60 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="tab_ExternalScript">
+       <attribute name="title">
+        <string>外部脚本</string>
+       </attribute>
+       <widget class="QPushButton" name="pushButton_ExternalScriptRun">
+        <property name="geometry">
+         <rect>
+          <x>70</x>
+          <y>70</y>
+          <width>95</width>
+          <height>28</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Run</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="pushButton_ExternalScriptStop">
+        <property name="geometry">
+         <rect>
+          <x>70</x>
+          <y>120</y>
+          <width>95</width>
+          <height>28</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Stop</string>
+        </property>
+       </widget>
+       <widget class="QToolButton" name="toolButton_LoadExternalScript">
+        <property name="geometry">
+         <rect>
+          <x>500</x>
+          <y>10</y>
+          <width>24</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+       <widget class="QLineEdit" name="lineEdit_ExternalScriptPath">
+        <property name="geometry">
+         <rect>
+          <x>80</x>
+          <y>10</y>
+          <width>311</width>
+          <height>24</height>
+         </rect>
+        </property>
+       </widget>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -616,7 +670,7 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>22</height>
+     <height>33</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_about">

@@ -2,6 +2,7 @@ import logging
 import os
 import socket
 import ssl
+import sys
 from datetime import datetime
 from typing import Optional, Any
 
@@ -110,7 +111,9 @@ class QUDSClient(QObject):
         if not os.path.exists(file_path):
             logger.error(f"错误: 文件不存在 {file_path}")
             return
-
+        script_dir = os.path.dirname(file_path)
+        if script_dir not in sys.path:
+            sys.path.append(script_dir)
         try:
             logger.info(f"--- 正在加载模块: {file_path} ---")
             spec = importlib.util.spec_from_file_location("external_script", file_path)

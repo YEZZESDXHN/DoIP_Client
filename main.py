@@ -90,6 +90,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot(str)
     def status_bar_show_message(self, msg: str):
         self.status_bar.showMessage(msg, 0)
+
     def _init_doip_client(self):
         """初始化DoIP客户端和线程"""
         # 创建线程和客户端实例
@@ -107,7 +108,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """初始化界面组件属性"""
         self.splitter_3.setStretchFactor(0, 1)
         self.splitter_3.setStretchFactor(1, 5)
-
 
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 5)

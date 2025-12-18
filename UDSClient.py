@@ -107,7 +107,7 @@ class QUDSClient(QObject):
 
     @Slot(str)
     def load_external_script(self, file_path):
-        file_path = 'external_script.py'
+        file_path = 'external_scripts/external_script.py'
         if not os.path.exists(file_path):
             logger.error(f"错误: 文件不存在 {file_path}")
             return
@@ -140,11 +140,11 @@ class QUDSClient(QObject):
             return
 
         try:
-            if hasattr(self.external_module, 'on_run'):
+            if hasattr(self.external_module, 'main'):
                 context = RuntimeContext(self)
-                self.external_module.on_run(context)
+                self.external_module.main(context)
             else:
-                logger.error("错误: 脚本中未定义 on_run")
+                logger.error("错误: 脚本中未定义 main")
         except Exception as e:
             pass
 
@@ -224,87 +224,134 @@ class QUDSClient(QObject):
                 error_message = f'uds client 创建失败'
                 self.info_signal.emit(f"{error_message},{str(e)}")
 
-    def send_payload(self, payload: bytes):
-        if self.uds_on_ip_client:
-            try:
-                req = Request.from_payload(payload)
-                req_data = req.get_payload()
-                req_table_view_data = DoIPMessageStruct(
-                    Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    Dir=MessageDir.Tx,
-                    Type=req.service.get_name(),
-                    Destination_IP=self.ecu_ip_address,
-                    Source_IP=self.client_ip_address,
-                    Data_bytes=req_data,
-                    DataLength=len(req_data),
+    def _handle_exceptions(self, e: Exception, prefix: str) -> Optional[Response]:
+        """
+        统一处理 UDS 通讯过程中的各类异常
+        :param e: 捕获到的异常对象
+        :param prefix: 日志前缀，例如 "" 或 "TF:"
+        """
+        time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-                )
-                req_table_view_data.update_data_by_data_bytes()
+        # 1. 针对已知特定异常的处理
+        if isinstance(e, TimeoutException):
+            resp_struct = DoIPMessageStruct(
+                Time=time_str,
+                Dir=MessageDir.Rx,
+                Type='TimeoutException',
+            )
+            self.doip_response.emit(resp_struct)
+            self.error_signal.emit(e)
+            logger.debug(f'{prefix}timeout:{str(e)}')
 
-                self.doip_request.emit(req_table_view_data)
+        elif isinstance(e, NegativeResponseException):
+            # 提取负响应中的原始数据
+            response = e.response
+            resp_struct = self._create_message_struct(
+                msg_dir=MessageDir.Rx,
+                msg_type=response.code_name,
+                data=response.original_payload,
+                dest=self.client_ip_address,
+                src=self.ecu_ip_address,
+                extra={"code_name": response.code_name, "uds_data": response.data}
+            )
+            self.doip_response.emit(resp_struct)
+            return response
 
-                response = self.uds_on_ip_client.send_request(req)
-                resp_data = response.original_payload
-                resp_table_view_data = DoIPMessageStruct(
-                    Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    Dir=MessageDir.Rx,
-                    Type=response.code_name,
-                    Destination_IP=self.client_ip_address,
-                    Source_IP=self.ecu_ip_address,
-                    Data_bytes=resp_data,
-                    DataLength=len(resp_data),
-                    code_name=response.code_name,
-                    uds_data=response.data
-                )
-                resp_table_view_data.update_data_by_data_bytes()
-                self.doip_response.emit(resp_table_view_data)
-            except TimeoutException as e:
-                resp_table_view_data = DoIPMessageStruct(
-                    Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    Dir=MessageDir.Rx,
-                    Type='TimeoutException',
-                )
-                self.doip_response.emit(resp_table_view_data)
-                self.error_signal.emit(e)
-                logger.debug(f'timeout:{str(e)}')
-            except NegativeResponseException as negative_response:
-                response = negative_response.response
-                resp_data = response.original_payload
-                resp_table_view_data = DoIPMessageStruct(
-                    Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    Dir=MessageDir.Rx,
-                    Type=response.code_name,
-                    Destination_IP=self.client_ip_address,
-                    Source_IP=self.ecu_ip_address,
-                    Data_bytes=resp_data,
-                    DataLength=len(resp_data),
-                    code_name=response.code_name,
-                    uds_data=response.data
-                )
-                resp_table_view_data.update_data_by_data_bytes()
-                self.doip_response.emit(resp_table_view_data)
-            except InvalidResponseException as e:
-                logger.debug(f'InvalidResponseException:{str(e)}')
-            except UnexpectedResponseException as e:
-                logger.debug(f'UnexpectedResponseException:{str(e)}')
-            except ConfigError as e:
-                logger.debug(f'ConfigError:{str(e)}')
-            except Exception as e:
-                try:
-                    resp_table_view_data = DoIPMessageStruct(
-                        Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                        Dir=MessageDir.Rx,
-                        Type=e.args[0],
-                    )
-                    self.doip_response.emit(resp_table_view_data)
-                except:
-                    pass
-                self.error_signal.emit(e)
-                logger.exception(str(e))
+        elif isinstance(e, InvalidResponseException):
+            logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
+        elif isinstance(e, UnexpectedResponseException):
+            logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
+        elif isinstance(e, ConfigError):
+            logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
         else:
-            info_message = f'DoIP未连接'
-            logger.info(info_message)
-            self.info_signal.emit(info_message)
+            self.error_signal.emit(e)
+            logger.exception(f"{prefix}{str(e)}")
+
+    def _execute_uds_request(self, payload: bytes, log_prefix: str = "") -> Optional[Response]:
+        """
+        核心方法：处理所有 UDS 请求的发送、响应解析、信号发射和异常捕获
+        """
+        if not self.uds_on_ip_client:
+            message = f"{log_prefix}DoIP未连接"
+            logger.info(message)
+            self.info_signal.emit(message)
+            return None
+
+        try:
+            # 1. 构造并发送请求
+            req = Request.from_payload(payload)
+            req_data = req.get_payload()
+
+            req_struct = self._create_message_struct(
+                msg_dir=MessageDir.Tx,
+                msg_type=req.service.get_name(),
+                data=req_data,
+                dest=self.ecu_ip_address,
+                src=self.client_ip_address
+            )
+            self.doip_request.emit(req_struct)
+
+            # 2. 执行请求
+            response = self.uds_on_ip_client.send_request(req)
+
+            # 3. 处理正常响应
+            resp_struct = self._create_message_struct(
+                msg_dir=MessageDir.Rx,
+                msg_type=response.code_name,
+                data=response.original_payload,
+                dest=self.client_ip_address,
+                src=self.ecu_ip_address,
+                extra={"code_name": response.code_name, "uds_data": response.data}
+            )
+            self.doip_response.emit(resp_struct)
+            return response
+
+        except (
+                TimeoutException,
+                NegativeResponseException,
+                InvalidResponseException,
+                UnexpectedResponseException,
+                ConfigError,
+                Exception) as e:
+            ret = self._handle_exceptions(e, log_prefix)
+            if isinstance(ret, Response):
+                return ret
+            else:
+                return None
+
+    def _create_message_struct(self, msg_dir, msg_type, data, dest, src, extra=None):
+        """辅助方法：统一创建消息结构体"""
+        struct = DoIPMessageStruct(
+            Time=datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            Dir=msg_dir,
+            Type=msg_type,
+            Destination_IP=dest,
+            Source_IP=src,
+            Data_bytes=data,
+            DataLength=len(data) if data else 0,
+        )
+        if extra:
+            for key, value in extra.items():
+                setattr(struct, key, value)
+        struct.update_data_by_data_bytes()
+        return struct
+
+    def send_payload(self, payload: bytes) -> Optional[Response]:
+        """内部调用的原方法"""
+        return self._execute_uds_request(payload)
+
+    def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
+        """
+        API 接口：供外部脚本调用
+        """
+        # 1. 执行核心请求 (带上 TF: 前缀)
+        response = self._execute_uds_request(payload, log_prefix="api:")
+
+        # 2. 扩展功能：在此处添加报告打印逻辑
+        # if response:
+        #     self._generate_api_report(response)
+
+        return response
 
 
 def main():

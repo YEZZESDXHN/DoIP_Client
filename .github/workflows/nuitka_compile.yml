@@ -1,0 +1,122 @@
+name: Build Application
+
+on:
+  push:
+    tags:
+      - 'v*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# ====================================================
+# [配置区域] 修改这里的变量即可适配新项目
+# ====================================================
+env:
+  APP_NAME: DoIPClient        # 生成的软件名称 (不要包含 .exe)
+  ENTRY_SCRIPT: main.py       # Python 入口脚本文件名
+  PYTHON_VER: '3.11'          # Python 版本
+  ICON_PATH: icon.ico         # 图标路径 (如果没有图标，请删除下面 Nuitka 参数中的相关行)
+# ====================================================
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VER }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          pip install --upgrade pip
+          pip install nuitka
+          
+          if (Test-Path requirements.txt) {
+            pip install -r requirements.txt
+          } else {
+            # 如果没有 requirements.txt，可以在这里作为备用手动安装
+            pip install pyside6 openpyxl pandas udsoncan ifaddr doipclient
+          }
+
+      - name: Build with Nuitka (Command Line)
+        shell: pwsh
+        run: |
+          # 动态计算 PySide6 的插件目录路径，赋值给 $qtPluginsPath
+          $qtPluginsPath = (python -c "import PySide6; import os; print(os.path.join(PySide6.__path__[0], 'plugins'))")
+
+          # 使用变量构建命令
+          python -m nuitka `
+            --standalone `
+            --follow-imports `
+            --assume-yes-for-downloads `
+            --lto=yes `
+            --output-dir="${{ github.workspace }}/dist" `
+            --output-filename=${{ env.APP_NAME }}.exe `
+            --enable-plugin=pyside6 `
+            --windows-console-mode=disable `
+            --show-progress `
+            --show-memory `
+            --include-data-files="${{ github.workspace }}/logging.conf=logging.conf" `
+            --include-data-files="${{ github.workspace }}/external_scripts/api.py=external_scripts/api.py" `
+            --include-data-files="${{ github.workspace }}/external_scripts/external_script.py=external_scripts/external_script.py" `
+            --include-data-files="${{ github.workspace }}/external_scripts/lib/__init__.py=external_scripts/lib/__init__.py" `
+            --include-data-files="$qtPluginsPath\sqldrivers\qsqlite.dll"=sqldrivers\qsqlite.dll `
+            ${{ env.ENTRY_SCRIPT }}
+#            --include-plugin-directory="$qtPluginsPath\sqldrivers" `
+#            --windows-disable-console `
+#             --windows-icon-from-ico=${{ env.ICON_PATH }} `
+
+      
+
+      - name: Prepare Artifacts
+        id: prepare_artifact
+        shell: pwsh
+        run: |
+          # 获取 Tag 或构建标识
+          $tag = "${{ github.ref_name }}"
+          if ($tag -match "^v") { Write-Host "Tag detected: $tag" } else { $tag = "manual-build" }
+          
+          # 使用环境变量构建文件名
+          $appName = "${{ env.APP_NAME }}"
+          $releaseName = "${{ env.APP_NAME }}_$tag"
+          $zipName = "${{ env.APP_NAME }}-$tag.7z"
+          
+          # 整理 Nuitka 输出
+          # Nuitka Action standalone 模式通常在 build 目录下生成 xxx.dist 文件夹
+          # 我们将其重命名为带版本号的文件夹名
+          
+          New-Item -ItemType Directory -Force -Path $releaseName
+          
+          # 注意：Nuitka-Action 生成的 dist 文件夹名称通常是 main.dist (取决于入口文件名)
+          Move-Item -Path "dist\*.dist\*" -Destination $releaseName
+          
+          # 压缩文件夹
+          7z a -t7z $zipName $releaseName
+          
+          # 将生成的 Zip 文件名传给后续步骤
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+          echo "TAG_NAME=$tag" >> $env:GITHUB_ENV
+
+      - name: Upload Artifact (Actions Tab)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-Build
+          path: ${{ env.ZIP_NAME }}
+
+      - name: Create Release and Upload Asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true

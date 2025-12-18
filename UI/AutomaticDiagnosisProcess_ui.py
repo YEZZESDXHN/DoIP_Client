@@ -1,6 +1,6 @@
 import copy
 import json
-import pandas as pd
+# import pandas as pd
 import logging
 from functools import lru_cache
 from typing import List, Any, Optional, Dict
@@ -378,10 +378,18 @@ class DiagProcessCaseModel(QAbstractItemModel):
             self.endResetModel()
             return
 
-        # 按层级排序
-        case_df = pd.DataFrame([c.__dict__ for c in cases])
-        case_df_sorted = case_df.sort_values(by=["level"], ascending=True)
-        sorted_cases = [DiagCase.from_dict(row.to_dict()) for _, row in case_df_sorted.iterrows()]
+        # # 按层级排序
+        # case_df = pd.DataFrame([c.__dict__ for c in cases])
+        # case_df_sorted = case_df.sort_values(by=["level"], ascending=True)
+        # sorted_cases = [DiagCase.from_dict(row.to_dict()) for _, row in case_df_sorted.iterrows()]
+
+        # 替代 Pandas：纯 Python 按 level 升序排序
+        # 核心逻辑：使用 sorted + 自定义 key，按 level 字段排序
+        sorted_cases = sorted(
+            cases,
+            key=lambda case: case.level,  # 按 level 升序
+            reverse=False  # 显式指定升序（默认也是 False，可省略）
+        )
 
         # 构建ID到节点的映射
         id_to_node: Dict[int, DiagCaseNode] = {}

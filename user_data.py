@@ -188,7 +188,7 @@ class UdsService:
     RequestTransferExit: list[_RequestTransferExit] = field(default_factory=list)
     SecurityAccess: list[_SecurityAccess] = field(default_factory=list)
     TesterPresent: list[_TesterPresent] = field(default_factory=list)
-    RoutineControl: _RoutineControl = _RoutineControl()
+    RoutineControl: _RoutineControl = field(default_factory=_RoutineControl)
 
     def _get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""

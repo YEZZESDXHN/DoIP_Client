@@ -177,6 +177,8 @@ class Response:
 
 
 class UDSClient:
+    security_seed: bytes
+    security_key: bytes
     def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
         pass
 

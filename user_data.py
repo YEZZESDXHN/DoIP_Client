@@ -621,6 +621,7 @@ class DoIPConfig:
     is_routing_activation_use: bool = True
     is_oem_specific_use: bool = False
     oem_specific: int = 0
+    GenerateKeyExOptPath: str = ''
 
     def get_attr_names(self) -> tuple:
         """返回属性名字元组"""

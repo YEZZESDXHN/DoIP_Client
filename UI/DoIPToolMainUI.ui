@@ -659,6 +659,42 @@
          </rect>
         </property>
        </widget>
+       <widget class="QLineEdit" name="lineEdit_SecurityAccess">
+        <property name="geometry">
+         <rect>
+          <x>80</x>
+          <y>490</y>
+          <width>311</width>
+          <height>24</height>
+         </rect>
+        </property>
+       </widget>
+       <widget class="QToolButton" name="toolButton_SecurityAccess">
+        <property name="geometry">
+         <rect>
+          <x>500</x>
+          <y>490</y>
+          <width>24</width>
+          <height>24</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="pushButton_SecurityAccessTest">
+        <property name="geometry">
+         <rect>
+          <x>500</x>
+          <y>580</y>
+          <width>95</width>
+          <height>28</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>PushButton</string>
+        </property>
+       </widget>
       </widget>
      </widget>
     </item>

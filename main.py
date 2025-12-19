@@ -402,8 +402,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         client.use_secure = self.current_doip_config.use_secure
         client.auto_reconnect_tcp = self.auto_reconnect_tcp
         client.vm_specific = self.current_doip_config.oem_specific
+        # client.GenerateKeyExOptPath = self.current_doip_config.GenerateKeyExOptPath
+        client.GenerateKeyExOptPath = 'GenerateKeyExOpt/GenerateKeyExOptDemo.py'
         client.uds_request_timeout = self.uds_request_timeout
         client.uds_config = self.uds_config
+
+        client.load_generate_key_ex_opt(client.GenerateKeyExOptPath)
+
         logger.debug("DoIP客户端配置已更新")
 
     @Slot()

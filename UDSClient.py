@@ -1,10 +1,11 @@
+import inspect
 import logging
 import os
 import socket
 import ssl
 import sys
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional, Any, runtime_checkable, Protocol
 
 from PySide6.QtCore import QObject, Signal, Slot
 from doipclient import DoIPClient
@@ -74,6 +75,15 @@ class MyDoIPClient(DoIPClient):
                 ssl_context = ssl.create_default_context()
             self._wrap_socket(ssl_context)
 
+@runtime_checkable
+class GenerateKeyExOptProto(Protocol):
+    def __call__(self,
+                 seed: bytes,
+                 level: int,
+                 max_key_size: int = 64,
+                 variant: Any = None,
+                 options: Any = None) -> Optional[bytes]:
+        ...
 
 class QUDSClient(QObject):
     error_signal = Signal(str)
@@ -87,6 +97,8 @@ class QUDSClient(QObject):
     def __init__(self):
         super().__init__()
         self.external_module = None
+        self.generate_key_func: Optional[GenerateKeyExOptProto] = None
+        self.external_security_module = None
         self._doip_client = None
         self.uds_on_ip_client = None
 
@@ -101,9 +113,109 @@ class QUDSClient(QObject):
         self.use_secure = False
         self.auto_reconnect_tcp = False
         self.vm_specific = None
+        self.GenerateKeyExOptPath: Optional[str] = None
 
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
+
+        self.security_seed: bytes = b''
+        self.security_key: bytes = b''
+
+    def load_generate_key_ex_opt(self, file_path: str) -> bool:
+        """
+        动态加载外部安全算法脚本
+        """
+        if not os.path.exists(file_path):
+            self.error_signal.emit(f"错误: 找不到算法文件 -> {file_path}")
+            logger.error(f"错误: 找不到算法文件 -> {file_path}")
+            return False
+
+        # 将脚本目录加入 sys.path
+        script_dir = os.path.dirname(os.path.abspath(file_path))
+        if script_dir not in sys.path:
+            sys.path.append(script_dir)
+
+        try:
+            self.info_signal.emit(f"正在加载外部算法: {file_path}")
+            logger.debug(f"正在加载外部算法: {file_path}")
+            # 1. 动态加载模块
+            module_name = "external_security_algo"
+            spec = importlib.util.spec_from_file_location(module_name, file_path)
+            if not spec or not spec.loader:
+                raise ImportError("无法初始化模块加载器")
+
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # 2. 获取函数对象
+            target_func_name = 'GenerateKeyExOpt'
+            if hasattr(module, target_func_name):
+                func = getattr(module, target_func_name)
+
+                # 3. 严格的签名检查
+                if not callable(func):
+                    self.error_signal.emit(f"错误: {target_func_name} 不是一个函数")
+                    logger.error(f"错误: {target_func_name} 不是一个函数")
+                    return False
+
+                sig = inspect.signature(func)
+                params = list(sig.parameters.values())
+                if len(params) != 5:
+                    self.error_signal.emit(f"校验失败: 函数参数不足,{params}")
+                    logger.error(f"校验失败: 函数参数不足,{params}")
+                    return False
+
+                # 4. 加载成功
+                self.external_security_module = module  # 保持引用
+                self.generate_key_func = func  # 赋值
+                self.info_signal.emit("成功加载 GenerateKeyExOpt 算法")
+                logger.debug("成功加载 GenerateKeyExOpt 算法")
+                return True
+            else:
+                self.error_signal.emit(f"警告: 脚本中未找到函数 {target_func_name}")
+                logger.error(f"警告: 脚本中未找到函数 {target_func_name}")
+                return False
+
+        except Exception as e:
+            self.error_signal.emit(f"加载脚本时发生异常: {e}")
+            logger.exception(f"加载脚本时发生异常: {e}")
+            return False
+
+    def execute_security_access(self, seed: bytes, level: int, max_key_size: int = 64, variant: Any = None, options: Any = None) -> Optional[bytes]:
+        """
+        调用已加载的算法计算 Key
+        """
+        if not self.generate_key_func:
+            self.error_signal.emit("错误: 未加载安全算法，无法计算 Key")
+            return None
+
+        try:
+            self.info_signal.emit(f"正在计算 Key (Seed: {seed.hex()}, Level: {level})")
+
+            # 这里完全匹配你定义的签名
+            key = self.generate_key_func(
+                seed=seed,
+                max_key_size=max_key_size,
+                level=level,
+                variant=variant,
+                options=None
+            )
+
+            # 结果校验
+            if key is None:
+                self.error_signal.emit("算法返回了 None")
+                return None
+
+            if not isinstance(key, (bytes, bytearray)):
+                self.error_signal.emit(f"算法返回类型错误: 期望 bytes, 实际是 {type(key)}")
+                return None
+
+            return bytes(key)
+
+        except Exception as e:
+            self.error_signal.emit(f"算法执行期间崩溃: {str(e)}")
+            logger.exception(f"算法执行期间崩溃: {str(e)}")
+            return None
 
     @Slot(str)
     def load_external_script(self, file_path):
@@ -293,6 +405,11 @@ class QUDSClient(QObject):
 
             # 2. 执行请求
             response = self.uds_on_ip_client.send_request(req)
+
+            if response.original_payload[0] == 0x67:
+                self.security_seed = response.original_payload[2:]
+                self.security_key = self.execute_security_access(seed=self.security_seed,
+                                                                 level=response.original_payload[1])
 
             # 3. 处理正常响应
             resp_struct = self._create_message_struct(

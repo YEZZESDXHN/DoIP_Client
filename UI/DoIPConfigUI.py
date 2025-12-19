@@ -17,8 +17,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QDialog,
     QDialogButtonBox, QGroupBox, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QSizePolicy, QVBoxLayout,
-    QWidget)
+    QLineEdit, QPushButton, QSizePolicy, QToolButton,
+    QVBoxLayout, QWidget)
 
 class Ui_DoIPConfig(object):
     def setupUi(self, DoIPConfig):
@@ -141,6 +141,29 @@ class Ui_DoIPConfig(object):
 
         self.verticalLayout.addLayout(self.horizontalLayout_2)
 
+        self.horizontalLayout_8 = QHBoxLayout()
+        self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
+        self.label_4 = QLabel(self.groupBox_DoIPConfig)
+        self.label_4.setObjectName(u"label_4")
+        self.label_4.setMinimumSize(QSize(90, 0))
+        self.label_4.setFont(font)
+
+        self.horizontalLayout_8.addWidget(self.label_4)
+
+        self.lineEdit_GenerateKeyExOptPath = QLineEdit(self.groupBox_DoIPConfig)
+        self.lineEdit_GenerateKeyExOptPath.setObjectName(u"lineEdit_GenerateKeyExOptPath")
+        self.lineEdit_GenerateKeyExOptPath.setFont(font)
+
+        self.horizontalLayout_8.addWidget(self.lineEdit_GenerateKeyExOptPath)
+
+        self.toolButton_GenerateKeyExOptPath = QToolButton(self.groupBox_DoIPConfig)
+        self.toolButton_GenerateKeyExOptPath.setObjectName(u"toolButton_GenerateKeyExOptPath")
+
+        self.horizontalLayout_8.addWidget(self.toolButton_GenerateKeyExOptPath)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout_8)
+
         self.horizontalLayout_5 = QHBoxLayout()
         self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
         self.checkBox_RouteActive = QCheckBox(self.groupBox_DoIPConfig)
@@ -215,6 +238,9 @@ class Ui_DoIPConfig(object):
         self.lineEdit_DUTLogicalAddress.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 77A)", None))
         self.label_2.setText(QCoreApplication.translate("DoIPConfig", u"\u88ab\u6d4b\u4ef6IP", None))
         self.lineEdit_DUT_IP.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 192.168.1.1)", None))
+        self.label_4.setText(QCoreApplication.translate("DoIPConfig", u"\u89e3\u9501\u6587\u4ef6", None))
+        self.lineEdit_GenerateKeyExOptPath.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"*.dll & *.py", None))
+        self.toolButton_GenerateKeyExOptPath.setText(QCoreApplication.translate("DoIPConfig", u"...", None))
         self.checkBox_RouteActive.setText(QCoreApplication.translate("DoIPConfig", u"RouteActive", None))
         self.label.setText(QCoreApplication.translate("DoIPConfig", u"OEM specific", None))
     # retranslateUi

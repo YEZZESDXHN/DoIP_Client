@@ -1,10 +1,11 @@
 import logging.config
+import os
 import sys
 from typing import Optional
 
 from PySide6.QtCore import QThread, Slot, Signal, Qt
 from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
-                               QSizePolicy, QDialog, QStyle, QAbstractItemView)
+                               QSizePolicy, QDialog, QStyle, QAbstractItemView, QFileDialog)
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
@@ -45,6 +46,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.auto_reconnect_tcp = True
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
+        self.external_script_path: str = ''
 
         self.ip_list = []
 
@@ -279,6 +281,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButton_CreateConfig.clicked.connect(self.open_create_config_panel)
         self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
 
+        self.toolButton_LoadExternalScript.clicked.connect(self.choose_external_script)
         self.toolButton_LoadExternalScript.clicked.connect(self.uds_client.load_external_script)
         self.pushButton_ExternalScriptRun.clicked.connect(self.uds_client.run_external_script)
         self.pushButton_ExternalScriptStop.clicked.connect(self.uds_client.stop_external_script)
@@ -302,6 +305,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
         self.treeView_Diag_Process.status_bar_message.connect(self.status_bar_show_message)
 
+    def choose_external_script(self):
+        abs_path, _ = QFileDialog.getOpenFileName(
+            self,  # 父窗口
+            "选择外部Python脚本",  # 标题
+            "",  # 默认打开路径 (空字符串表示当前目录)
+            "Python Files (*.py)"  # 文件过滤器，例如 "DLL Files (*.dll);;All Files (*)"
+        )
+
+        if abs_path:
+            try:
+                # 2. 计算相对路径
+                # os.getcwd() 获取当前程序运行的工作目录
+                # os.path.relpath(目标路径, 基准路径) 计算相对路径
+                rel_path = os.path.relpath(abs_path, os.getcwd())
+
+                # 3. 将相对路径填入输入框
+                self.external_script_path = rel_path
+
+
+            except ValueError:
+                # Windows 特例：如果文件和程序在不同的盘符（例如 C: 和 D:），
+                # 无法计算相对路径，此时会报错，我们保留绝对路径作为后备方案。
+                self.external_script_path = abs_path
+            self.lineEdit_ExternalScriptPath.setText(self.external_script_path)
+            self.uds_client.external_script_path = self.external_script_path
 
     def _connect_doip_client_signals(self):
         """连接DoIP客户端的信号到槽函数"""
@@ -402,8 +430,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         client.use_secure = self.current_doip_config.use_secure
         client.auto_reconnect_tcp = self.auto_reconnect_tcp
         client.vm_specific = self.current_doip_config.oem_specific
-        # client.GenerateKeyExOptPath = self.current_doip_config.GenerateKeyExOptPath
-        client.GenerateKeyExOptPath = 'GenerateKeyExOpt/GenerateKeyExOptDemo.py'
+        client.GenerateKeyExOptPath = self.current_doip_config.GenerateKeyExOptPath
+        # client.GenerateKeyExOptPath = 'GenerateKeyExOpt/GenerateKeyExOptDemo.py'
         client.uds_request_timeout = self.uds_request_timeout
         client.uds_config = self.uds_config
 
@@ -459,6 +487,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.current_doip_config.tester_logical_address:X}")
         config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.current_doip_config.dut_logical_address:X}")
         config_panel.lineEdit_OEMSpecific.setText(str(self.current_doip_config.oem_specific))
+        config_panel.lineEdit_GenerateKeyExOptPath.setText(str(self.current_doip_config.GenerateKeyExOptPath))
         if self.current_doip_config.is_routing_activation_use:
             config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
         else:
@@ -487,6 +516,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.current_doip_config.dut_ipv4_address = config_panel.config.dut_ipv4_address
                 self.current_doip_config.is_routing_activation_use = config_panel.config.is_routing_activation_use
                 self.current_doip_config.oem_specific = config_panel.config.oem_specific
+                self.current_doip_config.GenerateKeyExOptPath = config_panel.config.GenerateKeyExOptPath
                 self.db_manager.update_doip_config(self.current_doip_config)
                 logger.info(
                     f"DoIP配置已更新 - 测试机逻辑地址: 0x{config_panel.config.tester_logical_address:X}, "

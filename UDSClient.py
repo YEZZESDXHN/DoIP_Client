@@ -98,6 +98,7 @@ class QUDSClient(QObject):
         super().__init__()
         self.external_module = None
         self.generate_key_func: Optional[GenerateKeyExOptProto] = None
+        self.external_script_path: str = ''
         self.external_security_module = None
         self._doip_client = None
         self.uds_on_ip_client = None
@@ -218,8 +219,8 @@ class QUDSClient(QObject):
             return None
 
     @Slot(str)
-    def load_external_script(self, file_path):
-        file_path = 'external_scripts/external_script.py'
+    def load_external_script(self):
+        file_path = self.external_script_path
         if not os.path.exists(file_path):
             logger.error(f"错误: 文件不存在 {file_path}")
             return

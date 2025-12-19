@@ -1,9 +1,10 @@
 import ipaddress
 import logging
+import os
 from typing import Optional
 
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog
 
 from UI.DoIPConfigUI import Ui_DoIPConfig
 from user_data import DoIPConfig
@@ -32,6 +33,7 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
         self.is_delete_config = False
         self.buttonBox.accepted.connect(self._on_accept)
         self.pushButton_delete.clicked.connect(self._on_delete_config)
+        self.toolButton_GenerateKeyExOptPath.clicked.connect(self._on_select_key_ex_opt_path)
         # self.setWindowIcon(QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMenuButton))
 
         if not self.is_create_new_config:
@@ -43,6 +45,34 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
     def _on_delete_config(self):
         self.is_delete_config = True
         self._on_accept()
+
+    @Slot()
+    def _on_select_key_ex_opt_path(self):
+        """
+        弹出文件选择框，并将结果填入 LineEdit
+        """
+        # getOpenFileName 返回一个元组 (filePath, filter)
+        abs_path, _ = QFileDialog.getOpenFileName(
+            self,  # 父窗口
+            "选择 GenerateKeyExOpt 文件",  # 标题
+            "",  # 默认打开路径 (空字符串表示当前目录)
+            "DLL Files (*.dll);Python Files (*.py)"  # 文件过滤器，例如 "DLL Files (*.dll);;All Files (*)"
+        )
+
+        if abs_path:
+            try:
+                # 2. 计算相对路径
+                # os.getcwd() 获取当前程序运行的工作目录
+                # os.path.relpath(目标路径, 基准路径) 计算相对路径
+                rel_path = os.path.relpath(abs_path, os.getcwd())
+
+                # 3. 将相对路径填入输入框
+                self.lineEdit_GenerateKeyExOptPath.setText(rel_path)
+
+            except ValueError:
+                # Windows 特例：如果文件和程序在不同的盘符（例如 C: 和 D:），
+                # 无法计算相对路径，此时会报错，我们保留绝对路径作为后备方案。
+                self.lineEdit_GenerateKeyExOptPath.setText(abs_path)
 
     @Slot()
     def _on_accept(self):
@@ -150,6 +180,8 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
 
         else:
             self.config.is_routing_activation_use = 0
+
+        self.config.GenerateKeyExOptPath = self.lineEdit_GenerateKeyExOptPath.text()
 
         # 校验通过，关闭对话框
         self.accept()

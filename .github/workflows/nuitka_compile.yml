@@ -68,7 +68,7 @@ jobs:
             --include-data-files="${{ github.workspace }}/logging.conf=logging.conf" `
             --include-data-files="${{ github.workspace }}/external_scripts/api.py=external_scripts/api.py" `
             --include-data-files="${{ github.workspace }}/external_scripts/external_script.py=external_scripts/external_script.py" `
-            --include-data-files="${{ github.workspace }}/external_scripts/lib/__init__.py=external_scripts/lib/__init__.py" `
+            --include-data-files="${{ github.workspace }}/ExternalLib/__init__.py=ExternalLib/__init__.py" `
             --include-data-files="$qtPluginsPath\sqldrivers\qsqlite.dll"=sqldrivers\qsqlite.dll `
             ${{ env.ENTRY_SCRIPT }}
 #            --include-plugin-directory="$qtPluginsPath\sqldrivers" `

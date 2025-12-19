@@ -55,12 +55,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.uds_services: UdsService = UdsService()
         self._init_current_doip_config()
 
+        self.add_external_lib()
+
         # 初始化UI、客户端、信号、IP列表
         self._init_ui()
         self._init_doip_client()
         self._init_signals()
         self._refresh_ip_list()
         self.status_bar = self.statusBar()
+
+    def add_external_lib(self):
+        # ExternalLib sys.path
+        lib_dir = os.path.dirname(os.path.abspath('ExternalLib'))
+        if lib_dir not in sys.path:
+            sys.path.append(lib_dir)
 
     def _init_current_doip_config(self):
         try:

@@ -38,7 +38,7 @@ jobs:
         shell: pwsh
         run: |
           pip install --upgrade pip
-          pip install nuitka
+          pip install nuitka pycryptodome
           
           if (Test-Path requirements.txt) {
             pip install -r requirements.txt
@@ -58,6 +58,7 @@ jobs:
             --standalone `
             --follow-imports `
             --assume-yes-for-downloads `
+            --include-package=Crypto `
             --lto=yes `
             --output-dir="${{ github.workspace }}/dist" `
             --output-filename=${{ env.APP_NAME }}.exe `
@@ -66,6 +67,7 @@ jobs:
             --show-progress `
             --show-memory `
             --include-data-files="${{ github.workspace }}/logging.conf=logging.conf" `
+            --include-data-files="${{ github.workspace }}/GenerateKeyExOpt/GenerateKeyExOptDemo.py=GenerateKeyExOpt/GenerateKeyExOptDemo.py" `
             --include-data-files="${{ github.workspace }}/external_scripts/api.py=external_scripts/api.py" `
             --include-data-files="${{ github.workspace }}/external_scripts/external_script.py=external_scripts/external_script.py" `
             --include-data-files="${{ github.workspace }}/ExternalLib/__init__.py=ExternalLib/__init__.py" `

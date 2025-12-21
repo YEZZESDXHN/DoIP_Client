@@ -38,7 +38,7 @@ jobs:
         shell: pwsh
         run: |
           pip install --upgrade pip
-          pip install nuitka pycryptodome
+          pip install nuitka pycryptodome crcmod
           
           if (Test-Path requirements.txt) {
             pip install -r requirements.txt
@@ -59,6 +59,7 @@ jobs:
             --follow-imports `
             --assume-yes-for-downloads `
             --include-package=Crypto `
+          --include-package=crcmod `
             --lto=yes `
             --output-dir="${{ github.workspace }}/dist" `
             --output-filename=${{ env.APP_NAME }}.exe `

@@ -262,6 +262,17 @@
      </layout>
     </item>
     <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <item>
+       <widget class="QCheckBox" name="checkBox_TesterPresent">
+        <property name="text">
+         <string>Tester Present</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="contextMenuPolicy">
        <enum>Qt::ContextMenuPolicy::DefaultContextMenu</enum>
@@ -276,7 +287,7 @@
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>1</number>
       </property>
       <property name="elideMode">
        <enum>Qt::TextElideMode::ElideNone</enum>
@@ -328,7 +339,7 @@
       </widget>
       <widget class="QWidget" name="tab_DoIPTrace">
        <attribute name="title">
-        <string>DoIPTrace</string>
+        <string>诊断控制台</string>
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout">
         <property name="leftMargin">
@@ -382,7 +393,7 @@
               <x>0</x>
               <y>0</y>
               <width>246</width>
-              <height>26</height>
+              <height>675</height>
              </rect>
             </property>
            </widget>

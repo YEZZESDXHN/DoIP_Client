@@ -157,6 +157,16 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_5.addLayout(self.horizontalLayout_8)
 
+        self.horizontalLayout_3 = QHBoxLayout()
+        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+        self.checkBox_TesterPresent = QCheckBox(self.centralwidget)
+        self.checkBox_TesterPresent.setObjectName(u"checkBox_TesterPresent")
+
+        self.horizontalLayout_3.addWidget(self.checkBox_TesterPresent)
+
+
+        self.verticalLayout_5.addLayout(self.horizontalLayout_3)
+
         self.tabWidget = QTabWidget(self.centralwidget)
         self.tabWidget.setObjectName(u"tabWidget")
         self.tabWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
@@ -206,7 +216,7 @@ class Ui_MainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 26))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 246, 675))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
         self.splitter.addWidget(self.scrollArea_DiagTree)
         self.layoutWidget1 = QWidget(self.splitter)
@@ -357,7 +367,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabWidget.setCurrentIndex(3)
+        self.tabWidget.setCurrentIndex(1)
         self.tabWidget_2.setCurrentIndex(0)
 
 
@@ -375,11 +385,12 @@ class Ui_MainWindow(object):
         self.checkBox_AotuReconnect.setText(QCoreApplication.translate("MainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
         self.pushButton_CreateConfig.setText(QCoreApplication.translate("MainWindow", u"\u65b0\u5efa\u914d\u7f6e", None))
         self.pushButton_SendDoIP.setText(QCoreApplication.translate("MainWindow", u"Send", None))
+        self.checkBox_TesterPresent.setText(QCoreApplication.translate("MainWindow", u"Tester Present", None))
         self.pushButton_ClearText.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_info), QCoreApplication.translate("MainWindow", u"Info", None))
         self.pushButton_ClearDoIPTrace.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
         self.groupBox_DoIPTrace.setTitle("")
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_DoIPTrace), QCoreApplication.translate("MainWindow", u"DoIPTrace", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_DoIPTrace), QCoreApplication.translate("MainWindow", u"\u8bca\u65ad\u63a7\u5236\u53f0", None))
         self.pushButton.setText(QCoreApplication.translate("MainWindow", u"Run", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_DiagStepTree), QCoreApplication.translate("MainWindow", u"UDS\u6d4b\u8bd5\u6d41\u7a0b", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_DiagServiceTree), QCoreApplication.translate("MainWindow", u"\u8bca\u65ad\u670d\u52a1", None))

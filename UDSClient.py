@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 from typing import Optional, Any, runtime_checkable, Protocol
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot, QTimer
 from doipclient import DoIPClient
 from doipclient.connectors import DoIPClientUDSConnector
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
@@ -18,7 +18,6 @@ from udsoncan.client import Client
 from udsoncan.configs import default_client_config
 import importlib.util
 
-from Context import RuntimeContext
 from user_data import DoIPMessageStruct, MessageDir
 
 logger = logging.getLogger('UDSOnIPClient.' + __name__)
@@ -96,11 +95,9 @@ class QUDSClient(QObject):
 
     def __init__(self):
         super().__init__()
-        self.external_module = None
         self.generate_key_func: Optional[GenerateKeyExOptProto] = None
-        self.external_script_path: str = ''
         self.external_security_module = None
-        self._doip_client = None
+        self._uds_client = None
         self.uds_on_ip_client = None
 
         self.ecu_ip_address = None
@@ -119,8 +116,18 @@ class QUDSClient(QObject):
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
 
+        self.tester_present_timer = QTimer(self)
+        self.tester_present_timer.timeout.connect(self.send_tester_present)
+
         self.security_seed: bytes = b''
         self.security_key: bytes = b''
+
+    @Slot(bool)
+    def set_tester_present_timer(self, flag: bool):
+        if flag:
+            self.tester_present_timer.start(3000)
+        else:
+            self.tester_present_timer.stop()
 
     def load_generate_key_ex_opt(self, file_path: str) -> bool:
         """
@@ -218,94 +225,35 @@ class QUDSClient(QObject):
             logger.exception(f"算法执行期间崩溃: {str(e)}")
             return None
 
-    @Slot(str)
-    def load_external_script(self):
-        file_path = self.external_script_path
-        if not os.path.exists(file_path):
-            logger.error(f"错误: 文件不存在 {file_path}")
-            return
-        script_dir = os.path.dirname(file_path)
-        if script_dir not in sys.path:
-            sys.path.append(script_dir)
-        try:
-            logger.info(f"--- 正在加载模块: {file_path} ---")
-            spec = importlib.util.spec_from_file_location("external_script", file_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-
-            # 保存模块到实例变量
-            self.external_module = module
-
-            # 尝试调用 on_load
-            if hasattr(self.external_module, 'on_load'):
-                self.external_module.on_load(self)
-            else:
-                logger.warning("警告: 脚本中没找到 on_load 函数")
-
-        except Exception as e:
-            logger.exception(f"加载阶段出错: {e}")
-            self.external_module = None  # 加载失败清空
-
     @Slot()
-    def run_external_script(self):
-        if not self.external_module:
-            logger.warning("错误: 未加载任何模块")
-            return
-
-        try:
-            if hasattr(self.external_module, 'main'):
-                context = RuntimeContext(self)
-                self.external_module.main(context)
-            else:
-                logger.error("错误: 脚本中未定义 main")
-        except Exception as e:
-            pass
-
-
-    @Slot()
-    def stop_external_script(self):
-        if not self.external_module:
-            return
-
-        try:
-            if hasattr(self.external_module, 'on_stop'):
-                self.external_module.on_stop(self)
-            else:
-                logger.warning("提示: 脚本中未定义 on_stop (跳过清理)")
-        except Exception as e:
-            logger.exception(f"停止阶段出错: {e}")
-
-        self.external_module = None
-
-
-    @Slot()
-    def change_doip_connect_state(self):
+    def change_uds_connect_state(self):
         logger.debug('收到触发DoIP连接状态切换信号')
-        if self._doip_client and self.uds_on_ip_client:
-            logger.debug('开始DoIP连接')
-            self.uds_on_ip_client.close()
-            self._doip_client = None
-            self.uds_on_ip_client = None
+        if self._uds_client and self.uds_on_ip_client:
+            self.disconnect_uds()
             self.doip_connect_state.emit(False)
             logger.info('断开DoIP连接')
         else:
-            self.connect_doip()
+            self.connect_uds()
+    def disconnect_uds(self):
+        self.uds_on_ip_client.close()
+        self._uds_client = None
+        self.uds_on_ip_client = None
+        self.doip_connect_state.emit(False)
 
-    def connect_doip(self):
-        _doip_client = None
+    def connect_uds(self):
         try:
-            self._doip_client = MyDoIPClient(ecu_logical_address=self.ecu_logical_address,
-                                             client_logical_address=self.client_logical_address,
-                                             client_ip_address=self.client_ip_address,
-                                             use_secure=self.use_secure,
-                                             ecu_ip_address=self.ecu_ip_address,
-                                             tcp_port=self.tcp_port,
-                                             udp_port=self.udp_port,
-                                             activation_type=self.activation_type,
-                                             protocol_version=self.protocol_version,
-                                             auto_reconnect_tcp=self.auto_reconnect_tcp,
-                                             vm_specific=self.vm_specific,
-                                             )
+            self._uds_client = MyDoIPClient(ecu_logical_address=self.ecu_logical_address,
+                                            client_logical_address=self.client_logical_address,
+                                            client_ip_address=self.client_ip_address,
+                                            use_secure=self.use_secure,
+                                            ecu_ip_address=self.ecu_ip_address,
+                                            tcp_port=self.tcp_port,
+                                            udp_port=self.udp_port,
+                                            activation_type=self.activation_type,
+                                            protocol_version=self.protocol_version,
+                                            auto_reconnect_tcp=self.auto_reconnect_tcp,
+                                            vm_specific=self.vm_specific,
+                                            )
             self.doip_connect_state.emit(True)
             info_message = f'DoIP连接成功'
             logger.info(info_message)
@@ -322,14 +270,14 @@ class QUDSClient(QObject):
             self.doip_connect_state.emit(False)
             self.error_signal.emit(error_message)
             return
-        if self._doip_client:
+        if self._uds_client:
             try:
-                _conn = DoIPClientUDSConnector(self._doip_client)
+                _conn = DoIPClientUDSConnector(self._uds_client)
                 self.uds_on_ip_client = Client(_conn, request_timeout=self.uds_request_timeout,
                                                config=self.uds_config)
                 self.uds_on_ip_client.open()
             except Exception as e:
-                self._doip_client = None
+                self._uds_client = None
                 self.uds_on_ip_client = None
 
                 self.doip_connect_state.emit(False)
@@ -376,8 +324,12 @@ class QUDSClient(QObject):
             logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
         elif isinstance(e, ConfigError):
             logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
+        elif isinstance(e, (OSError, socket.timeout)):
+            self.disconnect_uds()
+            logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
         else:
-            self.error_signal.emit(e)
+            self.error_signal.emit(str(e))
+            print(type(e))
             logger.exception(f"{prefix}{str(e)}")
 
     def _execute_uds_request(self, payload: bytes, log_prefix: str = "") -> Optional[Response]:
@@ -406,7 +358,8 @@ class QUDSClient(QObject):
 
             # 2. 执行请求
             response = self.uds_on_ip_client.send_request(req)
-
+            if not hasattr(response, 'original_payload'):
+                return response
             if response.original_payload[0] == 0x67:
                 self.security_seed = response.original_payload[2:]
                 self.security_key = self.execute_security_access(seed=self.security_seed,
@@ -458,6 +411,13 @@ class QUDSClient(QObject):
         """内部调用的原方法"""
         return self._execute_uds_request(payload)
 
+    @Slot()
+    def send_tester_present(self):
+        """内部调用的原方法"""
+        if self._uds_client and self.uds_on_ip_client:
+            payload = b'\x3e\x80'
+            self._execute_uds_request(payload)
+
     def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
         """
         API 接口：供外部脚本调用
@@ -478,7 +438,7 @@ def main():
     client_logical_address = 100
     ecu_logical_address = 200
     uds_client = QUDSClient()
-    uds_client.connect_doip()
+    uds_client.connect_uds()
     uds_client.send_payload()
 
 

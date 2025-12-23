@@ -445,7 +445,7 @@ class DiagProcessCaseModel(QAbstractItemModel):
         return parent_node.child_count()
 
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
-        return 1  # 只显示一列（诊断服务）
+        return 1
 
     def data(self, index: QModelIndex, role: Qt.ItemDataRole = Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
@@ -501,7 +501,7 @@ class DiagProcessCaseModel(QAbstractItemModel):
     def headerData(self, section: int, orientation: Qt.Orientation,
                    role: Qt.ItemDataRole = Qt.ItemDataRole.DisplayRole):
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole and section == 0:
-            return "诊断服务"
+            return "UDS自动化Case"
         return None
 
     def add_case_node(self, parent_index: QModelIndex, is_group: bool = False) -> QModelIndex:

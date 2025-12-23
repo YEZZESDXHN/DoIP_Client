@@ -87,6 +87,8 @@ class GenerateKeyExOptProto(Protocol):
 class QUDSClient(QObject):
     error_signal = Signal(str)
     info_signal = Signal(str)
+    warning_signal = Signal(str)
+
 
     doip_connect_state = Signal(bool)
 
@@ -133,6 +135,8 @@ class QUDSClient(QObject):
         """
         动态加载外部安全算法脚本
         """
+        if not file_path:
+            return False
         if not os.path.exists(file_path):
             self.error_signal.emit(f"错误: 找不到算法文件 -> {file_path}")
             logger.error(f"错误: 找不到算法文件 -> {file_path}")
@@ -194,7 +198,7 @@ class QUDSClient(QObject):
         调用已加载的算法计算 Key
         """
         if not self.generate_key_func:
-            self.error_signal.emit("错误: 未加载安全算法，无法计算 Key")
+            self.warning_signal.emit("错误: 未加载安全算法，无法计算 Key")
             return None
 
         try:

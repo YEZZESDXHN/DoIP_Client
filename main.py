@@ -4,14 +4,15 @@ import sys
 from typing import Optional
 
 from PySide6.QtCore import QThread, Slot, Signal, Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
-                               QSizePolicy, QDialog, QStyle, QAbstractItemView, QFileDialog)
+                               QSizePolicy, QDialog, QStyle, QAbstractItemView, QFileDialog, QWidget)
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
 from UI.AutomaticDiagnosisProcess_ui import DiagProcessTableView, DiagProcessCaseTreeView
 from UI.DoIPConfigPanel_ui import DoIPConfigPanel
-from UI.DoIPToolMainUI import Ui_MainWindow
+from UI.UDSToolMainUI import Ui_UDSToolMainWindow
 from UDSClient import QUDSClient
 from UI.DoIPTraceTable_ui import DoIPTraceTableView
 from UI.sql_data_panel import SQLTablePanel
@@ -27,7 +28,7 @@ logging.config.fileConfig("./logging.conf")
 logger = logging.getLogger('UDSOnIPClient')
 
 
-class MainWindow(QMainWindow, Ui_MainWindow):
+class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     """
     自定义的主窗口类，继承了 QMainWindow（Qt主窗口行为）
     和 Ui_MainWindow（界面元素定义）。
@@ -38,6 +39,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+
+        empty_title = QWidget()
+        self.dockWidget.setTitleBarWidget(empty_title)
 
         self.tester_ip_address: Optional[str] = None
         self.current_uds_config: Optional[DoIPConfig] = None
@@ -129,11 +133,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _init_ui(self):
         """初始化界面组件属性"""
-        self.splitter_3.setStretchFactor(0, 1)
-        self.splitter_3.setStretchFactor(1, 5)
-
-        self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 5)
+        self.plainTextEdit_DataDisplay.setReadOnly(True)
 
         icon_disconnected = QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
         self.pushButton_ConnectDoIP.setIcon(icon_disconnected)
@@ -154,13 +154,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_uds_config.config_name))
         # 添加TreeView控件
         self.treeView_DoIPTraceService = self._add_custom_tree_view(self.scrollArea_DiagTree)
-        self.treeView_Diag_Process = self._add_custom_tree_view(self.scrollArea_DiagTreeForProcess)
-        self.treeView_Diag_Process.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
-        self.treeView_Diag_Process.setModel(self.treeView_DoIPTraceService.model())
-        self.treeView_Diag_Process.expandAll()
-        self.treeView_Diag_Process.setDragEnabled(True)  # 允许拖拽
-        self.treeView_Diag_Process.setDragDropMode(QAbstractItemView.DragOnly)  # 仅作为拖拽源
-        self.treeView_Diag_Process.setDefaultDropAction(Qt.CopyAction)
+        self.treeView_DoIPTraceService.setDragEnabled(True)  # 允许拖拽
+        self.treeView_DoIPTraceService.setDragDropMode(QAbstractItemView.DragOnly)  # 仅作为拖拽源
+        self.treeView_DoIPTraceService.setDefaultDropAction(Qt.CopyAction)
+        # self.treeView_Diag_Process = self._add_custom_tree_view(self.scrollArea_DiagTreeForProcess)
+        # self.treeView_Diag_Process.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        # self.treeView_Diag_Process.setModel(self.treeView_DoIPTraceService.model())
+        # self.treeView_Diag_Process.expandAll()
+        # self.treeView_Diag_Process.setDragEnabled(True)  # 允许拖拽
+        # self.treeView_Diag_Process.setDragDropMode(QAbstractItemView.DragOnly)  # 仅作为拖拽源
+        # self.treeView_Diag_Process.setDefaultDropAction(Qt.CopyAction)
 
         self.diag_process_table_view = self._add_diag_process_table_view(self.groupBox_AutomatedDiagProcessTable)
 
@@ -173,6 +176,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.comboBox_ChooseConfig.setCurrentText(self.current_uds_config.config_name)
 
         self.treeView_uds_case.clicked_case_id.connect(self.diag_process_table_view.model.get_case_step_from_db)
+
+        # 创建Dock view菜单
+        dock_diag_tree_action = self.dockWidget_DiagTree.toggleViewAction()
+        dock_diag_tree_action.setText("UDS服务")
+        self.menu_view.addAction(dock_diag_tree_action)
+
+        dock_write_action = self.dockWidget_write.toggleViewAction()
+        dock_write_action.setText("Write窗口")
+        self.menu_view.addAction(dock_write_action)
+
+        dock_uds_case_tree_action = self.dockWidget_UdsCaseTree.toggleViewAction()
+        dock_uds_case_tree_action.setText("UDS测试Case")
+        self.menu_view.addAction(dock_uds_case_tree_action)
+
+        self.menu_view.addSeparator()
+
+        reset_action = QAction("重置视图", self)
+        reset_action.triggered.connect(self.on_reset_layout)
+        self.menu_view.addAction(reset_action)
+
+        self.resizeDocks([self.dockWidget_DiagTree, self.dockWidget_UdsCaseTree], [200, 200], Qt.Orientation.Horizontal)
+        self.resizeDocks([self.dockWidget_write], [150], Qt.Orientation.Vertical)
+
+        self.default_state = self.saveState()
+
+    def on_reset_layout(self):
+        self.restoreState(self.default_state)
 
     @Slot()
     def _save_services_to_db(self):
@@ -325,7 +355,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
         self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
-        self.treeView_Diag_Process.status_bar_message.connect(self.status_bar_show_message)
+        self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
 
     def choose_external_script(self):
         abs_path, _ = QFileDialog.getOpenFileName(
@@ -359,6 +389,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.warning("DoIP客户端未初始化，无法连接信号")
             return
 
+        self.uds_client.info_signal.connect(self._on_info_received)
+        self.uds_client.warning_signal.connect(self._on_warning_received)
+        self.uds_client.error_signal.connect(self._on_error_received)
+
         self.uds_client.doip_connect_state.connect(self._update_uds_connect_state)
 
         self.uds_client.doip_response.connect(self.tableView_DoIPTrace.add_trace_data)
@@ -368,6 +402,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.uds_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
 
         self.uds_client.doip_response.connect(self.uds_response_callback)
+
+    @Slot(str)
+    def _on_info_received(self, msg):
+        self.handle_log_message("INFO", msg)
+
+    @Slot(str)
+    def _on_warning_received(self, msg):
+        self.handle_log_message("WARNING", msg)
+
+    @Slot(str)
+    def _on_error_received(self, msg):
+        self.handle_log_message("ERROR", msg)
+
+
+    def handle_log_message(self, level, message):
+        """
+        统一日志处理：无时间戳，仅显示 [等级] 和 消息
+        """
+        print(f"当前线程: {QThread.currentThread()}")
+        print(f"主线程: {QApplication.instance().thread()}")
+        # 1. 定义颜色
+        colors = {
+            "INFO": "#000000",  # 黑色
+            "WARNING": "#d35400",  # 焦糖色/深橙色
+            "ERROR": "#c0392b"  # 深红色
+        }
+        color = colors.get(level, "#000000")
+
+        # 2. 构造 HTML (去掉了时间部分)
+        # 格式示例: [INFO] 正在连接服务器...
+        html_content = (
+            f'<span style="color: {color};">'
+            f'<b>[{level}]</b> {message}'
+            f'</span>'
+        )
+        self.plainTextEdit_DataDisplay.appendHtml(html_content)
+
 
     @Slot(dict)
     def uds_response_callback(self, data: DoIPMessageStruct):
@@ -381,7 +452,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.db_manager.init_services_database()
         self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_uds_config.config_name))
         self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()
-        self.treeView_Diag_Process.expandAll()
         self.treeView_uds_case.refresh()
         self.diag_process_table_view.clear()
 

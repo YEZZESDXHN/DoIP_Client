@@ -273,8 +273,11 @@ DEFAULT_SERVICES.ECUReset = [
 ]
 DEFAULT_SERVICES.SecurityAccess = [
     _SecurityAccess("RequestSeed L1", bytes.fromhex('2701')),
+    _SecurityAccess("SendKey L1", bytes.fromhex('2702')),
     _SecurityAccess("RequestSeed L3", bytes.fromhex('2703')),
+    _SecurityAccess("SendKey L1", bytes.fromhex('2703')),
     _SecurityAccess("RequestSeed L5", bytes.fromhex('2705')),
+    _SecurityAccess("SendKey L1", bytes.fromhex('2705')),
 ]
 
 

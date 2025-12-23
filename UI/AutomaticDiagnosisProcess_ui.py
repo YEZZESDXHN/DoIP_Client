@@ -15,7 +15,7 @@ from db_manager import DBManager
 from user_data import DiagnosisStepData, DiagnosisStepTypeEnum, DiagCase
 from utils import json_custom_decoder
 
-logger = logging.getLogger("UiCustom.DiagnosisProcess")
+logger = logging.getLogger('UDSTool.' + __name__)
 
 
 class ColumnEditDelegate(QStyledItemDelegate):

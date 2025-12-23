@@ -25,7 +25,7 @@ from pathlib import Path
 
 # 日志配置
 logging.config.fileConfig("./logging.conf")
-logger = logging.getLogger('UDSOnIPClient')
+logger = logging.getLogger('UDSTool')
 
 
 class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
@@ -69,6 +69,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self._init_signals()
         self._refresh_ip_list()
         self.status_bar = self.statusBar()
+
+
 
     def add_external_lib(self):
         # ExternalLib sys.path
@@ -401,7 +403,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # self.uds_client.doip_response.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
         # self.uds_client.doip_request.connect(self.tableView_DoIPTrace_Automated_Process.add_trace_data)
 
-        self.uds_client.doip_response.connect(self.uds_response_callback)
+        self.uds_client.uds_response_finished.connect(self.uds_response_finished)
 
     @Slot(str)
     def _on_info_received(self, msg):
@@ -420,8 +422,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         """
         统一日志处理：无时间戳，仅显示 [等级] 和 消息
         """
-        print(f"当前线程: {QThread.currentThread()}")
-        print(f"主线程: {QApplication.instance().thread()}")
         # 1. 定义颜色
         colors = {
             "INFO": "#000000",  # 黑色
@@ -440,8 +440,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.plainTextEdit_DataDisplay.appendHtml(html_content)
 
 
-    @Slot(dict)
-    def uds_response_callback(self, data: DoIPMessageStruct):
+    @Slot()
+    def uds_response_finished(self):
         self.pushButton_SendDoIP.setDisabled(False)
 
     @Slot(int)
@@ -688,6 +688,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("WindowsVista")
+    # app.setStyle("Fusion")
     w = MainWindow()
     w.show()
     sys.exit(app.exec())

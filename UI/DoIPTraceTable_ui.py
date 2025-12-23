@@ -9,7 +9,7 @@ from openpyxl.workbook import Workbook
 
 from user_data import DoIPMessageStruct
 
-logger = logging.getLogger("UiCustom")
+logger = logging.getLogger('UDSTool.' + __name__)
 
 DEFAULT_HEADERS = (
     "Time",

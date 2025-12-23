@@ -12,7 +12,7 @@ from UI.AddDiagServiceDialog import Ui_AddDiagServiceDialog
 from user_data import DiagnosisStepData, DiagnosisStepTypeEnum, UdsService, DEFAULT_SERVICES
 from utils import hex_str_to_bytes, json_default_converter
 
-logger = logging.getLogger("UiCustom")
+logger = logging.getLogger('UDSTool.' + __name__)
 
 
 # ------------------------------

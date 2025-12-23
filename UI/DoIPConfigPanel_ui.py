@@ -11,7 +11,7 @@ from user_data import DoIPConfig
 from utils import hex_str_to_int
 
 
-logger = logging.getLogger("UiCustom")
+logger = logging.getLogger('UDSTool.' + __name__)
 
 # -------------------------- 配置面板类 --------------------------
 class DoIPConfigPanel(QDialog, Ui_DoIPConfig):

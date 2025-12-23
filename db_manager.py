@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from user_data import DoIPConfig, DEFAULT_SERVICES, DiagCase, DiagnosisStepData
 
-logger = logging.getLogger('UDSOnIPClient.' + __name__)
+logger = logging.getLogger('UDSTool.' + __name__)
 
 DOIP_CONFIG_TABLE_NAME = "DoIP_Config"
 CURRENT_CONFIG_TABLE_NAME = 'current_active_config'

@@ -20,7 +20,7 @@ import importlib.util
 
 from user_data import DoIPMessageStruct, MessageDir
 
-logger = logging.getLogger('UDSOnIPClient.' + __name__)
+logger = logging.getLogger('UDSTool.' + __name__)
 
 
 class MyDoIPClient(DoIPClient):
@@ -94,6 +94,7 @@ class QUDSClient(QObject):
 
     doip_request = Signal(DoIPMessageStruct)
     doip_response = Signal(DoIPMessageStruct)
+    uds_response_finished = Signal()
 
     def __init__(self):
         super().__init__()
@@ -323,18 +324,19 @@ class QUDSClient(QObject):
             return response
 
         elif isinstance(e, InvalidResponseException):
-            logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
+            logger.exception(f'{prefix}{type(e).__name__}:{str(e)}')
         elif isinstance(e, UnexpectedResponseException):
-            logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
+            logger.exception(f'{prefix}{type(e).__name__}:{str(e)}')
         elif isinstance(e, ConfigError):
-            logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
+            logger.exception(f'{prefix}{type(e).__name__}:{str(e)}')
         elif isinstance(e, (OSError, socket.timeout)):
             self.disconnect_uds()
-            logger.debug(f'{prefix}{type(e).__name__}:{str(e)}')
+            self.error_signal.emit(str(e))
+            logger.exception(f'{prefix}{type(e).__name__}:{str(e)}')
         else:
             self.error_signal.emit(str(e))
-            print(type(e))
             logger.exception(f"{prefix}{str(e)}")
+        self.uds_response_finished.emit()
 
     def _execute_uds_request(self, payload: bytes, log_prefix: str = "") -> Optional[Response]:
         """
@@ -379,6 +381,7 @@ class QUDSClient(QObject):
                 extra={"code_name": response.code_name, "uds_data": response.data}
             )
             self.doip_response.emit(resp_struct)
+            self.uds_response_finished.emit()
             return response
 
         except (

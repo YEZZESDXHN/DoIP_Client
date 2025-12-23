@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, Slot
 from Context import RuntimeContext
 from UDSClient import QUDSClient
 
-logger = logging.getLogger('UDSOnIPClient.' + __name__)
+logger = logging.getLogger('UDSTool.' + __name__)
 
 
 class QExternalScriptsExecutor(QObject):

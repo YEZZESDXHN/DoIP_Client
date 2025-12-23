@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QDialog, QHeaderView
 
 from UI.sql_table_ui import Ui_sql
 
-logger = logging.getLogger("UiCustom")
+logger = logging.getLogger('UDSTool.' + __name__)
 
 
 class SQLTablePanel(Ui_sql, QDialog):

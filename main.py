@@ -70,8 +70,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self._refresh_ip_list()
         self.status_bar = self.statusBar()
 
-
-
     def add_external_lib(self):
         # ExternalLib sys.path
         lib_dir = os.path.dirname(os.path.abspath('ExternalLib'))
@@ -82,6 +80,21 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         try:
             current_config_name = self.db_manager.get_active_config_name()
             self.current_uds_config = self.db_manager.query_doip_config(current_config_name)
+            if not self.current_uds_config:
+                doip_config_names = self.db_manager.get_all_config_names()
+                if len(doip_config_names) > 0:
+                    try:
+                        self.comboBox_ChooseConfig.clear()
+                        self.db_manager.set_active_config(doip_config_names[0])
+                        for config in doip_config_names:
+                            self.comboBox_ChooseConfig.addItem(config)
+                        self.comboBox_ChooseConfig.setCurrentText(self.current_uds_config.config_name)
+                        self.current_uds_config = self.db_manager.query_doip_config(current_config_name)
+                    except Exception as e:
+                        self.db_manager.set_active_config('')
+                        logger.exception(str(e))
+                else:
+                    self.comboBox_ChooseConfig.clear()
         except Exception as e:
             logger.exception(f'{str(e)}')
 
@@ -131,7 +144,16 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         # 启动线程
         self.external_scripts_thread.start()
+        self.external_scripts_executor.write_signal.connect(self.on_scripts_write)
         logger.info("外部脚本执行线程线程已启动")
+
+    def on_scripts_write(self, script_name: str, message: str):
+        html_content = (
+            f'<span style="color: #000000;">'
+            f'<b>[{script_name}]</b> {message}'
+            f'</span>'
+        )
+        self.plainTextEdit_DataDisplay.appendHtml(html_content)
 
     def _init_ui(self):
         """初始化界面组件属性"""
@@ -335,7 +357,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
 
         self.toolButton_LoadExternalScript.clicked.connect(self.choose_external_script)
-        self.toolButton_LoadExternalScript.clicked.connect(self.external_scripts_executor.load_external_script)
+        # self.toolButton_LoadExternalScript.clicked.connect(self.external_scripts_executor.load_external_script)
         self.pushButton_ExternalScriptRun.clicked.connect(self.external_scripts_executor.run_external_script)
         self.pushButton_ExternalScriptStop.clicked.connect(self.external_scripts_executor.stop_external_script)
 
@@ -384,6 +406,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                 self.external_script_path = abs_path
             self.lineEdit_ExternalScriptPath.setText(self.external_script_path)
             self.external_scripts_executor.external_script_path = self.external_script_path
+            self.external_scripts_executor.load_external_script()
 
     def _connect_uds_client_signals(self):
         """连接DoIP客户端的信号到槽函数"""
@@ -446,10 +469,13 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     @Slot(int)
     def _on_uds_config_chaneged(self, index: int):
+        if index == -1:
+            return
         config_name = self.comboBox_ChooseConfig.currentText()
         self.current_uds_config = self.db_manager.query_doip_config(config_name)
         self.db_manager.set_active_config(config_name)
         self.db_manager.init_services_database()
+
         self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_uds_config.config_name))
         self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()
         self.treeView_uds_case.refresh()
@@ -555,7 +581,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     @Slot()
     def open_create_config_panel(self):
         """打开DoIP新建配置面板"""
-        config_panel = DoIPConfigPanel(parent=self, is_create_new_config=True)
+        config_panel = DoIPConfigPanel(parent=self, is_create_new_config=True, configs_name=self.db_manager.get_all_config_names())
         config_panel.setWindowTitle('新建配置')
         new_config = DoIPConfig()
 
@@ -584,7 +610,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     @Slot()
     def open_edit_config_panel(self):
         """打开DoIP配置编辑面板"""
-        config_panel = DoIPConfigPanel(parent=self)
+        config_panel = DoIPConfigPanel(parent=self, configs_name=self.db_manager.get_all_config_names())
         config_panel.setWindowTitle('修改配置')
         config_panel.lineEdit_ConfigName.setText(self.db_manager.get_active_config_name())
         # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
@@ -599,16 +625,23 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Unchecked)
 
         if config_panel.exec() == QDialog.Accepted:
-            if config_panel.config is None:  # 删除配置
+            if config_panel.config is None and config_panel.is_delete_config:  # 删除配置
                 self.db_manager.delete_doip_config(self.current_uds_config.config_name)
+                if config_panel.is_delete_data:
+                    self.db_manager.delete_services_config(self.current_uds_config.config_name)
+                    self.db_manager.delete_steps_by_case_ids(self.db_manager.get_current_config_uds_cases())
+                    self.db_manager.delete_config_uds_cases(self.current_uds_config.config_name)
                 doip_config_names = self.db_manager.get_all_config_names()
                 if len(doip_config_names) > 0:
                     try:
+                        self.comboBox_ChooseConfig.blockSignals(True)
                         self.comboBox_ChooseConfig.clear()
                         self.db_manager.set_active_config(doip_config_names[0])
                         for config in doip_config_names:
                             self.comboBox_ChooseConfig.addItem(config)
-                        self.comboBox_ChooseConfig.setCurrentText(self.current_uds_config.config_name)
+                        current_index = self.comboBox_ChooseConfig.currentIndex()
+                        self._on_uds_config_chaneged(current_index)
+                        self.comboBox_ChooseConfig.blockSignals(False)
                     except Exception as e:
                         self.db_manager.set_active_config('')
                         logger.exception(str(e))

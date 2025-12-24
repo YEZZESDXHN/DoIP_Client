@@ -203,7 +203,7 @@ class QUDSClient(QObject):
             return None
 
         try:
-            self.info_signal.emit(f"正在计算 Key (Seed: {seed.hex()}, Level: {level})")
+            self.info_signal.emit(f"正在计算 Key (Seed: {seed.hex(' ')}, Level: {level})")
 
             # 这里完全匹配你定义的签名
             key = self.generate_key_func(
@@ -211,7 +211,7 @@ class QUDSClient(QObject):
                 max_key_size=max_key_size,
                 level=level,
                 variant=variant,
-                options=None
+                options=options
             )
 
             # 结果校验
@@ -222,7 +222,7 @@ class QUDSClient(QObject):
             if not isinstance(key, (bytes, bytearray)):
                 self.error_signal.emit(f"算法返回类型错误: 期望 bytes, 实际是 {type(key)}")
                 return None
-
+            self.info_signal.emit(f"计算完成,key: {key.hex(' ')}")
             return bytes(key)
 
         except Exception as e:
@@ -366,7 +366,7 @@ class QUDSClient(QObject):
             response = self.uds_on_ip_client.send_request(req)
             if not hasattr(response, 'original_payload'):
                 return response
-            if response.original_payload[0] == 0x67:
+            if len(response.original_payload) > 1 and response.original_payload[0] == 0x67 and response.original_payload[1] % 2 == 1:
                 self.security_seed = response.original_payload[2:]
                 self.security_key = self.execute_security_access(seed=self.security_seed,
                                                                  level=response.original_payload[1])
@@ -424,19 +424,6 @@ class QUDSClient(QObject):
         if self._uds_client and self.uds_on_ip_client:
             payload = b'\x3e\x80'
             self._execute_uds_request(payload)
-
-    def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
-        """
-        API 接口：供外部脚本调用
-        """
-        # 1. 执行核心请求 (带上 TF: 前缀)
-        response = self._execute_uds_request(payload, log_prefix="api:")
-
-        # 2. 扩展功能：在此处添加报告打印逻辑
-        # if response:
-        #     self._generate_api_report(response)
-
-        return response
 
 
 def main():

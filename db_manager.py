@@ -171,6 +171,52 @@ class DBManager:
         except sqlite3.Error as e:
             logger.exception(f"诊断步骤初始化数据库失败：{str(e)}")
 
+    def delete_steps_by_case_ids(self, cases: list[DiagCase]) -> bool:
+        """
+        根据 case 列表批量删除对应的步骤 (DiagnosisStep)
+        :param cases: 要删除步骤的 case 列表
+        :return: 是否执行成功
+        """
+        case_ids = []
+        for case in cases:
+            case_ids.append(case.id)
+        if not case_ids:
+            logger.warning("传入的 case_id 列表为空，未执行删除步骤操作")
+            return False
+
+        success = False
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # 1. 动态构建占位符字符串，例如: "?, ?, ?"
+                # 这样可以处理列表长度不固定的情况
+                placeholders = ', '.join(['?'] * len(case_ids))
+
+                # 2. 构建批量删除 SQL
+                # 注意：CASE_STEP_TABLE_NAME 必须是你类中定义的表名常量
+                sql = f"DELETE FROM {CASE_STEP_TABLE_NAME} WHERE case_id IN ({placeholders})"
+
+                # 3. 执行 SQL
+                # execute 的第二个参数必须是元组或列表，这里直接传入 case_ids 即可
+                cursor.execute(sql, case_ids)
+
+                # 4. 获取受影响行数
+                deleted_count = cursor.rowcount
+
+                # 5. 提交事务
+                conn.commit()
+
+                logger.info(f"批量删除步骤成功：涉及 case_id {case_ids}，共清理 {deleted_count} 条步骤数据")
+                success = True
+
+        except sqlite3.Error as e:
+            logger.exception(f"数据库批量删除步骤失败：{str(e)}")
+        except Exception as e:
+            logger.exception(f"删除步骤时发生未知错误: {str(e)}")
+
+        return success
+
     def delete_case_step(self, step_id: int):
         if step_id <= 0:
             logger.warning(f"删除step失败：无效的ID（{step_id}），ID必须为正整数")
@@ -509,6 +555,12 @@ class DBManager:
 
     def get_current_config_uds_cases(self) -> list[DiagCase]:
         """获取当前配置下所有的case"""
+        active_config_name = self.get_active_config_name()
+
+        return self.get_config_uds_cases(active_config_name)
+
+    def get_config_uds_cases(self, config_name: str) -> list[DiagCase]:
+        """获取指定配置下所有的case"""
         cases = []
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -516,8 +568,6 @@ class DBManager:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
 
-                # 获取当前激活的配置名
-                active_config_name = self.get_active_config_name()
 
                 # 构建查询SQL：查询当前配置下的所有case（排除group类型，如需包含可去掉type条件）
                 query_sql = f"""
@@ -526,7 +576,7 @@ class DBManager:
                                 """
 
                 # 执行查询（使用参数化查询防止SQL注入）
-                cursor.execute(query_sql, (active_config_name,))
+                cursor.execute(query_sql, (config_name,))
 
                 # 获取所有结果并转换为DiagCase对象
                 rows = cursor.fetchall()
@@ -537,7 +587,7 @@ class DBManager:
                     case = DiagCase.from_dict(row_dict)
                     cases.append(case)
 
-                logger.info(f"成功获取当前配置[{active_config_name}]下的case，共{len(cases)}条")
+                logger.info(f"成功获取当前配置[{config_name}]下的case，共{len(cases)}条")
 
         except sqlite3.OperationalError as e:
             if "no such table" in str(e).lower():
@@ -551,6 +601,40 @@ class DBManager:
             logger.exception(f"获取当前配置下的case失败: {str(e)}")
 
         return cases
+
+    def delete_config_uds_cases(self, config_name: str) -> int:
+        """删除指定配置下的所有case"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                if not config_name:
+                    logger.warning("尝试删除case失败：未获取到有效的当前配置名")
+                    return False
+
+                delete_sql = f"DELETE FROM {CASE_TABLE_NAME} WHERE config_name = ?"
+
+                cursor.execute(delete_sql, (config_name,))
+
+                deleted_count = cursor.rowcount
+
+                conn.commit()
+
+                logger.info(f"成功删除配置[{config_name}]下的所有case，共清理{deleted_count}条数据")
+
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e).lower():
+                logger.error(f"删除失败，表{CASE_TABLE_NAME}不存在：{str(e)}")
+            else:
+                logger.exception(f"数据库操作错误（删除case）：{str(e)}")
+        except sqlite3.Error as e:
+            # 回滚事务（虽然 with 上下文通常会自动处理回滚，但显式捕获异常更稳健）
+            # conn.rollback() # with 语句块在异常时会自动 rollback
+            logger.exception(f"数据库执行删除失败：{str(e)}")
+        except Exception as e:
+            logger.exception(f"删除当前配置下的case时发生未知错误: {str(e)}")
+
+        return deleted_count
 
 
     def get_services_json(self, config_name: str):
@@ -622,6 +706,22 @@ class DBManager:
             logger.info(f"成功写入默认配置: {self.default_config.config_name}")
         except sqlite3.Error as e:
             logger.exception(f"写入默认配置失败: {str(e)}")
+
+    def delete_services_config(self, config_name: str) -> bool:
+        delete_sql = f"DELETE FROM {SERVICES_TABLE_NAME} WHERE config_name = ?;"
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute(delete_sql, (config_name,))
+                if cursor.rowcount > 0:
+                    conn.commit()
+                    logger.info(f"删除配置成功：{config_name}")
+                    return True
+                else:
+                    logger.warning(f"删除失败：未找到配置 {config_name}")
+                    return False
+        except sqlite3.Error as e:
+            logger.exception(f"删除配置异常：{config_name} - {str(e)}")
+            return False
 
     def add_services_config(self, config_name: str, services_json: str) -> bool:
         """

@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional, Type, Tuple, List
 
 
 class ResponseCode:
@@ -179,6 +179,7 @@ class Response:
 class UDSClient:
     security_seed: bytes
     security_key: bytes
+
     def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
         pass
 
@@ -188,6 +189,85 @@ class Utils:
         pass
 
 
-class Context:
-    uds_client: UDSClient
-    utils: Utils
+class FirmwareFileParser:
+    """
+    用于解析 S19, HEX, BIN 文件的通用类。
+    底层基于 bincopy 库，提供统一的读写和数据访问接口。
+    """
+    def load(self, filepath: str, start_address: int = 0) -> None:
+        """
+        加载固件文件，自动根据扩展名识别格式。
+
+        Args:
+            filepath: 文件路径
+            start_address: 仅针对 .bin 文件有效，指定二进制文件的起始加载地址
+        """
+        pass
+
+    def get_segments(self) -> List[Tuple[int, bytes]]:
+        """
+        获取固件的所有数据段。
+
+        Returns:
+            List[Tuple[address, data]]: 返回一个列表，包含 (起始地址, 数据bytes)
+            这是处理非连续内存（Sparse Memory）的最佳方式。
+        """
+        pass
+
+    def get_merged_data(self, fill: int = 0xFF) -> Tuple[int, bytes]:
+        """
+        获取合并后的完整二进制数据（自动填充空洞）。
+
+        Args:
+            fill: 地址不连续时的填充字节（整数，例如 0xFF）
+
+        Returns:
+            (start_address, data): 整个固件块的起始地址和完整数据
+        """
+        pass
+
+    def get_size(self) -> int:
+        """获取固件数据的实际字节大小（不包含空洞）"""
+        pass
+
+    def get_range(self) -> Tuple[int, int]:
+        """获取固件的地址范围 (min_addr, max_addr)"""
+        pass
+
+    def export(self, output_path: str, fmt: str = 'bin', **kwargs) -> None:
+        """
+        将当前加载的固件转换为其他格式并保存。
+
+        Kwargs:
+            fill (int): 填充字节，默认 0xFF
+            execution_addr (int): S19 文件的 S7/S8/S9 入口地址。如果不指定，默认尝试使用 0。
+        """
+        pass
+
+
+class ScriptAPI:
+    _uds_client: UDSClient
+    _utils: Utils
+    firmware_file_parser: FirmwareFileParser
+    version: str
+
+    def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
+        pass
+
+    @property
+    def uds_security_key(self) -> bytes:
+        return self._uds_client.security_key
+
+    @property
+    def uds_security_seed(self) -> bytes:
+        return self._uds_client.security_seed
+
+    def hex_str_to_bytes(self, hex_str: str) -> bytes:
+        pass
+
+    @staticmethod
+    def sleep(secs: float) -> None:
+        pass
+
+    def write(self, text: str):
+        pass

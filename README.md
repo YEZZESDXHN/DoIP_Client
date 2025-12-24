@@ -91,22 +91,44 @@ api.py文件，程序对外SDK文件，随项目发布
 api.py
 
 
-# UDS实现核心
 class UDSClient:
     security_seed: bytes
     security_key: bytes
+
     def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
         pass
 
-# 一些内置函数，非必须，大部分都可以自行实现
+
 class Utils:
     def hex_str_to_bytes(self, hex_str: str) -> bytes:
         pass
 
+# api接口
+class ScriptAPI:
+    _uds_client: UDSClient
+    _utils: Utils
+    version: str
 
-class Context:
-    uds_client: UDSClient
-    utils: Utils
+    def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
+        pass
+
+    @property
+    def uds_security_key(self) -> bytes:
+        return self._uds_client.security_key
+
+    @property
+    def uds_security_seed(self) -> bytes:
+        return self._uds_client.security_seed
+
+    def hex_str_to_bytes(self, hex_str: str) -> bytes:
+        pass
+
+    @staticmethod
+    def sleep(secs: float) -> None:
+        pass
+
+    def write(self, text: str):
+        pass
 ```
 
 ```
@@ -120,9 +142,9 @@ if TYPE_CHECKING:
     from api import Context
 
 # 外部脚本运行入口
-def main(ctx: "Context"):
+def main(api: "ScriptAPI"):
     # 发送UDS诊断：10 01并获取响应
-    response = ctx.uds_client.uds_send_and_wait_response(b'\x10\x01')
+    response = api.uds_send_and_wait_response(b'\x10\x01')
     # 根据响应结果判断pass和fail，此处暂时使用print演示，后续会逐步增加api函数
     if response.original_payload[0] == 0x50:
         print("pass")

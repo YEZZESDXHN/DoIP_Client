@@ -2,21 +2,21 @@ from time import sleep
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from api import Context
+    from api import ScriptAPI
 
 
-def main(ctx: "Context"):
-
-    response = ctx.uds_client.uds_send_and_wait_response(b'\x10\x03')
-    response = ctx.uds_client.uds_send_and_wait_response(b'\x27\x01')
-    data = b'\x27\x02'+ctx.uds_client.security_key
-    response = ctx.uds_client.uds_send_and_wait_response(data)
+def main(api: "ScriptAPI"):
+    api.write("开始执行脚本")
+    response = api.uds_send_and_wait_response(b'\x10\x03')
+    response = api.uds_send_and_wait_response(b'\x27\x01')
+    data = b'\x27\x02'+api.uds_security_key
+    response = api.uds_send_and_wait_response(data)
     sleep(10)
-    response = ctx.uds_client.uds_send_and_wait_response(b'\x10\x03')
+    response = api.uds_send_and_wait_response(b'\x10\x03')
     print('main finshed')
 
 
 
-def on_load(ctx: "Context.uds_client"):
+def on_load(ctx: "ScriptAPI"):
     print("on_load")
     print(ctx)

@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog
+from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog, QCheckBox
 
 from UI.DoIPConfigUI import Ui_DoIPConfig
 from user_data import DoIPConfig
@@ -19,7 +19,7 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
     配置面板类，继承自 QDialog (窗口行为) 和 Ui_Dialog (界面布局)
     """
 
-    def __init__(self, parent=None, is_create_new_config: bool = False, configs_name: list[str] = []):
+    def __init__(self, configs_name: list[str], is_create_new_config: bool = False, parent=None):
         super().__init__(parent)
         self.setupUi(self)
         self.config: Optional[DoIPConfig] = DoIPConfig(
@@ -31,6 +31,7 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
         self.configs_name = configs_name
         self.is_create_new_config = is_create_new_config
         self.is_delete_config = False
+        self.is_delete_data = False
         self.buttonBox.accepted.connect(self._on_accept)
         self.pushButton_delete.clicked.connect(self._on_delete_config)
         self.toolButton_GenerateKeyExOptPath.clicked.connect(self._on_select_key_ex_opt_path)
@@ -83,18 +84,30 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
         DUT_ipv4_address = self.lineEdit_DUT_IP.text()
 
         if self.is_delete_config:
-            reply = QMessageBox.warning(
-                self,
-                "删除配置",
-                f"确认删除配置{self.config.config_name}",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,  # 设置要显示的按钮
-                QMessageBox.StandardButton.No  # 设置默认焦点按钮 (推荐 No，防止误删)
-            )
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            msg_box.setWindowTitle("删除配置")
+            msg_box.setText(f"确认删除配置 {self.lineEdit_ConfigName.text()}")
+
+            # 设置按钮
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+
+            # 添加复选框
+            cb = QCheckBox("同时Case等关联数据")
+            msg_box.setCheckBox(cb)
+
+            # 4. 显示并获取结果
+            reply = msg_box.exec()
+
             if reply == QMessageBox.StandardButton.Yes:
                 self.config = None
+                if cb.isChecked():
+                    self.is_delete_data = True
                 self.accept()
                 return
             else:
+                self.is_delete_config = False
                 return
 
         if not config_name:

@@ -716,6 +716,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         flash_panel = FlashConfigPanel(parent=self, flash_config=self.flash_config)
         if flash_panel.exec() == QDialog.Accepted:
             self.flash_config = flash_panel.config
+            self.flash_config = flash_panel.config
             self.db_manager.save_flash_config(self.current_uds_config.config_name, self.flash_config)
             self.setup_flash_control()
 

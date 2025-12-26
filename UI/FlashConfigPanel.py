@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import sys
@@ -8,11 +9,11 @@ from typing import Any, Set, Optional
 from PySide6.QtCore import (
     QAbstractTableModel, Qt, QModelIndex, Signal, Slot
 )
-from PySide6.QtGui import QFont, QColor, QAction, QCursor
+from PySide6.QtGui import QFont, QColor, QAction, QCursor, QPalette
 from PySide6.QtWidgets import (
     QApplication, QTableView, QVBoxLayout, QWidget,
     QPushButton, QHBoxLayout, QSplitter, QGroupBox, QHeaderView,
-    QStyledItemDelegate, QComboBox, QMenu, QMessageBox, QCompleter, QDialog
+    QStyledItemDelegate, QComboBox, QMenu, QMessageBox, QCompleter, QDialog, QStyleOptionViewItem
 )
 
 from UI.FlashCompositeControl import Ui_Form_FlashChooseFileControl
@@ -115,6 +116,22 @@ class VariableSelectionDelegate(QStyledItemDelegate):
     """
     极简 Delegate：不存储任何数据，创建编辑器时直接问 Model 要数据。
     """
+
+    def initStyleOption(self, option: QStyleOptionViewItem, index: QModelIndex):
+        # 1. 先让父类完成基础初始化（字体、对齐、默认颜色等）
+        super().initStyleOption(option, index)
+
+        # 2. 获取 Model 中定义的颜色 (即你在 data 方法中返回的 ForegroundRole)
+        foreground_color = index.data(Qt.ForegroundRole)
+
+        if foreground_color and isinstance(foreground_color, QColor):
+            # [核心修复]
+            # 强制将 "选中状态下的文字颜色" (HighlightedText) 设置为与 "普通文字颜色" 一致
+            # 这样即使单元格被选中，颜色也不会变成白色，而是保持你定义的红/蓝/灰
+            option.palette.setColor(QPalette.HighlightedText, foreground_color)
+
+            # 同时也确保普通文本颜色正确（通常父类已经处理，但为了保险）
+            option.palette.setColor(QPalette.Text, foreground_color)
 
     def createEditor(self, parent, option, index):
         # [优化]：逻辑内聚，Delegate 自己判断只处理参数列
@@ -306,6 +323,41 @@ class StepsTableModel(QAbstractTableModel):
         if role == Qt.TextAlignmentRole and col > 0: return Qt.AlignCenter
         return None
 
+    # ==========================================
+    # 补全的方法
+    # ==========================================
+    def _get_color_for_value(self, text: str) -> QColor:
+        """
+        根据文本内容返回对应的字体颜色
+        1. 变量名 -> 蓝色
+        2. 合法Hex -> 黑色/深灰
+        3. 非法内容 -> 红色
+        """
+        if not text:
+            return None  # 使用默认颜色
+
+        # 1. 优先检查是否为变量
+        if text in self._valid_vars_set:
+            return QColor("#0055AA")  # 专业的深蓝色
+
+        # 2. 检查是否为合法的 Hex 字符串
+        if self._is_valid_hex(text):
+            return QColor("#333333")  # 深灰色
+
+        # 3. 既不是变量也不是合法Hex -> 视为错误
+        return QColor("#D32F2F")  # 红色警告
+
+    def _is_valid_hex(self, s: str) -> bool:
+        """辅助函数：判断字符串是否为合法的 Hex"""
+        # 长度必须是偶数 (比如 "AA" 是对的, "A" 是错的)
+        if len(s) % 2 != 0:
+            return False
+        try:
+            bytes.fromhex(s)
+            return True
+        except ValueError:
+            return False
+
     def setData(self, index: QModelIndex, value: Any, role: int = Qt.EditRole) -> bool:
         if not index.isValid() or role != Qt.EditRole: return False
         row, col = index.row(), index.column()
@@ -325,7 +377,8 @@ class StepsTableModel(QAbstractTableModel):
             # [优化] 封装动态列表扩展逻辑
             self._set_external_data(step, col - StepCol.PARAMS_START, val_str)
 
-        self.dataChanged.emit(index, index, [role, Qt.ForegroundRole, Qt.BackgroundRole])
+        roles_changed = [Qt.EditRole, Qt.DisplayRole, Qt.ForegroundRole]
+        self.dataChanged.emit(index, index, roles_changed)
 
         self._cleanup_trailing_columns()
         if self.columnCount() != old_cols:
@@ -400,8 +453,8 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
 
         # 1. 初始化数据副本 (避免直接操作原始对象，直到点击 OK)
         # 建议：这里最好深拷贝 flash_config，防止 Cancel 后数据也被改了
-        # self.config = copy.deepcopy(flash_config) if flash_config else FlashConfig()
-        self.config = flash_config if flash_config else FlashConfig()
+        self.config = copy.deepcopy(flash_config) if flash_config else FlashConfig()
+        # self.config = flash_config if flash_config else FlashConfig()
 
         # 2. 初始化 Model
         self.file_model = FilesTableModel(self.config.files)
@@ -438,7 +491,7 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # 1. 基础变量 (通常是固定的或从系统读取)
         # 不要直接引用全局 gFlashVars，而是应该拷贝一份 keys 或者硬编码基础变量
         # 假设这里有一些系统预设变量：
-        current_vars = ["Global_Time", "Sys_Version"]
+        current_vars = []
 
         # 2. 动态追加文件相关的变量
         for f in self.config.files:

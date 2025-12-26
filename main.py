@@ -22,6 +22,7 @@ from UI.UdsServicesTreeView_ui import UdsServicesTreeView
 from db_manager import DBManager
 from external_scripts_executor import QExternalScriptsExecutor
 from flash_executor import QFlashExecutor
+from global_variables import gFlashVars
 from user_data import DoIPConfig, DoIPMessageStruct, UdsService
 from utils import get_ethernet_ips
 from pathlib import Path
@@ -169,7 +170,20 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # 启动线程
         self.flash_thread.start()
         self.flash_executor.write_signal.connect(self.on_scripts_write)
+        self.update_flash_variables()
+
         logger.info("Flash程线程已启动")
+
+    def update_flash_variables(self):
+        gFlashVars.clear()
+        all_vars = list(gFlashVars.keys())
+
+        for f in self.flash_config.files:
+            if f.name:
+                # 按照约定生成变量名
+                all_vars.extend([f"{f.name}_addr", f"{f.name}_size", f"{f.name}_crc"])
+                for var in all_vars:
+                    gFlashVars[var] = None
 
     def on_scripts_write(self, script_name: str, message: str):
         html_content = (
@@ -251,13 +265,15 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.setup_flash_control()
 
+    def on_reset_layout(self):
+        self.restoreState(self.default_state)
+
     def setup_flash_control(self):
         layout = self.scrollArea_FlashFiles.layout()
         if not layout:
             layout = QVBoxLayout(self.scrollArea_FlashFiles)
             layout.setSpacing(15)  # 控件之间的间距
 
-        # 3. 【清空旧控件】 (防止刷新时重复添加)
         # 这是一个标准的清空 Layout 的方法
         while layout.count():
             item = layout.takeAt(0)
@@ -272,8 +288,12 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         for file_cfg in self.flash_config.files:
             # 使用上面定义的包装类
             self.flash_choose_file_controls.clear()
+            self.flash_file_paths.clear()
             self.flash_choose_file_controls[file_cfg.name] = FlashChooseFileControl(self)
             self.flash_choose_file_controls[file_cfg.name].label_FlashFileName.setText(file_cfg.name)
+            self.flash_choose_file_controls[file_cfg.name].toolButton_LoadFlashFile.clicked.connect(
+                lambda checked=False, name=file_cfg.name, le=self.flash_choose_file_controls[file_cfg.name].lineEdit_FlashFilePath: self.choose_flash_file(name, le)
+            )
             layout.addWidget(self.flash_choose_file_controls[file_cfg.name])
 
         # 5. 【添加弹簧】 (Vertical Spacer)
@@ -283,10 +303,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         # 强制刷新一下 UI
         self.scrollArea_FlashFiles.update()
-
-
-    def on_reset_layout(self):
-        self.restoreState(self.default_state)
 
     @Slot()
     def _save_services_to_db(self):
@@ -415,6 +431,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_EditConfig.clicked.connect(self.open_edit_config_panel)
         self.pushButton_CreateConfig.clicked.connect(self.open_create_config_panel)
         self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
+        self.pushButton_StartFlash.clicked.connect(self.flash_executor.start_flash)
+        self.pushButton_StopFlash.clicked.connect(self.flash_executor.stop_flash)
 
         self.toolButton_LoadExternalScript.clicked.connect(self.choose_external_script)
         # self.toolButton_LoadExternalScript.clicked.connect(self.external_scripts_executor.load_external_script)
@@ -442,6 +460,28 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
 
         self.pushButton_FlashConfig.clicked.connect(self.open_flash_config_panel)
+
+    def choose_flash_file(self, file_name, line_edit):
+        abs_path, _ = QFileDialog.getOpenFileName(
+            self,  # 父窗口
+            "选择刷写文件",  # 标题
+            "",  # 默认打开路径 (空字符串表示当前目录)
+            "Hex (*.hex);;bin (*.bin);;All Files (*)"  # 文件过滤器，例如 "DLL Files (*.dll);;All Files (*)"
+        )
+        if abs_path:
+            try:
+                # 2. 计算相对路径
+                # os.getcwd() 获取当前程序运行的工作目录
+                # os.path.relpath(目标路径, 基准路径) 计算相对路径
+                rel_path = os.path.relpath(abs_path, os.getcwd())
+                file_path = rel_path
+
+            except ValueError:
+                # Windows 特例：如果文件和程序在不同的盘符（例如 C: 和 D:），
+                # 无法计算相对路径，此时会报错，我们保留绝对路径作为后备方案。
+                file_path = abs_path
+            line_edit.setText(file_path)
+            self.flash_file_paths[file_name] = file_path
 
     def choose_external_script(self):
         abs_path, _ = QFileDialog.getOpenFileName(
@@ -678,6 +718,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             self.flash_config = flash_panel.config
             self.db_manager.save_flash_config(self.current_uds_config.config_name, self.flash_config)
             self.setup_flash_control()
+        else:
+            self.flash_config = self.db_manager.load_flash_config(self.current_uds_config.config_name)
 
 
     @Slot()

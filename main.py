@@ -718,8 +718,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             self.flash_config = flash_panel.config
             self.db_manager.save_flash_config(self.current_uds_config.config_name, self.flash_config)
             self.setup_flash_control()
-        else:
-            self.flash_config = self.db_manager.load_flash_config(self.current_uds_config.config_name)
 
 
     @Slot()

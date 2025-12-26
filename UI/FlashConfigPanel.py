@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field, asdict
-from enum import Enum, auto
+from enum import Enum, auto, IntEnum
 from typing import Any, Set, Optional
 
 from PySide6.QtCore import (
@@ -98,17 +98,34 @@ class FlashConfig:
         return inst
 
 
+# 定义文件的列
+class FileCol(IntEnum):
+    NAME = 0
+    PATH = 1
+    ADDRESS = 2
+
+
+# 定义步骤的列
+class StepCol(IntEnum):
+    NAME = 0
+    DATA = 1
+    PARAMS_START = 2  # 参数起始列
+
 class VariableSelectionDelegate(QStyledItemDelegate):
     """
     极简 Delegate：不存储任何数据，创建编辑器时直接问 Model 要数据。
     """
 
     def createEditor(self, parent, option, index):
+        # [优化]：逻辑内聚，Delegate 自己判断只处理参数列
+        # 假设 StepModel 在这里，如果用于 FileModel 则可能需要调整，或者传入 filter
+        if index.column() < StepCol.PARAMS_START:
+            return super().createEditor(parent, option, index)
+
         editor = QComboBox(parent)
         editor.setEditable(True)
 
-        # [优化关键] 直接从 Model 获取当前最新的变量列表
-        # 只要 Model 更新了，这里打开必然是新的，无需手动同步
+        # 鸭子类型检查：如果 Model 有这个方法就调用
         if hasattr(index.model(), 'get_variable_list'):
             editor.addItems(index.model().get_variable_list())
 
@@ -149,28 +166,33 @@ class FilesTableModel(QAbstractTableModel):
         if not index.isValid(): return None
         item = self.files_list[index.row()]
         col = index.column()
+
         if role in (Qt.DisplayRole, Qt.EditRole):
-            return [item.name, item.default_path, item.address][col]
+            # [优化] 使用 match 或 if-elif 配合枚举，清晰易读
+            if col == FileCol.NAME: return item.name
+            if col == FileCol.PATH: return item.default_path
+            if col == FileCol.ADDRESS: return item.address
         return None
 
     def setData(self, index: QModelIndex, value: Any, role: int = Qt.EditRole) -> bool:
-        if index.isValid() and role == Qt.EditRole:
-            item = self.files_list[index.row()]
-            col = index.column()
-            val_str = str(value).strip()
+        if not index.isValid() or role != Qt.EditRole: return False
 
-            if col == 0:  # Name changed
-                if item.name != val_str:
-                    item.name = self._get_unique_name(val_str, index.row())
-                    self.variablesChanged.emit()  # 只有名字改了才影响变量列表
-            elif col == 1:
-                item.default_path = val_str
-            elif col == 2:
-                item.address = val_str
+        item = self.files_list[index.row()]
+        col = index.column()
+        val_str = str(value).strip()
 
-            self.dataChanged.emit(index, index, [role])
-            return True
-        return False
+        if col == FileCol.NAME:
+            if item.name != val_str:
+                # 查重逻辑保持不变
+                item.name = self._get_unique_name(val_str, index.row())
+                self.variablesChanged.emit()
+        elif col == FileCol.PATH:
+            item.default_path = val_str
+        elif col == FileCol.ADDRESS:
+            item.address = val_str
+
+        self.dataChanged.emit(index, index, [role])
+        return True
 
     def insert_file(self):
         row = self.rowCount()
@@ -242,8 +264,9 @@ class StepsTableModel(QAbstractTableModel):
         return len(self.steps_list)
 
     def columnCount(self, parent=QModelIndex()) -> int:
+        # [优化] 基础列数 + 最大参数列数
         max_ext = max((len(s.external_data) for s in self.steps_list), default=0)
-        return 2 + max_ext + 1
+        return StepCol.PARAMS_START + max_ext + 1
 
     def _analyze_content(self, text: str) -> CellType:
         if not text: return CellType.EMPTY
@@ -264,34 +287,22 @@ class StepsTableModel(QAbstractTableModel):
         row, col = index.row(), index.column()
         step = self.steps_list[row]
 
-        # 获取文本数据
+        # [优化] 数据获取逻辑
         text_val = ""
-        if col == 0:
+        if col == StepCol.NAME:
             text_val = step.step_name
-        elif col == 1:
+        elif col == StepCol.DATA:
             text_val = step.data.hex().upper()
-        elif col >= 2:
-            ext_idx = col - 2
-            if ext_idx < len(step.external_data): text_val = step.external_data[ext_idx]
+        elif col >= StepCol.PARAMS_START:
+            ext_idx = col - StepCol.PARAMS_START
+            if ext_idx < len(step.external_data):
+                text_val = step.external_data[ext_idx]
+
+        # 样式处理逻辑保持不变，但建议将 CellType 判断逻辑提取为单独的方法
+        if role == Qt.ForegroundRole and col >= StepCol.PARAMS_START and text_val:
+            return self._get_color_for_value(text_val)  # 封装颜色逻辑
 
         if role in (Qt.DisplayRole, Qt.EditRole): return text_val
-
-        # 样式处理
-        if col >= 2 and text_val:
-            cell_type = self._analyze_content(text_val)
-            if role == Qt.ForegroundRole:
-                return {
-                    CellType.VARIABLE: QColor("#0055AA"),
-                    CellType.HEX: QColor("#333333"),
-                    CellType.ERROR: QColor("white")
-                }.get(cell_type)
-            if role == Qt.BackgroundRole and cell_type == CellType.ERROR:
-                return QColor("#D32F2F")
-            if role == Qt.FontRole and cell_type == CellType.VARIABLE:
-                font = QFont("Consolas", 10)
-                font.setBold(True)
-                return font
-
         if role == Qt.TextAlignmentRole and col > 0: return Qt.AlignCenter
         return None
 
@@ -301,32 +312,36 @@ class StepsTableModel(QAbstractTableModel):
         step = self.steps_list[row]
         val_str = str(value).strip()
 
-        # 记录旧列数以便判断布局是否变化
-        old_cols = self.columnCount()
+        old_cols = self.columnCount()  # 记录旧列数
 
-        if col == 0:
+        if col == StepCol.NAME:
             step.step_name = val_str
-        elif col == 1:
+        elif col == StepCol.DATA:
             try:
                 step.data = bytes.fromhex(val_str) if val_str else b''
             except ValueError:
                 return False
-        else:
-            ext_idx = col - 2
-            # 自动扩展 list
-            if ext_idx >= len(step.external_data):
-                if val_str:
-                    step.external_data.extend([""] * (ext_idx - len(step.external_data)))
-                    step.external_data.append(val_str)
-            else:
-                step.external_data[ext_idx] = val_str
+        elif col >= StepCol.PARAMS_START:
+            # [优化] 封装动态列表扩展逻辑
+            self._set_external_data(step, col - StepCol.PARAMS_START, val_str)
 
         self.dataChanged.emit(index, index, [role, Qt.ForegroundRole, Qt.BackgroundRole])
 
-        # 清理空列
         self._cleanup_trailing_columns()
-        if self.columnCount() != old_cols: self.layoutChanged.emit()
+        if self.columnCount() != old_cols:
+            self.layoutChanged.emit()  # 列数变了必须发这个，否则视图不刷新
         return True
+
+    def _set_external_data(self, step: Step, ext_idx: int, value: str):
+        """Helper to safely set list data, extending if necessary."""
+        current_len = len(step.external_data)
+        if ext_idx < current_len:
+            step.external_data[ext_idx] = value
+        else:
+            # 补齐中间的空位
+            if value:  # 只有值不为空时才扩展
+                step.external_data.extend([""] * (ext_idx - current_len))
+                step.external_data.append(value)
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlags:
         if not index.isValid(): return Qt.NoItemFlags
@@ -377,32 +392,39 @@ class StepsTableModel(QAbstractTableModel):
         self._cleanup_trailing_columns()
         self.endResetModel()
 
+
 class FlashConfigPanel(Ui_FlashConfig, QDialog):
     def __init__(self, flash_config: Optional[FlashConfig], parent=None):
         super().__init__(parent)
         self.setupUi(self)
 
-        # 1. 初始化配置和全局变量引用
+        # 1. 初始化数据副本 (避免直接操作原始对象，直到点击 OK)
+        # 建议：这里最好深拷贝 flash_config，防止 Cancel 后数据也被改了
+        # self.config = copy.deepcopy(flash_config) if flash_config else FlashConfig()
         self.config = flash_config if flash_config else FlashConfig()
-        self.global_vars_ref = gFlashVars  # 持有引用，如果需要修改它
 
         # 2. 初始化 Model
         self.file_model = FilesTableModel(self.config.files)
         self.step_model = StepsTableModel(self.config.steps)
 
         # 3. 初始化 Views
+        # 直接传入占位符 widget，内部自动处理布局
         self.file_view = self._setup_view(self.groupBox_files, self.file_model)
 
-        # Delegate 不需要再传递 self，也不需要手动 set_variable_list
-        self.var_delegate = VariableSelectionDelegate()
-        self.step_view = self._setup_view(self.groupBox_steps, self.step_model, self.var_delegate)
+        # [优化] 设置全局 Delegate，Delegate 内部会智能判断列
+        self.step_view = self._setup_view(self.groupBox_steps, self.step_model)
+        self.step_view.setItemDelegate(VariableSelectionDelegate(self.step_view))
 
         # 4. 信号连接
         self.pushButton_AddFile.clicked.connect(self.file_model.insert_file)
         self.pushButton_RemoveFile.clicked.connect(self._remove_current_file)
+
+        # 上下文菜单
+        self.step_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.step_view.customContextMenuRequested.connect(self._show_context_menu)
 
-        # [关键] 当文件列表的名字改变时，重新计算所有可用变量
+        # [关键] 变量联动
+        # 只有当文件列表变更时，才触发变量列表的重新计算
         self.file_model.variablesChanged.connect(self.recalculate_variables)
 
         # 5. 初始计算
@@ -410,66 +432,90 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
 
     def recalculate_variables(self):
         """
-        核心逻辑：汇总全局变量 + 文件变量，分发给需要的地方
+        [核心优化]：纯计算逻辑，不产生副作用。
+        只负责生成变量名列表给 UI 使用，不修改全局 gFlashVars。
         """
-        # 1. 获取全局基础变量 (Keys)
-        self.global_vars_ref.clear()
-        all_vars = list(self.global_vars_ref.keys())
+        # 1. 基础变量 (通常是固定的或从系统读取)
+        # 不要直接引用全局 gFlashVars，而是应该拷贝一份 keys 或者硬编码基础变量
+        # 假设这里有一些系统预设变量：
+        current_vars = ["Global_Time", "Sys_Version"]
 
-        # 2. 获取文件动态变量并添加到列表
-        # 如果你想修改全局 gFlashVars，可以在这里进行 update，但通常建议只在需要执行时做
-        # 这里我们只负责收集所有可用变量名给 UI 显示
+        # 2. 动态追加文件相关的变量
         for f in self.config.files:
             if f.name:
-                # 按照约定生成变量名
-                all_vars.extend([f"{f.name}_addr", f"{f.name}_size", f"{f.name}_crc"])
-                for var in all_vars:
-                    self.global_vars_ref[var] = None
+                safe_name = f.name.strip()
+                current_vars.extend([
+                    f"{safe_name}_addr",
+                    f"{safe_name}_size",
+                    f"{safe_name}_crc"
+                ])
 
-        # 3. 更新 StepModel 的上下文
-        self.step_model.update_context(all_vars)
+        # 3. 仅更新 UI 上下文 (StepModel)
+        # StepModel 拿到这个列表后，负责更新高亮和下拉提示
+        self.step_model.update_context(current_vars)
+
+    def _setup_view(self, parent_widget, model):
+        """通用视图设置"""
+        view = QTableView()
+        view.setModel(model)
+
+        # 常用视图设置
+        view.setAlternatingRowColors(True)
+        view.setSelectionBehavior(QTableView.SelectRows)
+        view.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        view.horizontalHeader().setStretchLastSection(True)
+
+        # 安全的布局处理
+        layout = parent_widget.layout()
+        if layout is None:
+            layout = QVBoxLayout(parent_widget)  # 默认使用垂直布局
+            parent_widget.setLayout(layout)
+
+        layout.addWidget(view)
+        return view
 
     def _remove_current_file(self):
         idx = self.file_view.currentIndex()
-        if idx.isValid(): self.file_model.remove_file(idx.row())
+        if idx.isValid():
+            self.file_model.remove_file(idx.row())
 
     def _show_context_menu(self, pos):
         menu = QMenu()
         idx = self.step_view.indexAt(pos)
-        act_add = QAction("Add Step Below", self)
-        act_add.triggered.connect(
-            lambda: self.step_model.insert_step(idx.row() + 1 if idx.isValid() else self.step_model.rowCount()))
+
+        # 无论是否选中，都可以添加
+        act_add = QAction("Insert Step Below", self)
+        row_to_add = idx.row() + 1 if idx.isValid() else self.step_model.rowCount()
+        act_add.triggered.connect(lambda: self.step_model.insert_step(row_to_add))
         menu.addAction(act_add)
 
         if idx.isValid():
             act_del = QAction("Delete Step", self)
             act_del.triggered.connect(lambda: self.step_model.remove_step(idx.row()))
             menu.addAction(act_del)
-            if idx.column() >= 2:
+
+            # [优化] 使用枚举判断列
+            if idx.column() >= StepCol.PARAMS_START:
                 menu.addSeparator()
                 act_col = QAction("Delete Column", self)
                 act_col.triggered.connect(lambda: self.step_model.remove_column(idx.column()))
                 menu.addAction(act_col)
+
         menu.exec(QCursor.pos())
 
-    def _setup_view(self, parent_widget, model, delegate=None):
-        view = QTableView()
-        view.setModel(model)
-        view.setContextMenuPolicy(Qt.CustomContextMenu)
+    def accept(self):
+        """
+        [新增] 点击 OK 时才真正更新全局变量
+        """
+        # 可以在这里做最终的数据校验
+        # 也可以在这里把 self.config 同步回 gFlashVars (如果确实需要的话)
 
-        # 自动应用 Delegate 到参数列 (从第2列开始)
-        if delegate:
-            # 一般设个足够大的范围或者重写 view 的 itemDelegateForIndex
-            for i in range(2, 100):
-                view.setItemDelegateForColumn(i, delegate)
+        # 示例：更新全局变量字典 (副作用只发生在最后一步)
+        gFlashVars.clear()
+        for var in self.step_model.get_variable_list():
+            gFlashVars[var] = None
 
-        layout = parent_widget.layout()
-        if not layout:
-            layout = QHBoxLayout(parent_widget)
-            layout.setContentsMargins(0, 0, 0, 0)
-
-        layout.addWidget(view)
-        return view
+        super().accept()
 
 
 class FlashChooseFileControl(QWidget, Ui_Form_FlashChooseFileControl):

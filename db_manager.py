@@ -2,6 +2,7 @@ import logging
 import sqlite3
 from typing import Optional, List
 
+from UI.FlashConfigPanel import FlashConfig
 from user_data import DoIPConfig, DEFAULT_SERVICES, DiagCase, DiagnosisStepData
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -11,6 +12,7 @@ CURRENT_CONFIG_TABLE_NAME = 'current_active_config'
 SERVICES_TABLE_NAME = 'services_table'
 CASE_TABLE_NAME = 'uds_cases'
 CASE_STEP_TABLE_NAME = 'uds_case_step'
+FLASH_CONFIG_TABLE_NAME = 'flash_config'
 
 
 class DBManager:
@@ -23,6 +25,39 @@ class DBManager:
         self.init_services_database()
         self.init_case_database()
         self.init_case_step_database()
+        self.init_flash_config_table()
+
+    def init_flash_config_table(self):
+        with sqlite3.connect(self.db_path) as conn:
+            # 只有两列：name (主键), json_data
+            conn.execute(f"""
+                CREATE TABLE IF NOT EXISTS {FLASH_CONFIG_TABLE_NAME} (
+                    name TEXT PRIMARY KEY,
+                    json_data TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+
+    def save_flash_config(self, config_name: str, config_obj: FlashConfig):
+        """保存配置 (如果存在则覆盖)"""
+        json_str = config_obj.to_json()
+        with sqlite3.connect(self.db_path) as conn:
+            # 使用 REPLACE 语法实现 Upsert (Update or Insert)
+            conn.execute(
+                f"INSERT OR REPLACE INTO {FLASH_CONFIG_TABLE_NAME} (name, json_data) VALUES (?, ?)",
+                (config_name, json_str)
+            )
+            conn.commit()
+            logger.info(f"Saved: {config_name}")
+
+    def load_flash_config(self, config_name: str) -> Optional[FlashConfig]:
+        """读取配置，返回 FlashConfig 对象"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(f"SELECT json_data FROM {FLASH_CONFIG_TABLE_NAME} WHERE name = ?", (config_name,))
+            row = cursor.fetchone()
+            if row:
+                return FlashConfig.from_json(row[0])
+            return None
 
     def init_config_database(self):
         # --- 动态生成 CREATE TABLE SQL(doip config) ---

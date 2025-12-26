@@ -6,12 +6,14 @@ from typing import Optional
 from PySide6.QtCore import QThread, Slot, Signal, Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
-                               QSizePolicy, QDialog, QStyle, QAbstractItemView, QFileDialog, QWidget)
+                               QSizePolicy, QDialog, QStyle, QAbstractItemView, QFileDialog, QWidget, QVBoxLayout,
+                               QSpacerItem)
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
 from UI.AutomaticDiagnosisProcess_ui import DiagProcessTableView, DiagProcessCaseTreeView
 from UI.DoIPConfigPanel_ui import DoIPConfigPanel
+from UI.FlashConfigPanel import FlashConfig, FlashConfigPanel, FlashChooseFileControl
 from UI.UDSToolMainUI import Ui_UDSToolMainWindow
 from UDSClient import QUDSClient
 from UI.DoIPTraceTable_ui import DoIPTraceTableView
@@ -19,6 +21,7 @@ from UI.sql_data_panel import SQLTablePanel
 from UI.UdsServicesTreeView_ui import UdsServicesTreeView
 from db_manager import DBManager
 from external_scripts_executor import QExternalScriptsExecutor
+from flash_executor import QFlashExecutor
 from user_data import DoIPConfig, DoIPMessageStruct, UdsService
 from utils import get_ethernet_ips
 from pathlib import Path
@@ -62,13 +65,22 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.add_external_lib()
 
+        self.flash_config: Optional[FlashConfig] = self.db_manager.load_flash_config(
+            self.current_uds_config.config_name)
+        self.flash_file_paths = {}
+        self.flash_choose_file_controls = {}
+
         # 初始化UI、客户端、信号、IP列表
         self._init_ui()
         self._init_uds_client()
         self._init_external_scripts_thread()
+        self._init_flash_thread()
         self._init_signals()
         self._refresh_ip_list()
         self.status_bar = self.statusBar()
+
+
+
 
     def add_external_lib(self):
         # ExternalLib sys.path
@@ -147,6 +159,18 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.external_scripts_executor.write_signal.connect(self.on_scripts_write)
         logger.info("外部脚本执行线程线程已启动")
 
+    def _init_flash_thread(self):
+        """创建flash线程线程"""
+        self.flash_thread = QThread()
+        self.flash_executor = QFlashExecutor(self.uds_client, self.flash_config, self.flash_file_paths)
+
+        self.flash_executor.moveToThread(self.flash_thread)
+
+        # 启动线程
+        self.flash_thread.start()
+        self.flash_executor.write_signal.connect(self.on_scripts_write)
+        logger.info("Flash程线程已启动")
+
     def on_scripts_write(self, script_name: str, message: str):
         html_content = (
             f'<span style="color: #000000;">'
@@ -224,6 +248,42 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.resizeDocks([self.dockWidget_write], [150], Qt.Orientation.Vertical)
 
         self.default_state = self.saveState()
+
+        self.setup_flash_control()
+
+    def setup_flash_control(self):
+        layout = self.scrollArea_FlashFiles.layout()
+        if not layout:
+            layout = QVBoxLayout(self.scrollArea_FlashFiles)
+            layout.setSpacing(15)  # 控件之间的间距
+
+        # 3. 【清空旧控件】 (防止刷新时重复添加)
+        # 这是一个标准的清空 Layout 的方法
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+            # 移除之前的弹簧 (Spacer)
+            elif item.spacerItem():
+                pass
+
+        # 4. 【循环添加新控件】
+        for file_cfg in self.flash_config.files:
+            # 使用上面定义的包装类
+            self.flash_choose_file_controls.clear()
+            self.flash_choose_file_controls[file_cfg.name] = FlashChooseFileControl(self)
+            self.flash_choose_file_controls[file_cfg.name].label_FlashFileName.setText(file_cfg.name)
+            layout.addWidget(self.flash_choose_file_controls[file_cfg.name])
+
+        # 5. 【添加弹簧】 (Vertical Spacer)
+        # 作用：当控件很少时，把它们顶到最上面，而不是分散在整个区域
+        vertical_spacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        layout.addItem(vertical_spacer)
+
+        # 强制刷新一下 UI
+        self.scrollArea_FlashFiles.update()
+
 
     def on_reset_layout(self):
         self.restoreState(self.default_state)
@@ -380,6 +440,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
         self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
+
+        self.pushButton_FlashConfig.clicked.connect(self.open_flash_config_panel)
 
     def choose_external_script(self):
         abs_path, _ = QFileDialog.getOpenFileName(
@@ -600,12 +662,23 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             new_config.dut_ipv4_address = config_panel.config.dut_ipv4_address
             new_config.is_routing_activation_use = config_panel.config.is_routing_activation_use
             new_config.oem_specific = config_panel.config.oem_specific
+            self.current_uds_config.GenerateKeyExOptPath = config_panel.config.GenerateKeyExOptPath
             logger.info(
                 f"新DoIP配置 - 测试机逻辑地址: 0x{config_panel.config.tester_logical_address:X}, "
                 f"ECU逻辑地址: 0x{config_panel.config.dut_logical_address:X}, ECU IP: {config_panel.config.dut_ipv4_address}"
             )
             self.db_manager.add_doip_config(new_config)
             self.comboBox_ChooseConfig.addItem(new_config.config_name)
+
+    @Slot()
+    def open_flash_config_panel(self):
+        """打开刷写配置面板"""
+        flash_panel = FlashConfigPanel(parent=self, flash_config=self.flash_config)
+        if flash_panel.exec() == QDialog.Accepted:
+            self.flash_config = flash_panel.config
+            self.db_manager.save_flash_config(self.current_uds_config.config_name, self.flash_config)
+            self.setup_flash_control()
+
 
     @Slot()
     def open_edit_config_panel(self):
@@ -699,7 +772,15 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     def closeEvent(self, event) -> None:
         """重写关闭事件，优雅退出线程"""
-        # 停止DoIP客户端线程
+        # 停止Flash线程
+        if self.flash_thread:
+            self.flash_thread.quit()
+            if self.flash_thread.wait(3000):  # 等待3秒超时
+                logger.info("Flash线程已正常停止")
+            else:
+                logger.warning("Flash线程强制退出")
+
+        # 停止外部脚本线程
         if self.external_scripts_thread:
             self.external_scripts_thread.quit()
             if self.external_scripts_thread.wait(3000):  # 等待3秒超时

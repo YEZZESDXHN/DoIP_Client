@@ -19,9 +19,9 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDockWidget,
     QFrame, QGridLayout, QGroupBox, QHBoxLayout,
     QLabel, QLineEdit, QMainWindow, QMenu,
-    QMenuBar, QPlainTextEdit, QPushButton, QScrollArea,
-    QSizePolicy, QSpacerItem, QSplitter, QTabWidget,
-    QToolButton, QVBoxLayout, QWidget)
+    QMenuBar, QPlainTextEdit, QProgressBar, QPushButton,
+    QScrollArea, QSizePolicy, QSpacerItem, QSplitter,
+    QTabWidget, QToolButton, QVBoxLayout, QWidget)
 
 class Ui_UDSToolMainWindow(object):
     def setupUi(self, UDSToolMainWindow):
@@ -136,6 +136,81 @@ class Ui_UDSToolMainWindow(object):
         self.lineEdit_ExternalScriptPath.setObjectName(u"lineEdit_ExternalScriptPath")
         self.lineEdit_ExternalScriptPath.setGeometry(QRect(80, 10, 311, 24))
         self.tabWidget.addTab(self.tab_ExternalScript, "")
+        self.tab_Flash = QWidget()
+        self.tab_Flash.setObjectName(u"tab_Flash")
+        self.verticalLayout_10 = QVBoxLayout(self.tab_Flash)
+        self.verticalLayout_10.setObjectName(u"verticalLayout_10")
+        self.horizontalLayout_6 = QHBoxLayout()
+        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
+        self.scrollArea_FlashFiles = QScrollArea(self.tab_Flash)
+        self.scrollArea_FlashFiles.setObjectName(u"scrollArea_FlashFiles")
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.scrollArea_FlashFiles.sizePolicy().hasHeightForWidth())
+        self.scrollArea_FlashFiles.setSizePolicy(sizePolicy1)
+        self.scrollArea_FlashFiles.setMinimumSize(QSize(0, 0))
+        self.scrollArea_FlashFiles.setMaximumSize(QSize(16777215, 16777215))
+        self.scrollArea_FlashFiles.setSizeIncrement(QSize(0, 0))
+        self.scrollArea_FlashFiles.setBaseSize(QSize(0, 0))
+        self.scrollArea_FlashFiles.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scrollArea_FlashFiles.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scrollArea_FlashFiles.setWidgetResizable(True)
+        self.scrollAreaWidgetContents_2 = QWidget()
+        self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 1003, 379))
+        self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
+
+        self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
+
+        self.verticalLayout_6 = QVBoxLayout()
+        self.verticalLayout_6.setObjectName(u"verticalLayout_6")
+        self.verticalLayout_3 = QVBoxLayout()
+        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
+        self.pushButton_FlashConfig = QPushButton(self.tab_Flash)
+        self.pushButton_FlashConfig.setObjectName(u"pushButton_FlashConfig")
+        sizePolicy.setHeightForWidth(self.pushButton_FlashConfig.sizePolicy().hasHeightForWidth())
+        self.pushButton_FlashConfig.setSizePolicy(sizePolicy)
+
+        self.verticalLayout_3.addWidget(self.pushButton_FlashConfig)
+
+
+        self.verticalLayout_6.addLayout(self.verticalLayout_3)
+
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.verticalLayout_6.addItem(self.verticalSpacer)
+
+        self.horizontalLayout_5 = QHBoxLayout()
+        self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
+        self.pushButton_StartFlash = QPushButton(self.tab_Flash)
+        self.pushButton_StartFlash.setObjectName(u"pushButton_StartFlash")
+
+        self.horizontalLayout_5.addWidget(self.pushButton_StartFlash)
+
+        self.pushButton_StopFlash = QPushButton(self.tab_Flash)
+        self.pushButton_StopFlash.setObjectName(u"pushButton_StopFlash")
+
+        self.horizontalLayout_5.addWidget(self.pushButton_StopFlash)
+
+
+        self.verticalLayout_6.addLayout(self.horizontalLayout_5)
+
+
+        self.horizontalLayout_6.addLayout(self.verticalLayout_6)
+
+
+        self.verticalLayout_10.addLayout(self.horizontalLayout_6)
+
+        self.progressBar_Flash = QProgressBar(self.tab_Flash)
+        self.progressBar_Flash.setObjectName(u"progressBar_Flash")
+        self.progressBar_Flash.setValue(0)
+        self.progressBar_Flash.setOrientation(Qt.Orientation.Horizontal)
+        self.progressBar_Flash.setTextDirection(QProgressBar.Direction.TopToBottom)
+
+        self.verticalLayout_10.addWidget(self.progressBar_Flash)
+
+        self.tabWidget.addTab(self.tab_Flash, "")
 
         self.horizontalLayout.addWidget(self.tabWidget)
 
@@ -191,11 +266,11 @@ class Ui_UDSToolMainWindow(object):
 
         self.comboBox_ChooseConfig = QComboBox(self.dockWidgetContents_3)
         self.comboBox_ChooseConfig.setObjectName(u"comboBox_ChooseConfig")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sizePolicy1.setHorizontalStretch(0)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.comboBox_ChooseConfig.sizePolicy().hasHeightForWidth())
-        self.comboBox_ChooseConfig.setSizePolicy(sizePolicy1)
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.comboBox_ChooseConfig.sizePolicy().hasHeightForWidth())
+        self.comboBox_ChooseConfig.setSizePolicy(sizePolicy2)
         self.comboBox_ChooseConfig.setMinimumSize(QSize(150, 0))
         self.comboBox_ChooseConfig.setFont(font)
 
@@ -203,8 +278,8 @@ class Ui_UDSToolMainWindow(object):
 
         self.comboBox_TesterIP = QComboBox(self.dockWidgetContents_3)
         self.comboBox_TesterIP.setObjectName(u"comboBox_TesterIP")
-        sizePolicy1.setHeightForWidth(self.comboBox_TesterIP.sizePolicy().hasHeightForWidth())
-        self.comboBox_TesterIP.setSizePolicy(sizePolicy1)
+        sizePolicy2.setHeightForWidth(self.comboBox_TesterIP.sizePolicy().hasHeightForWidth())
+        self.comboBox_TesterIP.setSizePolicy(sizePolicy2)
         self.comboBox_TesterIP.setMinimumSize(QSize(150, 0))
         self.comboBox_TesterIP.setFont(font)
         self.comboBox_TesterIP.setLabelDrawingMode(QComboBox.LabelDrawingMode.UseStyle)
@@ -302,11 +377,8 @@ class Ui_UDSToolMainWindow(object):
         self.verticalLayout_8.setContentsMargins(0, 0, 0, 0)
         self.scrollArea_DiagTree = QScrollArea(self.dockWidgetContents_4)
         self.scrollArea_DiagTree.setObjectName(u"scrollArea_DiagTree")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.scrollArea_DiagTree.sizePolicy().hasHeightForWidth())
-        self.scrollArea_DiagTree.setSizePolicy(sizePolicy2)
+        sizePolicy1.setHeightForWidth(self.scrollArea_DiagTree.sizePolicy().hasHeightForWidth())
+        self.scrollArea_DiagTree.setSizePolicy(sizePolicy1)
         self.scrollArea_DiagTree.setMinimumSize(QSize(0, 0))
         self.scrollArea_DiagTree.setMaximumSize(QSize(16777215, 16777215))
         self.scrollArea_DiagTree.setSizeIncrement(QSize(0, 0))
@@ -397,6 +469,10 @@ class Ui_UDSToolMainWindow(object):
         self.pushButton_ExternalScriptStop.setText(QCoreApplication.translate("UDSToolMainWindow", u"Stop", None))
         self.toolButton_LoadExternalScript.setText(QCoreApplication.translate("UDSToolMainWindow", u"...", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_ExternalScript), QCoreApplication.translate("UDSToolMainWindow", u"\u5916\u90e8\u811a\u672c", None))
+        self.pushButton_FlashConfig.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u914d\u7f6e\u5237\u5199\u6d41\u7a0b", None))
+        self.pushButton_StartFlash.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u5f00\u59cb\u5237\u5199", None))
+        self.pushButton_StopFlash.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u505c\u6b62\u5237\u5199", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_Flash), QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u5199", None))
         self.menu_about.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u5173\u4e8e", None))
         self.menu_set.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u8bbe\u7f6e", None))
         self.menu_tool.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u5de5\u5177", None))

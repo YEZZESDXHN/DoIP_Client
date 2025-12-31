@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+import re
 import sys
 from dataclasses import dataclass, field, asdict
 from enum import Enum, auto, IntEnum
@@ -13,12 +14,12 @@ from PySide6.QtGui import QFont, QColor, QAction, QCursor, QPalette
 from PySide6.QtWidgets import (
     QApplication, QTableView, QVBoxLayout, QWidget,
     QPushButton, QHBoxLayout, QSplitter, QGroupBox, QHeaderView,
-    QStyledItemDelegate, QComboBox, QMenu, QMessageBox, QCompleter, QDialog, QStyleOptionViewItem
+    QStyledItemDelegate, QComboBox, QMenu, QMessageBox, QCompleter, QDialog, QStyleOptionViewItem, QLineEdit
 )
 
 from UI.FlashCompositeControl import Ui_Form_FlashChooseFileControl
 from UI.FlashConfig import Ui_FlashConfig
-from global_variables import gFlashVars
+from global_variables import gFlashVars, FlashFileVars
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
@@ -26,11 +27,13 @@ logger = logging.getLogger('UDSTool.' + __name__)
 # 1. 数据结构
 # ==========================================
 
+flash_file_block_var_suffix = ['data', 'addr', 'size', 'crc_32']
+
 @dataclass
 class FileConfig:
-    name: str = 'Bootloader'
-    default_path: str = './bin/boot.bin'
-    address: str = '0x08000000'
+    name: str = ''
+    default_path: str = ''
+    address: str = ''
 
     # 转字典
     def to_dict(self):
@@ -69,12 +72,29 @@ class Step:
 
 
 @dataclass
+class TransmissionParameters:
+    data_format_identifier: int = 0
+    max_number_of_block_length: Optional[int] = None
+    memory_address_parameter_length: int = 4
+    memory_size_parameter_length: int = 4
+
+    def to_dict(self):
+        return asdict(self)
+
+    # 从字典还原
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
+
+@dataclass
 class FlashConfig:
+    transmission_parameters: TransmissionParameters = TransmissionParameters()
     files: list[FileConfig] = field(default_factory=list)
     steps: list[Step] = field(default_factory=list)
 
     def to_json(self) -> str:
         obj_dict = {
+            "transmission_parameters": self.transmission_parameters.to_dict(),
             "files": [f.to_dict() for f in self.files],
             "steps": [s.to_dict() for s in self.steps]
         }
@@ -84,6 +104,9 @@ class FlashConfig:
     def update_from_json(self, json_str: str):
         try:
             data = json.loads(json_str)
+            tp_data = data.get("transmission_parameters")
+            if tp_data:
+                self.transmission_parameters = TransmissionParameters.from_dict(tp_data)
             self.files = [FileConfig.from_dict(f) for f in data.get("files", [])]
             self.steps = [Step.from_dict(s) for s in data.get("steps", [])]
         except json.JSONDecodeError:
@@ -151,12 +174,19 @@ class VariableSelectionDelegate(QStyledItemDelegate):
 
     def setEditorData(self, editor, index):
         value = index.model().data(index, Qt.EditRole)
-        if value:
+        if value and isinstance(editor, QComboBox):
             editor.setCurrentText(str(value))
+        elif value and isinstance(editor, QLineEdit):
+            editor.setText(str(value))
 
     def setModelData(self, editor, model, index):
-        value = editor.currentText().strip()
-        model.setData(index, value, Qt.EditRole)
+        if isinstance(editor, QComboBox):
+            value = editor.currentText()
+            model.setData(index, value, Qt.EditRole)
+        elif isinstance(editor, QLineEdit):
+            value = editor.text()
+            model.setData(index, value, Qt.EditRole)
+
 
 
 # ==========================================
@@ -262,6 +292,12 @@ class StepsTableModel(QAbstractTableModel):
         # [优化关键] 内部持有变量缓存
         self._valid_vars_set: Set[str] = set()  # O(1) 查找，用于高亮
         self._valid_vars_list: list[str] = []  # 有序列表，用于 Delegate 下拉
+        # 预编译正则：匹配 "任意字符[数字]" 的格式
+        # ^(.+)  : 捕获组1，变量名 (例如 app_crc)
+        # \[     : 匹配左方括号
+        # \d+    : 匹配里面的数字索引 (如果索引可能是变量，可用 .+ 代替 \d+)
+        # \]     : 匹配右方括号
+        self._array_pattern = re.compile(r'^(.+)\[(\d+)\]$')
 
     def update_context(self, all_vars: list[str]):
         """
@@ -329,23 +365,38 @@ class StepsTableModel(QAbstractTableModel):
     def _get_color_for_value(self, text: str) -> QColor:
         """
         根据文本内容返回对应的字体颜色
-        1. 变量名 -> 蓝色
+        1. 变量名 (精确匹配 或 数组模式) -> 蓝色
         2. 合法Hex -> 黑色/深灰
         3. 非法内容 -> 红色
         """
         if not text:
             return None  # 使用默认颜色
 
-        # 1. 优先检查是否为变量
-        if text in self._valid_vars_set:
-            return QColor("#0055AA")  # 专业的深蓝色
+        if '[' in text:
+            # 尝试用正则解析 "name[index]"
+            match = self._array_pattern.match(text)
+            if match:
+                name_part = match.group(1)
+                # 构造定义中的 key 格式: "name[]"
+                array_def_key = f"{name_part}[]"
 
-        # 2. 检查是否为合法的 Hex 字符串
+                # 只有当对应的 "name[]" 存在于集合中时，才算合法
+                if array_def_key in self._valid_vars_set:
+                    return QColor("#0055AA")  # 蓝色
+
+            # --- 分支 2: 文本不包含 '[' -> 视为普通标量用法尝试 ---
+        else:
+            # 只有当 text 精确存在于集合中（且集合里存的不是带[]的版本）才算合法
+            # 因为我们已经排除了含 '[' 的情况，所以这里不会匹配到 "app_crc[]"
+            if text in self._valid_vars_set:
+                return QColor("#0055AA")  # 蓝色
+
+            # --- 逻辑 C: Hex 检查 (如果上面没返回，说明不是变量) ---
         if self._is_valid_hex(text):
-            return QColor("#333333")  # 深灰色
+            return QColor("#333333")  # 深灰/黑
 
-        # 3. 既不是变量也不是合法Hex -> 视为错误
-        return QColor("#D32F2F")  # 红色警告
+            # --- 逻辑 D: 错误 (既不是合法变量，也不是Hex) ---
+        return QColor("#D32F2F")  # 红色
 
     def _is_valid_hex(self, s: str) -> bool:
         """辅助函数：判断字符串是否为合法的 Hex"""
@@ -492,16 +543,16 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # 不要直接引用全局 gFlashVars，而是应该拷贝一份 keys 或者硬编码基础变量
         # 假设这里有一些系统预设变量：
         current_vars = []
-
         # 2. 动态追加文件相关的变量
         for f in self.config.files:
             if f.name:
                 safe_name = f.name.strip()
-                current_vars.extend([
-                    f"{safe_name}_addr",
-                    f"{safe_name}_size",
-                    f"{safe_name}_crc"
-                ])
+                ext_list = []
+                for item in flash_file_block_var_suffix:
+                    ext_list.append(f"{safe_name}_{item}[]")
+                for item in flash_file_block_var_suffix:
+                    ext_list.append(f"{safe_name}_{item}")
+                current_vars.extend(ext_list)
 
         # 3. 仅更新 UI 上下文 (StepModel)
         # StepModel 拿到这个列表后，负责更新高亮和下拉提示
@@ -564,9 +615,14 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # 也可以在这里把 self.config 同步回 gFlashVars (如果确实需要的话)
 
         # 示例：更新全局变量字典 (副作用只发生在最后一步)
-        gFlashVars.clear()
-        for var in self.step_model.get_variable_list():
-            gFlashVars[var] = None
+        gFlashVars.files_vars.clear()
+        for var in self.file_model.files_list:
+            gFlashVars.files_vars[var.name] = FlashFileVars()
+
+        self.config.transmission_parameters.memory_address_parameter_length = int(self.comboBox_MemoryAddressParameterLength.currentText())
+        self.config.transmission_parameters.memory_size_parameter_length = int(self.comboBox_MemorySizeParameterLength.currentText())
+        self.config.transmission_parameters.max_number_of_block_length = int(self.comboBox_MaxNumberOfBlockLength.currentText(), 16)
+        self.config.transmission_parameters.data_format_identifier = int(self.lineEdit_dataFormatIdentifier.text(), 16)
 
         super().accept()
 

@@ -290,7 +290,7 @@ class QUDSClient(QObject):
                 error_message = f'uds client 创建失败'
                 self.info_signal.emit(f"{error_message},{str(e)}")
 
-    def _handle_exceptions(self, e: Exception, prefix: str) -> Optional[Response]:
+    def _handle_exceptions(self, e: Exception, prefix: str, display_trace) -> Optional[Response]:
         """
         统一处理 UDS 通讯过程中的各类异常
         :param e: 捕获到的异常对象
@@ -305,7 +305,8 @@ class QUDSClient(QObject):
                 Dir=MessageDir.Rx,
                 Type='TimeoutException',
             )
-            self.doip_response.emit(resp_struct)
+            if display_trace == 1:
+                self.doip_response.emit(resp_struct)
             self.error_signal.emit(e)
             logger.debug(f'{prefix}timeout:{str(e)}')
 
@@ -320,7 +321,8 @@ class QUDSClient(QObject):
                 src=self.ecu_ip_address,
                 extra={"code_name": response.code_name, "uds_data": response.data}
             )
-            self.doip_response.emit(resp_struct)
+            if display_trace == 1:
+                self.doip_response.emit(resp_struct)
             return response
 
         elif isinstance(e, InvalidResponseException):
@@ -338,7 +340,7 @@ class QUDSClient(QObject):
             logger.exception(f"{prefix}{str(e)}")
         self.uds_response_finished.emit()
 
-    def _execute_uds_request(self, payload: bytes, log_prefix: str = "") -> Optional[Response]:
+    def _execute_uds_request(self, payload: bytes, log_prefix: str = "", display_trace=1) -> Optional[Response]:
         """
         核心方法：处理所有 UDS 请求的发送、响应解析、信号发射和异常捕获
         """
@@ -360,7 +362,8 @@ class QUDSClient(QObject):
                 dest=self.ecu_ip_address,
                 src=self.client_ip_address
             )
-            self.doip_request.emit(req_struct)
+            if display_trace == 1:
+                self.doip_request.emit(req_struct)
 
             # 2. 执行请求
             response = self.uds_on_ip_client.send_request(req)
@@ -380,7 +383,8 @@ class QUDSClient(QObject):
                 src=self.ecu_ip_address,
                 extra={"code_name": response.code_name, "uds_data": response.data}
             )
-            self.doip_response.emit(resp_struct)
+            if display_trace == 1:
+                self.doip_response.emit(resp_struct)
             self.uds_response_finished.emit()
             return response
 
@@ -391,7 +395,7 @@ class QUDSClient(QObject):
                 UnexpectedResponseException,
                 ConfigError,
                 Exception) as e:
-            ret = self._handle_exceptions(e, log_prefix)
+            ret = self._handle_exceptions(e, log_prefix, display_trace)
             if isinstance(ret, Response):
                 return ret
             else:
@@ -414,9 +418,9 @@ class QUDSClient(QObject):
         struct.update_data_by_data_bytes()
         return struct
 
-    def send_payload(self, payload: bytes) -> Optional[Response]:
+    def send_payload(self, payload: bytes, display_trace=1) -> Optional[Response]:
         """内部调用的原方法"""
-        return self._execute_uds_request(payload)
+        return self._execute_uds_request(payload=payload, display_trace=display_trace)
 
     @Slot()
     def send_tester_present(self):

@@ -13,7 +13,7 @@ from udsoncan.configs import default_client_config
 
 from UI.AutomaticDiagnosisProcess_ui import DiagProcessTableView, DiagProcessCaseTreeView
 from UI.DoIPConfigPanel_ui import DoIPConfigPanel
-from UI.FlashConfigPanel import FlashConfig, FlashConfigPanel, FlashChooseFileControl
+from UI.FlashConfigPanel import FlashConfig, FlashConfigPanel, FlashChooseFileControl, flash_file_block_var_suffix
 from UI.UDSToolMainUI import Ui_UDSToolMainWindow
 from UDSClient import QUDSClient
 from UI.DoIPTraceTable_ui import DoIPTraceTableView
@@ -22,7 +22,7 @@ from UI.UdsServicesTreeView_ui import UdsServicesTreeView
 from db_manager import DBManager
 from external_scripts_executor import QExternalScriptsExecutor
 from flash_executor import QFlashExecutor
-from global_variables import gFlashVars
+from global_variables import gFlashVars, FlashFileVars
 from user_data import DoIPConfig, DoIPMessageStruct, UdsService
 from utils import get_ethernet_ips
 from pathlib import Path
@@ -169,21 +169,17 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         # 启动线程
         self.flash_thread.start()
-        self.flash_executor.write_signal.connect(self.on_scripts_write)
+        self.flash_executor.write_signal.connect(self.on_flash_write)
         self.update_flash_variables()
 
         logger.info("Flash程线程已启动")
 
     def update_flash_variables(self):
-        gFlashVars.clear()
-        all_vars = list(gFlashVars.keys())
+        gFlashVars.files_vars.clear()
 
         for f in self.flash_config.files:
             if f.name:
-                # 按照约定生成变量名
-                all_vars.extend([f"{f.name}_addr", f"{f.name}_size", f"{f.name}_crc"])
-                for var in all_vars:
-                    gFlashVars[var] = None
+                gFlashVars.files_vars[f.name] = FlashFileVars()
 
     def on_scripts_write(self, script_name: str, message: str):
         html_content = (
@@ -192,6 +188,16 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             f'</span>'
         )
         self.plainTextEdit_DataDisplay.appendHtml(html_content)
+
+    def on_flash_write(self, script_name: str, message: str):
+        html_content = (
+            f'<span style="color: #000000;">'
+            f'<b>[{script_name}]</b> {message}'
+            f'</span>'
+        )
+        self.plainTextEdit_DataDisplay.appendHtml(html_content)
+
+
 
     def _init_ui(self):
         """初始化界面组件属性"""
@@ -443,6 +449,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.checkBox_AotuReconnect.stateChanged.connect(self.set_auto_reconnect_tcp)
         self.checkBox_TesterPresent.stateChanged.connect(self.uds_client.set_tester_present_timer)
         self.comboBox_TesterIP.currentIndexChanged.connect(self.set_tester_ip)
+        self.comboBox_ChooseConfig.currentIndexChanged.connect(self._on_uds_config_chaneged)
 
         # 自定义信号（传递给DoIP客户端）
         self.connect_or_disconnect_uds_signal.connect(self.uds_client.change_uds_connect_state)
@@ -452,8 +459,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.treeView_DoIPTraceService.clicked_node_data.connect(self.send_raw_uds_payload_by_diag_tree)
 
         self.action_database.triggered.connect(self.open_sql_ui)
-
-        self.comboBox_ChooseConfig.currentIndexChanged.connect(self._on_uds_config_chaneged)
 
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
         self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
@@ -582,6 +587,14 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()
         self.treeView_uds_case.refresh()
         self.diag_process_table_view.clear()
+        self.update_flash_config()
+
+    def update_flash_config(self):
+        self.flash_config = self.db_manager.load_flash_config(self.current_uds_config.config_name)
+        self.update_flash_variables()
+        self.setup_flash_control()
+        self.flash_executor.flash_config = self.flash_config
+        self.flash_executor.flash_file_paths = self.flash_file_paths
 
     def set_tester_ip(self, index: int):
         """设置测试机IP"""
@@ -716,9 +729,9 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         flash_panel = FlashConfigPanel(parent=self, flash_config=self.flash_config)
         if flash_panel.exec() == QDialog.Accepted:
             self.flash_config = flash_panel.config
-            self.flash_config = flash_panel.config
             self.db_manager.save_flash_config(self.current_uds_config.config_name, self.flash_config)
             self.setup_flash_control()
+            self.flash_executor.flash_config = self.flash_config
 
 
     @Slot()

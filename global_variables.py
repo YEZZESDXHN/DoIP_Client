@@ -1,4 +1,5 @@
 from dataclasses import field, dataclass
+from typing import Optional, Union
 
 
 @dataclass
@@ -6,7 +7,7 @@ class FlashBaseVars:
     data: bytes = b''
     addr: int = 0
     size: int = 0
-    crc_32: int = 0
+    checksum: bytes = b''
 
 
 # @dataclass

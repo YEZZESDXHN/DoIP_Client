@@ -16,7 +16,9 @@ from PySide6.QtWidgets import (
     QPushButton, QHBoxLayout, QSplitter, QGroupBox, QHeaderView,
     QStyledItemDelegate, QComboBox, QMenu, QMessageBox, QCompleter, QDialog, QStyleOptionViewItem, QLineEdit
 )
+from pydantic import BaseModel, Field, ConfigDict, field_serializer, field_validator
 
+from ChecksumStrategy import ChecksumType
 from UI.FlashCompositeControl import Ui_Form_FlashChooseFileControl
 from UI.FlashConfig import Ui_FlashConfig
 from global_variables import gFlashVars, FlashFileVars
@@ -27,99 +29,79 @@ logger = logging.getLogger('UDSTool.' + __name__)
 # 1. 数据结构
 # ==========================================
 
-flash_file_block_var_suffix = ['data', 'addr', 'size', 'crc_32']
+flash_file_block_var_suffix = ['data', 'addr', 'size', 'checksum']
 
-@dataclass
-class FileConfig:
+
+# @dataclass
+class FileConfig(BaseModel):
     name: str = ''
     default_path: str = ''
     address: str = ''
 
-    # 转字典
-    def to_dict(self):
-        return asdict(self)
 
-    # 从字典还原
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(**data)
-
-
-@dataclass
-class Step:
+# @dataclass
+class Step(BaseModel):
     step_name: str = ''
     data: bytes = b''
-    external_data: list[str] = field(default_factory=list)
+    external_data: list[str] = Field(default_factory=list)
 
-    def to_dict(self):
-        return {
-            "step_name": self.step_name,
-            "data": self.data.hex().upper(),  # Bytes -> Hex String
-            "external_data": self.external_data
-        }
+    @field_serializer('data')
+    def serialize_data(self, data: bytes, _info):
+        return data.hex().upper()
 
+
+    @field_validator('data', mode='before')
     @classmethod
-    def from_dict(cls, data: dict):
-        # Hex String -> Bytes
-        hex_str = data.get("data", "")
-        byte_val = bytes.fromhex(hex_str) if hex_str else b''
+    def validate_data(cls, v):
+        # Pydantic 在校验类型前会先运行这个函数
+        # v 就是从 JSON 里拿到的那个字符串，比如 "FF00"
+        if isinstance(v, str):
+            try:
+                # 将 Hex 字符串转回二进制
+                return bytes.fromhex(v)
+            except ValueError:
+                # 如果字符串不是合法的 Hex，可以选择报错或返回空
+                raise ValueError("数据格式错误: 必须是有效的 Hex 字符串")
+        return v
 
-        return cls(
-            step_name=data.get("step_name", ""),
-            data=byte_val,
-            external_data=data.get("external_data", [])
-        )
 
-
-@dataclass
-class TransmissionParameters:
+# @dataclass
+class TransmissionParameters(BaseModel):
+    checksum_type: ChecksumType = ChecksumType.crc32
     data_format_identifier: int = 0
     max_number_of_block_length: Optional[int] = None
     memory_address_parameter_length: int = 4
     memory_size_parameter_length: int = 4
 
-    def to_dict(self):
-        return asdict(self)
 
-    # 从字典还原
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(**data)
+# @dataclass
+class FlashConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
 
-@dataclass
-class FlashConfig:
-    transmission_parameters: TransmissionParameters = TransmissionParameters()
-    files: list[FileConfig] = field(default_factory=list)
-    steps: list[Step] = field(default_factory=list)
+    transmission_parameters: TransmissionParameters = Field(default_factory=TransmissionParameters)
+    files: list[FileConfig] = Field(default_factory=list)
+    steps: list[Step] = Field(default_factory=list)
 
     def to_json(self) -> str:
-        obj_dict = {
-            "transmission_parameters": self.transmission_parameters.to_dict(),
-            "files": [f.to_dict() for f in self.files],
-            "steps": [s.to_dict() for s in self.steps]
-        }
-        return json.dumps(obj_dict, ensure_ascii=False, indent=2)
+        return self.model_dump_json()
 
-    # --- 2. 从 JSON 更新当前对象 ---
-    def update_from_json(self, json_str: str):
-        try:
-            data = json.loads(json_str)
-            tp_data = data.get("transmission_parameters")
-            if tp_data:
-                self.transmission_parameters = TransmissionParameters.from_dict(tp_data)
-            self.files = [FileConfig.from_dict(f) for f in data.get("files", [])]
-            self.steps = [Step.from_dict(s) for s in data.get("steps", [])]
-        except json.JSONDecodeError:
-            print("Error: Invalid JSON string")
-        except Exception as e:
-            print(f"Error loading JSON: {e}")
+    # # --- 2. 从 JSON 更新当前对象 ---
+    # def update_from_json(self, json_str: str):
+    #     try:
+    #         data = json.loads(json_str)
+    #         tp_data = data.get("transmission_parameters")
+    #         if tp_data:
+    #             self.transmission_parameters = TransmissionParameters.from_dict(tp_data)
+    #         self.files = [FileConfig.from_dict(f) for f in data.get("files", [])]
+    #         self.steps = [Step.from_dict(s) for s in data.get("steps", [])]
+    #     except json.JSONDecodeError:
+    #         print("Error: Invalid JSON string")
+    #     except Exception as e:
+    #         print(f"Error loading JSON: {e}")
 
-    # --- 静态方法：直接从 JSON 创建新对象 ---
     @classmethod
     def from_json(cls, json_str: str):
-        inst = cls()
-        inst.update_from_json(json_str)
-        return inst
+        return cls.model_validate_json(json_str)
 
 
 # 定义文件的列
@@ -327,14 +309,6 @@ class StepsTableModel(QAbstractTableModel):
         if self._is_valid_hex(text): return CellType.HEX
         return CellType.ERROR
 
-    def _is_valid_hex(self, s: str) -> bool:
-        if len(s) % 2 != 0: return False
-        try:
-            bytes.fromhex(s)
-            return True
-        except ValueError:
-            return False
-
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:
         if not index.isValid(): return None
         row, col = index.row(), index.column()
@@ -501,6 +475,13 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
     def __init__(self, flash_config: Optional[FlashConfig], parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.comboBox_Checksum.clear()
+
+        # 2. 遍历枚举并添加
+        for checksum in ChecksumType:
+            # addItem 接受字符串
+            self.comboBox_Checksum.addItem(checksum)
+        self.comboBox_Checksum.setCurrentText(ChecksumType.crc32)
 
         # 1. 初始化数据副本 (避免直接操作原始对象，直到点击 OK)
         # 建议：这里最好深拷贝 flash_config，防止 Cancel 后数据也被改了
@@ -621,8 +602,12 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
 
         self.config.transmission_parameters.memory_address_parameter_length = int(self.comboBox_MemoryAddressParameterLength.currentText())
         self.config.transmission_parameters.memory_size_parameter_length = int(self.comboBox_MemorySizeParameterLength.currentText())
-        self.config.transmission_parameters.max_number_of_block_length = int(self.comboBox_MaxNumberOfBlockLength.currentText(), 16)
+        try:
+            self.config.transmission_parameters.max_number_of_block_length = int(self.comboBox_MaxNumberOfBlockLength.currentText(), 16)
+        except:
+            self.config.transmission_parameters.max_number_of_block_length = None
         self.config.transmission_parameters.data_format_identifier = int(self.lineEdit_dataFormatIdentifier.text(), 16)
+        self.config.transmission_parameters.checksum_type = ChecksumType(self.comboBox_Checksum.currentText())
 
         super().accept()
 

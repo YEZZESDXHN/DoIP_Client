@@ -46,7 +46,7 @@ class FirmwareFileParser:
         except Exception as e:
             raise ValueError(f"Failed to parse {filepath}. Error: {str(e)}")
 
-    def get_segments(self) -> List[Tuple[int, bytes]]:
+    def get_segments(self) -> List[Tuple[int, bytearray]]:
         """
         获取固件的所有数据段。
 
@@ -134,7 +134,7 @@ def main():
 
     # 模拟场景：解析一个 HEX 文件
     # 假设你有一个名为 'firmware.hex' 的文件
-    parser.load('C:/Workspace/3N1E/CS_test/Full_Hex_ML/VIU_3N1EML_R200RD1_111_AC_20251204_FULL.hex')
+    parser.load('C:/Workspace/3N1E/CS_test/Full_ML/APP/VIU_3N1EML_R200RD1_111_AC_20251204_BANK_1.hex')
     # print(parser)
 
     # 为了演示，我们手动构造一些数据（模拟加载过程）

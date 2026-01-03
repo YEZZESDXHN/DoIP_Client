@@ -56,7 +56,11 @@ class DBManager:
             cursor = conn.execute(f"SELECT json_data FROM {FLASH_CONFIG_TABLE_NAME} WHERE name = ?", (config_name,))
             row = cursor.fetchone()
             if row:
-                return FlashConfig.from_json(row[0])
+                try:
+                    return FlashConfig.from_json(row[0])
+                except Exception as e:
+                    logger.exception(f'读取flash配置错误：{e}')
+                    return None
             return None
 
     def init_config_database(self):

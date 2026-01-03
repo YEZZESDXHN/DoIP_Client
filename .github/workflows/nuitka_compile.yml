@@ -59,7 +59,7 @@ jobs:
             --follow-imports `
             --assume-yes-for-downloads `
             --include-package=Crypto `
-          --include-package=crcmod `
+            --include-package=crcmod `
             --lto=yes `
             --output-dir="${{ github.workspace }}/dist" `
             --output-filename=${{ env.APP_NAME }}.exe `

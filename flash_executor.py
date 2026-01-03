@@ -2,10 +2,11 @@ import logging
 import os
 import re
 from time import sleep
-from typing import Literal
+from typing import Literal, Optional, Union
 
 from PySide6.QtCore import Signal, QObject
 
+from ChecksumStrategy import ChecksumStrategy, ALGORITHM_REGISTRY
 from FirmwareFileParser import FirmwareFileParser
 from UDSClient import QUDSClient
 from UI.FlashConfigPanel import FlashConfig, Step, FileConfig
@@ -26,6 +27,22 @@ class QFlashExecutor(QObject):
         self.flash_vars = gFlashVars
         self._array_pattern = re.compile(r'^(.+)\[(\d+)\]$')
 
+    def get_checksum_calculator(self) -> ChecksumStrategy:
+        """
+        工厂方法：根据当前的 checksum_type 返回对应的算法实例
+        """
+        strategy_class = ALGORITHM_REGISTRY.get(self.flash_config.transmission_parameters.checksum_type)
+        if not strategy_class:
+            raise NotImplementedError(f"算法 {self.flash_config.transmission_parameters.checksum_type} 尚未实现")
+        return strategy_class()
+
+    def compute_checksum(self, cal_data: bytes) -> bytes:
+        """
+        快捷方法：直接计算数据的校验和
+        """
+        calculator = self.get_checksum_calculator()
+        return calculator.calculate(cal_data)
+
     def start_flash(self):
         self.write_signal.emit("Flash", f"开始加载文件")
         self.flash_file_parsers.clear()
@@ -39,13 +56,15 @@ class QFlashExecutor(QObject):
                     if file.name not in self.flash_vars.files_vars:
                         return
                     self.flash_vars.files_vars[file.name].flash_block_vars.clear()
-                    for addr, data in self.flash_file_parsers[file.name].get_segments():
+                    for addr, block_data in self.flash_file_parsers[file.name].get_segments():
                         base_vars = FlashBaseVars()
                         base_vars.addr = addr
-                        base_vars.size = len(data)
-                        base_vars.data = data
+                        base_vars.size = len(block_data)
+                        base_vars.data = bytes(block_data)
+                        base_vars.checksum = self.compute_checksum(block_data)
 
                         self.flash_vars.files_vars[file.name].flash_block_vars.append(base_vars)
+
         except Exception as e:
             logger.exception(f'{str(e)}')
             return
@@ -155,11 +174,14 @@ class QFlashExecutor(QObject):
                     seq += 1
                     # 鲁棒性防护：序号最大为0xFF(单字节最大值)，超出后重置为01，防止溢出
                     if seq > 0xFF:
-                        seq = 0x01
+                        seq = 0x00
 
             # 数据长度未超限 → 无需分包，原始拼接数据直接发送
             else:
-                send_data_list.append(total_send_data)
+                pkg_data = total_send_data[1:]
+
+                send_pkg = bytes([0x36, 1]) + pkg_data
+                send_data_list.append(send_pkg)
         else:
             send_data = step.data + external_data
             send_data_list.append(send_data)
@@ -177,11 +199,11 @@ if __name__ == '__main__':
     step_36.data = b'\x36'
     step_36.external_data.append('test_data[0]')
 
-    flash_config = FlashConfig()
-    flash_config.transmission_parameters.max_number_of_block_length = 18
+    _flash_config = FlashConfig()
+    _flash_config.transmission_parameters.max_number_of_block_length = 18
     from UI.FlashConfigPanel import FileConfig
-    flash_config.files.append(FileConfig(name='test'))
-    flash_config.steps.append(step_36)
+    _flash_config.files.append(FileConfig(name='test'))
+    _flash_config.steps.append(step_36)
 
     from global_variables import FlashFileVars
 
@@ -198,14 +220,14 @@ if __name__ == '__main__':
         """
         return bytes(i % 16 for i in range(length))
 
-    test_data_0_FlashBaseVars.data = gen_hex_bytes(16*0xff+1)
+    test_data_0_FlashBaseVars.data = gen_hex_bytes(15)
 
     test_data_0_FileVars.flash_block_vars.append(test_data_0_FlashBaseVars)
     gFlashVars.files_vars['test'] = test_data_0_FileVars
 
-    flash_executor = QFlashExecutor(uds_client=None, flash_config=flash_config, flash_file_paths=None)
+    flash_executor = QFlashExecutor(uds_client=None, flash_config=_flash_config, flash_file_paths=None)
     send_list = flash_executor.construct_send_data_list(step_36)
     # print(test_data_0_FlashBaseVars.data.hex(' '))
-    for data in send_list:
-        print(data.hex(' '))
+    for _data in send_list:
+        print(_data.hex(' '))
 

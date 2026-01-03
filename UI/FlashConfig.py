@@ -289,12 +289,12 @@ class Ui_FlashConfig(object):
 
         self.label_4.setText(QCoreApplication.translate("FlashConfig", u"MaxNumberOfBlockLength", None))
         self.comboBox_MaxNumberOfBlockLength.setItemText(0, QCoreApplication.translate("FlashConfig", u"None", None))
-        self.comboBox_MaxNumberOfBlockLength.setItemText(1, QCoreApplication.translate("FlashConfig", u"102", None))
-        self.comboBox_MaxNumberOfBlockLength.setItemText(2, QCoreApplication.translate("FlashConfig", u"203", None))
-        self.comboBox_MaxNumberOfBlockLength.setItemText(3, QCoreApplication.translate("FlashConfig", u"402", None))
-        self.comboBox_MaxNumberOfBlockLength.setItemText(4, QCoreApplication.translate("FlashConfig", u"802", None))
-        self.comboBox_MaxNumberOfBlockLength.setItemText(5, QCoreApplication.translate("FlashConfig", u"1602", None))
-        self.comboBox_MaxNumberOfBlockLength.setItemText(6, QCoreApplication.translate("FlashConfig", u"3202", None))
+        self.comboBox_MaxNumberOfBlockLength.setItemText(1, QCoreApplication.translate("FlashConfig", u"0x102", None))
+        self.comboBox_MaxNumberOfBlockLength.setItemText(2, QCoreApplication.translate("FlashConfig", u"0x203", None))
+        self.comboBox_MaxNumberOfBlockLength.setItemText(3, QCoreApplication.translate("FlashConfig", u"0x402", None))
+        self.comboBox_MaxNumberOfBlockLength.setItemText(4, QCoreApplication.translate("FlashConfig", u"0x802", None))
+        self.comboBox_MaxNumberOfBlockLength.setItemText(5, QCoreApplication.translate("FlashConfig", u"0x1602", None))
+        self.comboBox_MaxNumberOfBlockLength.setItemText(6, QCoreApplication.translate("FlashConfig", u"0x3202", None))
 
         self.label.setText(QCoreApplication.translate("FlashConfig", u"\u5185\u5b58\u5730\u5740\u5b57\u8282\u6570", None))
         self.comboBox_MemoryAddressParameterLength.setItemText(0, QCoreApplication.translate("FlashConfig", u"0", None))

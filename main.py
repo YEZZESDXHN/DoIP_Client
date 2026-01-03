@@ -68,6 +68,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.flash_config: Optional[FlashConfig] = self.db_manager.load_flash_config(
             self.current_uds_config.config_name)
+        if not self.flash_config:
+            self.flash_config = FlashConfig()
         self.flash_file_paths = {}
         self.flash_choose_file_controls = {}
 
@@ -170,6 +172,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # 启动线程
         self.flash_thread.start()
         self.flash_executor.write_signal.connect(self.on_flash_write)
+        self.flash_executor.flash_progress.connect(self.on_set_flash_progress_value)
+        self.flash_executor.flash_range.connect(self.on_set_flash_progress_range)
         self.update_flash_variables()
 
         logger.info("Flash程线程已启动")
@@ -289,7 +293,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             # 移除之前的弹簧 (Spacer)
             elif item.spacerItem():
                 pass
-
         # 4. 【循环添加新控件】
         for file_cfg in self.flash_config.files:
             # 使用上面定义的包装类
@@ -816,6 +819,23 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     def _refresh_ip_list(self) -> None:
         """刷新本地IP列表到下拉框"""
         self.get_ip_list()  # 复用get_ip_list方法，减少冗余
+
+    @Slot(int)
+    def on_set_flash_progress_range(self, progress_range: int):
+        self.progressBar_Flash.setRange(0, progress_range)
+
+    @Slot(int)
+    def on_set_flash_progress_value(self, progress_val):
+        """
+        进度条赋值槽函数，接收进度值参数
+        :param progress_val: int 进度值，0~100
+        """
+        # 核心赋值
+        self.progressBar_Flash.setValue(progress_val)
+
+        # 可选：进度完成后的回调操作
+        if progress_val == 100:
+            self.progressBar_Flash.setFormat("刷写完成️")  # 进度条显示文字修改
 
     def _update_ip_combobox(self):
         """更新IP下拉框"""

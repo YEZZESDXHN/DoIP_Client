@@ -17,6 +17,8 @@ logger = logging.getLogger('UDSTool.' + __name__)
 
 class QFlashExecutor(QObject):
     write_signal = Signal(str, str)
+    flash_progress = Signal(int)
+    flash_range = Signal(int)
 
     def __init__(self, uds_client: QUDSClient, flash_config: FlashConfig, flash_file_paths: dict):
         super().__init__()
@@ -43,8 +45,13 @@ class QFlashExecutor(QObject):
         calculator = self.get_checksum_calculator()
         return calculator.calculate(cal_data)
 
+    def calculate_flash_progress_range(self) -> int:
+        pass
+
     def start_flash(self):
+        flash_progress = 0
         self.write_signal.emit("Flash", f"开始加载文件")
+        self.flash_progress.emit(flash_progress)
         self.flash_file_parsers.clear()
         try:
             for file in self.flash_config.files:

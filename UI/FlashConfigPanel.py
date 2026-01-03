@@ -475,19 +475,12 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
     def __init__(self, flash_config: Optional[FlashConfig], parent=None):
         super().__init__(parent)
         self.setupUi(self)
-        self.comboBox_Checksum.clear()
-
-        # 2. 遍历枚举并添加
-        for checksum in ChecksumType:
-            # addItem 接受字符串
-            self.comboBox_Checksum.addItem(checksum)
-        self.comboBox_Checksum.setCurrentText(ChecksumType.crc32)
 
         # 1. 初始化数据副本 (避免直接操作原始对象，直到点击 OK)
         # 建议：这里最好深拷贝 flash_config，防止 Cancel 后数据也被改了
         self.config = copy.deepcopy(flash_config) if flash_config else FlashConfig()
         # self.config = flash_config if flash_config else FlashConfig()
-
+        self.init_ui()
         # 2. 初始化 Model
         self.file_model = FilesTableModel(self.config.files)
         self.step_model = StepsTableModel(self.config.steps)
@@ -514,6 +507,47 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
 
         # 5. 初始计算
         self.recalculate_variables()
+
+    def init_ui(self):
+        self.comboBox_Checksum.clear()
+
+        # 2. 遍历枚举并添加
+        for checksum in ChecksumType:
+            # addItem 接受字符串
+            self.comboBox_Checksum.addItem(checksum)
+        transmission_parameters = self.config.transmission_parameters
+        index = self.comboBox_Checksum.findText(transmission_parameters.checksum_type.value)
+        if index >= 0:
+            self.comboBox_Checksum.setCurrentIndex(index)
+        else:
+            self.comboBox_Checksum.setCurrentIndex(0)
+
+        self.lineEdit_dataFormatIdentifier.setText(str(transmission_parameters.data_format_identifier))
+
+        index = self.comboBox_MemoryAddressParameterLength.findText(str(transmission_parameters.memory_address_parameter_length))
+        if index >= 0:
+            self.comboBox_MemoryAddressParameterLength.setCurrentIndex(index)
+        else:
+            self.comboBox_MemoryAddressParameterLength.setCurrentIndex(0)
+
+        index = self.comboBox_MemorySizeParameterLength.findText(
+            str(transmission_parameters.memory_size_parameter_length))
+        if index >= 0:
+            self.comboBox_MemorySizeParameterLength.setCurrentIndex(index)
+        else:
+            self.comboBox_MemorySizeParameterLength.setCurrentIndex(0)
+
+        try:
+            max_number_of_block_length_hex = hex(transmission_parameters.max_number_of_block_length).lower()
+            index = self.comboBox_MaxNumberOfBlockLength.findText(
+                max_number_of_block_length_hex)
+
+        except:
+            index = 0
+        if index >= 0:
+            self.comboBox_MaxNumberOfBlockLength.setCurrentIndex(index)
+        else:
+            self.comboBox_MaxNumberOfBlockLength.setCurrentIndex(0)
 
     def recalculate_variables(self):
         """

@@ -210,32 +210,32 @@
             </item>
             <item>
              <property name="text">
-              <string>102</string>
+              <string>0x102</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>203</string>
+              <string>0x203</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>402</string>
+              <string>0x402</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>802</string>
+              <string>0x802</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>1602</string>
+              <string>0x1602</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>3202</string>
+              <string>0x3202</string>
              </property>
             </item>
            </widget>

@@ -17,7 +17,7 @@ class FlashBaseVars:
 
 @dataclass
 class FlashFileVars:
-    base_vars: FlashBaseVars = FlashBaseVars()
+    base_vars: FlashBaseVars = field(default_factory=FlashBaseVars)
     flash_block_vars: list[FlashBaseVars] = field(default_factory=list)
 
 

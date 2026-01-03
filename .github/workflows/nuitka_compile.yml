@@ -64,7 +64,7 @@ jobs:
             --output-dir="${{ github.workspace }}/dist" `
             --output-filename=${{ env.APP_NAME }}.exe `
             --enable-plugin=pyside6 `
-            --windows-console-mode=disable `
+            --windows-console-mode=attach `
             --show-progress `
             --show-memory `
             --include-data-files="${{ github.workspace }}/logging.conf=logging.conf" `

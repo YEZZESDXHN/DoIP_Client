@@ -174,6 +174,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.flash_executor.write_signal.connect(self.on_flash_write)
         self.flash_executor.flash_progress.connect(self.on_set_flash_progress_value)
         self.flash_executor.flash_range.connect(self.on_set_flash_progress_range)
+        self.checkBox_FlashMessageDisplay.stateChanged.connect(self.flash_executor.on_display_trace_change)
         self.update_flash_variables()
 
         logger.info("Flash程线程已启动")
@@ -441,7 +442,10 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_CreateConfig.clicked.connect(self.open_create_config_panel)
         self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
         self.pushButton_StartFlash.clicked.connect(self.flash_executor.start_flash)
+        self.pushButton_StartFlash.clicked.connect(self.on_start_flash)
+
         self.pushButton_StopFlash.clicked.connect(self.flash_executor.stop_flash)
+        self.pushButton_ClearDoIPTrace.clicked.connect(self.tableView_DoIPTrace._clear_data)
 
         self.toolButton_LoadExternalScript.clicked.connect(self.choose_external_script)
         # self.toolButton_LoadExternalScript.clicked.connect(self.external_scripts_executor.load_external_script)
@@ -468,6 +472,9 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
 
         self.pushButton_FlashConfig.clicked.connect(self.open_flash_config_panel)
+
+    def on_start_flash(self):
+        self.progressBar_Flash.setFormat("正在刷写")
 
     def choose_flash_file(self, file_name, line_edit):
         abs_path, _ = QFileDialog.getOpenFileName(

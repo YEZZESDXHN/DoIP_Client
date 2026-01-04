@@ -177,6 +177,11 @@ class Ui_UDSToolMainWindow(object):
 
         self.verticalLayout_6.addLayout(self.verticalLayout_3)
 
+        self.checkBox_FlashMessageDisplay = QCheckBox(self.tab_Flash)
+        self.checkBox_FlashMessageDisplay.setObjectName(u"checkBox_FlashMessageDisplay")
+
+        self.verticalLayout_6.addWidget(self.checkBox_FlashMessageDisplay)
+
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.verticalLayout_6.addItem(self.verticalSpacer)
@@ -470,6 +475,7 @@ class Ui_UDSToolMainWindow(object):
         self.toolButton_LoadExternalScript.setText(QCoreApplication.translate("UDSToolMainWindow", u"...", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_ExternalScript), QCoreApplication.translate("UDSToolMainWindow", u"\u5916\u90e8\u811a\u672c", None))
         self.pushButton_FlashConfig.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u914d\u7f6e\u5237\u5199\u6d41\u7a0b", None))
+        self.checkBox_FlashMessageDisplay.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u5199\u6570\u636e\u663e\u793a", None))
         self.pushButton_StartFlash.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u5f00\u59cb\u5237\u5199", None))
         self.pushButton_StopFlash.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u505c\u6b62\u5237\u5199", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_Flash), QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u5199", None))

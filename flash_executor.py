@@ -28,6 +28,11 @@ class QFlashExecutor(QObject):
         self.flash_file_parsers: dict[str: FirmwareFileParser] = {}
         self.flash_vars = gFlashVars
         self._array_pattern = re.compile(r'^(.+)\[(\d+)\]$')
+        self.flash_step_num = 0
+        self.display_trace = 0
+
+    def on_display_trace_change(self, state):
+        self.display_trace = 0 if state == 0 else 1
 
     def get_checksum_calculator(self) -> ChecksumStrategy:
         """
@@ -45,13 +50,22 @@ class QFlashExecutor(QObject):
         calculator = self.get_checksum_calculator()
         return calculator.calculate(cal_data)
 
-    def calculate_flash_progress_range(self) -> int:
-        pass
+    def calculate_flash_step_num(self) -> int:
+        step_num = 0
+        for step in self.flash_config.steps:
+            _count = 1
+            if step.data[0] == 0x36:
+                external_data_len = len(self.get_external_data(step.external_data))
+                _count = int(external_data_len / (self.flash_config.transmission_parameters.max_number_of_block_length - 2)) + 1
+            else:
+                pass
+            step_num = step_num + _count
+        return step_num
 
     def start_flash(self):
         flash_progress = 0
         self.write_signal.emit("Flash", f"开始加载文件")
-        self.flash_progress.emit(flash_progress)
+
         self.flash_file_parsers.clear()
         try:
             for file in self.flash_config.files:
@@ -76,13 +90,17 @@ class QFlashExecutor(QObject):
             logger.exception(f'{str(e)}')
             return
 
+        self.flash_step_num = self.calculate_flash_step_num()
+        self.flash_range.emit(self.flash_step_num)
+        self.flash_progress.emit(flash_progress)
+
         self.write_signal.emit("Flash", f"开始执行刷写步骤")
         for step in self.flash_config.steps:
             try:
                 self.write_signal.emit("Flash", f"{step.step_name}")
                 send_data_list = self.construct_send_data_list(step)
                 for send_data in send_data_list:
-                    resp = self.uds_client.send_payload(payload=send_data, display_trace=1)
+                    resp = self.uds_client.send_payload(payload=send_data, display_trace=self.display_trace)
                     if resp:
                         if resp.code == 0:
                             pass
@@ -95,54 +113,63 @@ class QFlashExecutor(QObject):
                             return
                     else:
                         return
+                    flash_progress += 1
+                    self.flash_progress.emit(flash_progress)
                 self.write_signal.emit("Flash", f"{step.step_name} 执行成功")
+
             except Exception as e:
                 self.write_signal.emit("Flash", f"{e}")
                 logger.exception(f"{str(e)}")
                 return
 
+        self.flash_progress.emit(self.flash_step_num)
+
     def get_external_data(self, external_data: list[str], byteorder: Literal["little", "big"] = 'big') -> bytes:
         data = b''
-        for ext in external_data:
-            if '[' in ext:
-                # 尝试用正则解析 "name_crc[index]"
-                match = self._array_pattern.match(ext)
-                if match:
-                    # match.group(1) ：返回正则中「第一个括号」匹配到的内容，“name_crc”
-                    ext_name = match.group(1)
 
-                    # '_' : 分割符
-                    # 1   : 只分割 1 次（确保只把最后一个部分切掉）
-                    # [0] : 取分割后的第一部分（即前面的内容）
-                    file_name = ext_name.rsplit('_', 1)[0]  # 获取name
-                    ext_suffix = ext_name.rsplit('_', 1)[1]  # 获取后缀crc
-                    index = int(match.group(2))  # 获取下标
-                    if file_name not in self.flash_vars.files_vars and \
-                            len(self.flash_vars.files_vars[file_name].flash_block_vars) < index + 1:
-                        return b''
-                    ext_datas = self.flash_vars.files_vars[file_name].flash_block_vars[index]
-                    if not hasattr(ext_datas, ext_suffix):
-                        return b''
-                    ext_data = getattr(ext_datas, ext_suffix)
-                    if isinstance(ext_data, int):
-                        length = 4
-                        if ext_suffix == 'size':
-                            length = self.flash_config.transmission_parameters.memory_size_parameter_length
-                        elif ext_suffix == 'addr':
-                            length = self.flash_config.transmission_parameters.memory_address_parameter_length
-                        ext_data = ext_data.to_bytes(
-                            length=length,
-                            byteorder=byteorder,
-                            signed=False
-                        )
-                    elif isinstance(ext_data, bytes):
-                        pass
+        try:
+            for ext in external_data:
+                if '[' in ext:
+                    # 尝试用正则解析 "name_crc[index]"
+                    match = self._array_pattern.match(ext)
+                    if match:
+                        # match.group(1) ：返回正则中「第一个括号」匹配到的内容，“name_crc”
+                        ext_name = match.group(1)
+
+                        # '_' : 分割符
+                        # 1   : 只分割 1 次（确保只把最后一个部分切掉）
+                        # [0] : 取分割后的第一部分（即前面的内容）
+                        file_name = ext_name.rsplit('_', 1)[0]  # 获取name
+                        ext_suffix = ext_name.rsplit('_', 1)[1]  # 获取后缀crc
+                        index = int(match.group(2))  # 获取下标
+                        if file_name not in self.flash_vars.files_vars and \
+                                len(self.flash_vars.files_vars[file_name].flash_block_vars) < index + 1:
+                            return b''
+                        ext_datas = self.flash_vars.files_vars[file_name].flash_block_vars[index]
+                        if not hasattr(ext_datas, ext_suffix):
+                            return b''
+                        ext_data = getattr(ext_datas, ext_suffix)
+                        if isinstance(ext_data, int):
+                            length = 4
+                            if ext_suffix == 'size':
+                                length = self.flash_config.transmission_parameters.memory_size_parameter_length
+                            elif ext_suffix == 'addr':
+                                length = self.flash_config.transmission_parameters.memory_address_parameter_length
+                            ext_data = ext_data.to_bytes(
+                                length=length,
+                                byteorder=byteorder,
+                                signed=False
+                            )
+                        elif isinstance(ext_data, bytes):
+                            pass
+                        else:
+                            ext_data = b''
+                        data = data + ext_data
+
                     else:
-                        ext_data = b''
-                    data = data + ext_data
-
-                else:
-                    self.write_signal.emit("Flash", f"{ext}解析失败")
+                        self.write_signal.emit("Flash", f"{ext}解析失败")
+        except Exception as e:
+            logger.exception(f"获取external_data失败，{e}")
         return data
 
     def construct_send_data_list(self, step: Step) -> list[bytes]:

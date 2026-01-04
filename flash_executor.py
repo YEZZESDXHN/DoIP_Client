@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from enum import Enum
 from time import sleep
 from typing import Literal, Optional, Union
 
@@ -15,10 +16,17 @@ from global_variables import gFlashVars, FlashBaseVars
 logger = logging.getLogger('UDSTool.' + __name__)
 
 
+class FlashFinishType(Enum):
+    success = "刷写成功"
+    fail = "刷写失败"
+    stop = "刷写终止"
+
 class QFlashExecutor(QObject):
     write_signal = Signal(str, str)
     flash_progress = Signal(int)
     flash_range = Signal(int)
+    flash_finish = Signal(FlashFinishType)
+
 
     def __init__(self, uds_client: QUDSClient, flash_config: FlashConfig, flash_file_paths: dict):
         super().__init__()
@@ -30,9 +38,7 @@ class QFlashExecutor(QObject):
         self._array_pattern = re.compile(r'^(.+)\[(\d+)\]$')
         self.flash_step_num = 0
         self.display_trace = 0
-
-    def on_display_trace_change(self, state):
-        self.display_trace = 0 if state == 0 else 1
+        self.stop_flash_flag = False
 
     def get_checksum_calculator(self) -> ChecksumStrategy:
         """
@@ -65,10 +71,14 @@ class QFlashExecutor(QObject):
     def start_flash(self):
         flash_progress = 0
         self.write_signal.emit("Flash", f"开始加载文件")
+        self.stop_flash_flag = False
 
         self.flash_file_parsers.clear()
         try:
             for file in self.flash_config.files:
+                if self.stop_flash_flag:
+                    self.flash_finish.emit(FlashFinishType.stop)
+                    return
                 if not os.path.exists(self.flash_file_paths[file.name]):
                     self.write_signal.emit("Flash", f"{file.name}路径错误，{self.flash_file_paths[file.name]}")
                 else:
@@ -87,6 +97,8 @@ class QFlashExecutor(QObject):
                         self.flash_vars.files_vars[file.name].flash_block_vars.append(base_vars)
 
         except Exception as e:
+            self.write_signal.emit("Flash", f"文件加载失败，{e}")
+            self.flash_finish.emit(FlashFinishType.fail)
             logger.exception(f'{str(e)}')
             return
 
@@ -96,10 +108,16 @@ class QFlashExecutor(QObject):
 
         self.write_signal.emit("Flash", f"开始执行刷写步骤")
         for step in self.flash_config.steps:
+            if self.stop_flash_flag:
+                self.flash_finish.emit(FlashFinishType.stop)
+                return
             try:
                 self.write_signal.emit("Flash", f"{step.step_name}")
                 send_data_list = self.construct_send_data_list(step)
                 for send_data in send_data_list:
+                    if self.stop_flash_flag:
+                        self.flash_finish.emit(FlashFinishType.stop)
+                        return
                     resp = self.uds_client.send_payload(payload=send_data, display_trace=self.display_trace)
                     if resp:
                         if resp.code == 0:
@@ -110,6 +128,7 @@ class QFlashExecutor(QObject):
                                 self.write_signal.emit("Flash", f"data:{resp.original_payload.hex(' ')}")
                             except:
                                 pass
+                            self.flash_finish.emit(FlashFinishType.fail)
                             return
                     else:
                         return
@@ -118,10 +137,11 @@ class QFlashExecutor(QObject):
                 self.write_signal.emit("Flash", f"{step.step_name} 执行成功")
 
             except Exception as e:
+                self.flash_finish.emit(FlashFinishType.fail)
                 self.write_signal.emit("Flash", f"{e}")
                 logger.exception(f"{str(e)}")
                 return
-
+        self.flash_finish.emit(FlashFinishType.success)
         self.flash_progress.emit(self.flash_step_num)
 
     def get_external_data(self, external_data: list[str], byteorder: Literal["little", "big"] = 'big') -> bytes:

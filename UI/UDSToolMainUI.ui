@@ -285,8 +285,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>1003</width>
-               <height>379</height>
+               <width>1002</width>
+               <height>422</height>
               </rect>
              </property>
             </widget>
@@ -295,7 +295,7 @@
           <item>
            <layout class="QVBoxLayout" name="verticalLayout_6">
             <item>
-             <layout class="QVBoxLayout" name="verticalLayout_3">
+             <layout class="QHBoxLayout" name="horizontalLayout_7">
               <item>
                <widget class="QPushButton" name="pushButton_FlashConfig">
                 <property name="sizePolicy">
@@ -309,14 +309,14 @@
                 </property>
                </widget>
               </item>
+              <item>
+               <widget class="QCheckBox" name="checkBox_FlashMessageDisplay">
+                <property name="text">
+                 <string>刷写数据显示</string>
+                </property>
+               </widget>
+              </item>
              </layout>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="checkBox_FlashMessageDisplay">
-              <property name="text">
-               <string>刷写数据显示</string>
-              </property>
-             </widget>
             </item>
             <item>
              <spacer name="verticalSpacer">
@@ -349,6 +349,13 @@
               </item>
              </layout>
             </item>
+            <item>
+             <widget class="QLabel" name="label_FlashState">
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
          </layout>
@@ -378,7 +385,7 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>33</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_about">
@@ -756,8 +763,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>80</width>
-          <height>435</height>
+          <width>77</width>
+          <height>475</height>
          </rect>
         </property>
        </widget>
@@ -803,8 +810,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>80</width>
-          <height>435</height>
+          <width>77</width>
+          <height>475</height>
          </rect>
         </property>
        </widget>

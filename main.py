@@ -1,9 +1,10 @@
 import logging.config
 import os
 import sys
+from datetime import datetime
 from typing import Optional
 
-from PySide6.QtCore import QThread, Slot, Signal, Qt
+from PySide6.QtCore import QThread, Slot, Signal, Qt, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QMainWindow, QApplication, QHBoxLayout,
                                QSizePolicy, QDialog, QStyle, QAbstractItemView, QFileDialog, QWidget, QVBoxLayout,
@@ -21,7 +22,7 @@ from UI.sql_data_panel import SQLTablePanel
 from UI.UdsServicesTreeView_ui import UdsServicesTreeView
 from db_manager import DBManager
 from external_scripts_executor import QExternalScriptsExecutor
-from flash_executor import QFlashExecutor
+from flash_executor import QFlashExecutor, FlashFinishType
 from global_variables import gFlashVars, FlashFileVars
 from user_data import DoIPConfig, DoIPMessageStruct, UdsService
 from utils import get_ethernet_ips
@@ -72,6 +73,10 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             self.flash_config = FlashConfig()
         self.flash_file_paths = {}
         self.flash_choose_file_controls = {}
+        self.flash_timer = QTimer()  # 实时计时定时器
+        self.flash_timer.setInterval(100)  # 计时精度：100ms，0.1秒刷新一次，足够流畅
+        self.flash_timer.timeout.connect(self.update_flash_time)  # 定时刷新时间
+        self.flash_start_dt = None
 
         # 初始化UI、客户端、信号、IP列表
         self._init_ui()
@@ -174,7 +179,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.flash_executor.write_signal.connect(self.on_flash_write)
         self.flash_executor.flash_progress.connect(self.on_set_flash_progress_value)
         self.flash_executor.flash_range.connect(self.on_set_flash_progress_range)
-        self.checkBox_FlashMessageDisplay.stateChanged.connect(self.flash_executor.on_display_trace_change)
+        self.checkBox_FlashMessageDisplay.stateChanged.connect(self.on_display_trace_change)
+        self.flash_executor.flash_finish.connect(self.on_flash_finish)
         self.update_flash_variables()
 
         logger.info("Flash程线程已启动")
@@ -469,12 +475,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
         self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
-        self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
 
         self.pushButton_FlashConfig.clicked.connect(self.open_flash_config_panel)
-
-    def on_start_flash(self):
-        self.progressBar_Flash.setFormat("正在刷写")
 
     def choose_flash_file(self, file_name, line_edit):
         abs_path, _ = QFileDialog.getOpenFileName(
@@ -833,16 +835,47 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     @Slot(int)
     def on_set_flash_progress_value(self, progress_val):
-        """
-        进度条赋值槽函数，接收进度值参数
-        :param progress_val: int 进度值，0~100
-        """
-        # 核心赋值
         self.progressBar_Flash.setValue(progress_val)
 
-        # 可选：进度完成后的回调操作
-        if progress_val == 100:
-            self.progressBar_Flash.setFormat("刷写完成️")  # 进度条显示文字修改
+    @Slot(int)
+    def on_display_trace_change(self, state):
+        self.flash_executor.display_trace = 0 if state == 0 else 1
+
+    def on_flash_finish(self, finish_type: FlashFinishType):
+        self.flash_timer.stop()
+        duration = (datetime.now() - self.flash_start_dt).total_seconds()
+        time_str = f"{int(duration // 60):02d}:{duration % 60:.2f}"
+        self.label_FlashState.setText(f"{finish_type.value} | {time_str}")
+
+        if finish_type == FlashFinishType.success:
+            self.set_flash_state_label_color("green")
+        else:
+            self.set_flash_state_label_color("red")
+
+        self.pushButton_StopFlash.setDisabled(True)
+        self.pushButton_StartFlash.setDisabled(False)
+
+    @Slot()
+    def on_start_flash(self):
+        self.flash_start_dt = datetime.now()
+        self.flash_timer.start()
+        self.set_flash_state_label_color("orange")  # 刷写中-橙色
+
+        self.pushButton_StopFlash.setDisabled(False)
+        self.pushButton_StartFlash.setDisabled(True)
+
+    def update_flash_time(self):
+        if self.flash_start_dt:
+            duration = (datetime.now() - self.flash_start_dt).total_seconds()
+            time_str = f"{int(duration // 60):02d}:{duration % 60:.2f}"
+            self.label_FlashState.setText(f"【正在刷写】请勿断电 |  {time_str}")
+
+    def set_flash_state_label_color(self, color):
+        self.label_FlashState.setStyleSheet(f"QLabel {{ color: {color}; }}")
+
+    @Slot()
+    def stop_flash(self):
+        self.flash_executor.stop_flash_flag = True
 
     def _update_ip_combobox(self):
         """更新IP下拉框"""

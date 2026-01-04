@@ -158,29 +158,29 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_FlashFiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 1003, 379))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 1002, 422))
         self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
 
         self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
 
         self.verticalLayout_6 = QVBoxLayout()
         self.verticalLayout_6.setObjectName(u"verticalLayout_6")
-        self.verticalLayout_3 = QVBoxLayout()
-        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
+        self.horizontalLayout_7 = QHBoxLayout()
+        self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
         self.pushButton_FlashConfig = QPushButton(self.tab_Flash)
         self.pushButton_FlashConfig.setObjectName(u"pushButton_FlashConfig")
         sizePolicy.setHeightForWidth(self.pushButton_FlashConfig.sizePolicy().hasHeightForWidth())
         self.pushButton_FlashConfig.setSizePolicy(sizePolicy)
 
-        self.verticalLayout_3.addWidget(self.pushButton_FlashConfig)
-
-
-        self.verticalLayout_6.addLayout(self.verticalLayout_3)
+        self.horizontalLayout_7.addWidget(self.pushButton_FlashConfig)
 
         self.checkBox_FlashMessageDisplay = QCheckBox(self.tab_Flash)
         self.checkBox_FlashMessageDisplay.setObjectName(u"checkBox_FlashMessageDisplay")
 
-        self.verticalLayout_6.addWidget(self.checkBox_FlashMessageDisplay)
+        self.horizontalLayout_7.addWidget(self.checkBox_FlashMessageDisplay)
+
+
+        self.verticalLayout_6.addLayout(self.horizontalLayout_7)
 
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
@@ -200,6 +200,11 @@ class Ui_UDSToolMainWindow(object):
 
 
         self.verticalLayout_6.addLayout(self.horizontalLayout_5)
+
+        self.label_FlashState = QLabel(self.tab_Flash)
+        self.label_FlashState.setObjectName(u"label_FlashState")
+
+        self.verticalLayout_6.addWidget(self.label_FlashState)
 
 
         self.horizontalLayout_6.addLayout(self.verticalLayout_6)
@@ -222,7 +227,7 @@ class Ui_UDSToolMainWindow(object):
         UDSToolMainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(UDSToolMainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
         self.menu_set = QMenu(self.menubar)
@@ -393,7 +398,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 80, 435))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 77, 475))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
 
         self.verticalLayout_8.addWidget(self.scrollArea_DiagTree)
@@ -414,7 +419,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_UdsCaseTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 80, 435))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 77, 475))
         self.scrollArea_UdsCaseTree.setWidget(self.scrollAreaWidgetContents_3)
 
         self.verticalLayout_9.addWidget(self.scrollArea_UdsCaseTree)
@@ -478,6 +483,7 @@ class Ui_UDSToolMainWindow(object):
         self.checkBox_FlashMessageDisplay.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u5199\u6570\u636e\u663e\u793a", None))
         self.pushButton_StartFlash.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u5f00\u59cb\u5237\u5199", None))
         self.pushButton_StopFlash.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u505c\u6b62\u5237\u5199", None))
+        self.label_FlashState.setText("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_Flash), QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u5199", None))
         self.menu_about.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u5173\u4e8e", None))
         self.menu_set.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u8bbe\u7f6e", None))

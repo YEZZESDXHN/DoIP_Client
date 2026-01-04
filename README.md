@@ -13,12 +13,15 @@ DoIP_Client 支持一下功能：
 - [x] 添加删除UDS指令到UDS Service Tree，并双击发送。
 - [x] 加载外部.py脚本实现自动化诊断流程或其他操作（v0.0.3打包release版本内置pycryptodome和crcmod库）。
 - [x] 加载.py脚本实现27解锁服务。
-- [ ] UDS刷写。
+- [x] UDS刷写。
 - [ ] 生成测试报告。
 - [ ] 导入导出配置文件。
 - [ ] 加载符合vector规范的.dll实现27解锁服务（默认打包release程序为64位，如dll为32位会加载失败）。
 - [ ] 可视化方式编写自动化诊断流程。
 - [ ] 支持Vector,ZLG,TsMaster等设备实现CAN UDS。
+
+更多体验及细节持续优化。
+
 ---
 
 
@@ -29,7 +32,10 @@ DoIP_Client 支持一下功能：
 - db_manager.py — 本地数据库 / 持久化（会话、用户、日志索引等）
 - user_data.py — 用户与会话数据模型、管理工具
 - utils.py — 辅助函数（字节/十六进制处理、时间/序列工具等）
-- Context.py — 程序上下文（配置加载、全局状态）
+- ScriptAPI.py — 统一集成api
+- external_scripts_executor.py - 执行外部脚本，在单独线程运行
+- flash_executor.py - 执行刷写，在单独线程运行
+- global_variables.py - 全局变量，当前主要存储刷写文件相关变量，在执行刷写时根据加载的文件生成
 - logging.conf — logging 配置样例（调整日志级别、输出位置）
 - requirements.txt — Python 依赖清单
 

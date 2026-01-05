@@ -2,16 +2,14 @@ import logging
 import os
 import re
 from enum import Enum
-from time import sleep
-from typing import Literal, Optional, Union
-
+from typing import Literal
 from PySide6.QtCore import Signal, QObject
 
-from ChecksumStrategy import ChecksumStrategy, ALGORITHM_REGISTRY
-from FirmwareFileParser import FirmwareFileParser
-from UDSClient import QUDSClient
-from UI.FlashConfigPanel import FlashConfig, Step, FileConfig
-from global_variables import gFlashVars, FlashBaseVars
+from app.core.ChecksumStrategy import ALGORITHM_REGISTRY, ChecksumStrategy
+from app.core.FirmwareFileParser import FirmwareFileParser
+from app.core.uds_client import QUDSClient
+from app.global_variables import gFlashVars, FlashBaseVars
+from app.windows.FlashConfigPanel import FlashConfig, Step
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
@@ -253,11 +251,11 @@ if __name__ == '__main__':
 
     _flash_config = FlashConfig()
     _flash_config.transmission_parameters.max_number_of_block_length = 18
-    from UI.FlashConfigPanel import FileConfig
+    from app.windows.FlashConfigPanel import FileConfig
     _flash_config.files.append(FileConfig(name='test'))
     _flash_config.steps.append(step_36)
 
-    from global_variables import FlashFileVars
+    from app.global_variables import FlashFileVars
 
     test_data_0_FileVars = FlashFileVars()
 

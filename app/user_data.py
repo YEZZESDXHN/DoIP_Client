@@ -8,7 +8,7 @@ import pprint
 from dataclasses import dataclass, asdict, fields, is_dataclass, field
 from enum import Enum
 from functools import cached_property
-from typing import Any, Optional, Type, get_args, get_origin, Dict
+from typing import Any, Optional, Type, get_args, get_origin
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest

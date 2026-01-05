@@ -237,6 +237,21 @@
         <string>刷写</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_10">
+        <property name="spacing">
+         <number>6</number>
+        </property>
+        <property name="leftMargin">
+         <number>6</number>
+        </property>
+        <property name="topMargin">
+         <number>6</number>
+        </property>
+        <property name="rightMargin">
+         <number>6</number>
+        </property>
+        <property name="bottomMargin">
+         <number>6</number>
+        </property>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_6">
           <item>
@@ -285,8 +300,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>949</width>
-               <height>379</height>
+               <width>929</width>
+               <height>377</height>
               </rect>
              </property>
             </widget>
@@ -354,6 +369,27 @@
             </item>
             <item>
              <widget class="QLabel" name="label_FlashState">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>230</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="layoutDirection">
+               <enum>Qt::LayoutDirection::LeftToRight</enum>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -375,6 +411,9 @@
            <enum>QProgressBar::Direction::TopToBottom</enum>
           </property>
          </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_9"/>
         </item>
        </layout>
       </widget>

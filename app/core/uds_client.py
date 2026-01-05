@@ -18,7 +18,7 @@ from udsoncan.client import Client
 from udsoncan.configs import default_client_config
 import importlib.util
 
-from user_data import DoIPMessageStruct, MessageDir
+from app.user_data import DoIPMessageStruct, MessageDir
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
@@ -74,6 +74,7 @@ class MyDoIPClient(DoIPClient):
                 ssl_context = ssl.create_default_context()
             self._wrap_socket(ssl_context)
 
+
 @runtime_checkable
 class GenerateKeyExOptProto(Protocol):
     def __call__(self,
@@ -84,11 +85,11 @@ class GenerateKeyExOptProto(Protocol):
                  options: Any = None) -> Optional[bytes]:
         ...
 
+
 class QUDSClient(QObject):
     error_signal = Signal(str)
     info_signal = Signal(str)
     warning_signal = Signal(str)
-
 
     doip_connect_state = Signal(bool)
 
@@ -194,7 +195,12 @@ class QUDSClient(QObject):
             logger.exception(f"加载脚本时发生异常: {e}")
             return False
 
-    def execute_security_access(self, seed: bytes, level: int, max_key_size: int = 64, variant: Any = None, options: Any = None) -> Optional[bytes]:
+    def execute_security_access(self,
+                                seed: bytes,
+                                level: int,
+                                max_key_size: int = 64,
+                                variant: Any = None,
+                                options: Any = None) -> Optional[bytes]:
         """
         调用已加载的算法计算 Key
         """
@@ -239,6 +245,7 @@ class QUDSClient(QObject):
             logger.info('断开DoIP连接')
         else:
             self.connect_uds()
+
     def disconnect_uds(self):
         self.uds_on_ip_client.close()
         self._uds_client = None
@@ -369,7 +376,9 @@ class QUDSClient(QObject):
             response = self.uds_on_ip_client.send_request(req)
             if not hasattr(response, 'original_payload'):
                 return response
-            if len(response.original_payload) > 1 and response.original_payload[0] == 0x67 and response.original_payload[1] % 2 == 1:
+            if len(response.original_payload) > 1 and \
+                    response.original_payload[0] == 0x67 and \
+                    response.original_payload[1] % 2 == 1:
                 self.security_seed = response.original_payload[2:]
                 self.security_key = self.execute_security_access(seed=self.security_seed,
                                                                  level=response.original_payload[1])

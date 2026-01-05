@@ -5,8 +5,8 @@ import sys
 
 from PySide6.QtCore import QObject, Slot, Signal
 
-from ScriptAPI import ScriptAPI
-from UDSClient import QUDSClient
+from app.core.uds_client import QUDSClient
+from app.external_scripts.ScriptAPI import ScriptAPI
 
 logger = logging.getLogger('UDSTool.' + __name__)
 

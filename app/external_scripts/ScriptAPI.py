@@ -2,13 +2,14 @@ from time import sleep
 from types import SimpleNamespace
 from typing import Optional
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import Signal
+# from typing import TYPE_CHECKING
+
 from udsoncan import Response
 
-# from typing import TYPE_CHECKING
-import utils
-from FirmwareFileParser import FirmwareFileParser
-from UDSClient import QUDSClient
+from app import utils
+from app.core.FirmwareFileParser import FirmwareFileParser
+from app.core.uds_client import QUDSClient
 
 
 # if TYPE_CHECKING:

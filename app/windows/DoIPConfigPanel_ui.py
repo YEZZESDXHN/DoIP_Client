@@ -6,10 +6,9 @@ from typing import Optional
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog, QCheckBox
 
-from UI.DoIPConfigUI import Ui_DoIPConfig
-from user_data import DoIPConfig
-from utils import hex_str_to_int
-
+from app.ui.DoIPConfigUI import Ui_DoIPConfig
+from app.user_data import DoIPConfig
+from app.utils import hex_str_to_int
 
 logger = logging.getLogger('UDSTool.' + __name__)
 

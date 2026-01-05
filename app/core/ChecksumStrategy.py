@@ -1,6 +1,6 @@
 import abc
 from enum import Enum
-from typing import Dict, Type, Optional, Union
+from typing import Dict, Type
 
 import crcmod.predefined  # 使用 crcmod 库
 

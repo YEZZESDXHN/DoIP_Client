@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Slot, Qt
 from PySide6.QtGui import QAction
@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QTableView, QScrollBar, QMenu, QMessageBox, QFileD
 from openpyxl.styles import Font, Alignment
 from openpyxl.workbook import Workbook
 
-from user_data import DoIPMessageStruct
+from app.user_data import DoIPMessageStruct
 
 logger = logging.getLogger('UDSTool.' + __name__)
 

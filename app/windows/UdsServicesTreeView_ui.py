@@ -1,16 +1,15 @@
 import dataclasses
-import json
 import logging
 import re
 from typing import List, Type, Optional, get_args
 
 from PySide6.QtCore import QModelIndex, Signal, QPoint, QMimeData, QByteArray, QDataStream, QIODevice
 from PySide6.QtGui import QStandardItemModel, QStandardItem, Qt, QDrag
-from PySide6.QtWidgets import QTreeView, QMenu, QMessageBox, QDialog, QHeaderView
+from PySide6.QtWidgets import QTreeView, QMenu, QMessageBox, QDialog
 
-from UI.AddDiagServiceDialog import Ui_AddDiagServiceDialog
-from user_data import DiagnosisStepData, DiagnosisStepTypeEnum, UdsService, DEFAULT_SERVICES
-from utils import hex_str_to_bytes, json_default_converter
+from app.ui.AddDiagServiceDialog import Ui_AddDiagServiceDialog
+from app.user_data import UdsService, DEFAULT_SERVICES, DiagnosisStepData, DiagnosisStepTypeEnum
+from app.utils import hex_str_to_bytes
 
 logger = logging.getLogger('UDSTool.' + __name__)
 

@@ -1,5 +1,4 @@
 from dataclasses import field, dataclass
-from typing import Optional, Union
 
 
 @dataclass

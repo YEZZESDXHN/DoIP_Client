@@ -1,27 +1,23 @@
 import copy
-import json
 import logging
 import re
-import sys
-from dataclasses import dataclass, field, asdict
 from enum import Enum, auto, IntEnum
 from typing import Any, Set, Optional
 
 from PySide6.QtCore import (
-    QAbstractTableModel, Qt, QModelIndex, Signal, Slot
+    QAbstractTableModel, Qt, QModelIndex, Signal
 )
-from PySide6.QtGui import QFont, QColor, QAction, QCursor, QPalette
+from PySide6.QtGui import QColor, QAction, QCursor, QPalette
 from PySide6.QtWidgets import (
-    QApplication, QTableView, QVBoxLayout, QWidget,
-    QPushButton, QHBoxLayout, QSplitter, QGroupBox, QHeaderView,
-    QStyledItemDelegate, QComboBox, QMenu, QMessageBox, QCompleter, QDialog, QStyleOptionViewItem, QLineEdit
+    QTableView, QVBoxLayout, QWidget,QHeaderView,
+    QStyledItemDelegate, QComboBox, QMenu, QCompleter, QDialog, QStyleOptionViewItem, QLineEdit
 )
 from pydantic import BaseModel, Field, ConfigDict, field_serializer, field_validator
 
-from ChecksumStrategy import ChecksumType
-from UI.FlashCompositeControl import Ui_Form_FlashChooseFileControl
-from UI.FlashConfig import Ui_FlashConfig
-from global_variables import gFlashVars, FlashFileVars
+from app.core.ChecksumStrategy import ChecksumType
+from app.global_variables import gFlashVars, FlashFileVars
+from app.ui.FlashCompositeControl import Ui_Form_FlashChooseFileControl
+from app.ui.FlashConfig import Ui_FlashConfig
 
 logger = logging.getLogger('UDSTool.' + __name__)
 

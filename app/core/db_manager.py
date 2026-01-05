@@ -2,8 +2,8 @@ import logging
 import sqlite3
 from typing import Optional, List
 
-from UI.FlashConfigPanel import FlashConfig
-from user_data import DoIPConfig, DEFAULT_SERVICES, DiagCase, DiagnosisStepData
+from app.user_data import DoIPConfig, DEFAULT_SERVICES, DiagCase, DiagnosisStepData
+from app.windows.FlashConfigPanel import FlashConfig
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
@@ -447,7 +447,6 @@ class DBManager:
         # 重新读取修复后的步骤
         return self.get_case_steps_by_case_id(case_id)
 
-
     def delete_case(self, case_id: int):
         if case_id <= 0:
             logger.warning(f"删除Case失败：无效的ID（{case_id}），ID必须为正整数")
@@ -607,7 +606,6 @@ class DBManager:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
 
-
                 # 构建查询SQL：查询当前配置下的所有case（排除group类型，如需包含可去掉type条件）
                 query_sql = f"""
                                     SELECT * FROM {CASE_TABLE_NAME} 
@@ -675,7 +673,6 @@ class DBManager:
 
         return deleted_count
 
-
     def get_services_json(self, config_name: str):
         """
         从服务配置表中获取指定config_name对应的services_json
@@ -705,8 +702,6 @@ class DBManager:
             logger.exception(f"获取services_json失败: {str(e)}")
             return None
 
-
-
     def _check_services_is_exists(self, conn: sqlite3.Connection, config_name: str) -> bool:
         """
         检查ServicesTable中是否存在指定配置名
@@ -725,6 +720,7 @@ class DBManager:
         except sqlite3.Error as e:
             logger.exception(f"检查配置存在性失败：{str(e)}")
             return False
+
     def _insert_default_doip_config(self, conn: sqlite3.Connection):
         """内部方法：将默认配置写入数据库"""
         # 构建 SQL 插入语句

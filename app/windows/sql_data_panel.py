@@ -1,11 +1,9 @@
 import logging
-import sqlite3
 from typing import Optional
 
 from PySide6.QtSql import QSqlDatabase, QSqlTableModel
-from PySide6.QtWidgets import QDialog, QHeaderView
-
-from UI.sql_table_ui import Ui_sql
+from PySide6.QtWidgets import QDialog
+from app.ui.sql_table_ui import Ui_sql
 
 logger = logging.getLogger('UDSTool.' + __name__)
 

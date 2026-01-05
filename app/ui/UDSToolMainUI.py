@@ -139,7 +139,9 @@ class Ui_UDSToolMainWindow(object):
         self.tab_Flash = QWidget()
         self.tab_Flash.setObjectName(u"tab_Flash")
         self.verticalLayout_10 = QVBoxLayout(self.tab_Flash)
+        self.verticalLayout_10.setSpacing(6)
         self.verticalLayout_10.setObjectName(u"verticalLayout_10")
+        self.verticalLayout_10.setContentsMargins(6, 6, 6, 6)
         self.horizontalLayout_6 = QHBoxLayout()
         self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
         self.scrollArea_FlashFiles = QScrollArea(self.tab_Flash)
@@ -158,7 +160,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_FlashFiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 949, 379))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 929, 377))
         self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
 
         self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
@@ -204,6 +206,11 @@ class Ui_UDSToolMainWindow(object):
 
         self.label_FlashState = QLabel(self.tab_Flash)
         self.label_FlashState.setObjectName(u"label_FlashState")
+        sizePolicy.setHeightForWidth(self.label_FlashState.sizePolicy().hasHeightForWidth())
+        self.label_FlashState.setSizePolicy(sizePolicy)
+        self.label_FlashState.setMinimumSize(QSize(230, 0))
+        self.label_FlashState.setMaximumSize(QSize(16777215, 16777215))
+        self.label_FlashState.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
 
         self.verticalLayout_6.addWidget(self.label_FlashState)
 
@@ -220,6 +227,11 @@ class Ui_UDSToolMainWindow(object):
         self.progressBar_Flash.setTextDirection(QProgressBar.Direction.TopToBottom)
 
         self.verticalLayout_10.addWidget(self.progressBar_Flash)
+
+        self.horizontalLayout_9 = QHBoxLayout()
+        self.horizontalLayout_9.setObjectName(u"horizontalLayout_9")
+
+        self.verticalLayout_10.addLayout(self.horizontalLayout_9)
 
         self.tabWidget.addTab(self.tab_Flash, "")
 

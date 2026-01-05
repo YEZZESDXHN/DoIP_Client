@@ -1,19 +1,15 @@
-import copy
-import json
 # import pandas as pd
 import logging
-from functools import lru_cache
 from typing import List, Any, Optional, Dict
 
-from PySide6.QtCore import QEvent, Qt, Slot, QDataStream, QIODevice, QModelIndex, QSize, QRect, QPoint, \
+from PySide6.QtCore import Qt, Slot, QDataStream, QIODevice, QModelIndex, QPoint, \
     QAbstractTableModel, QAbstractItemModel, Signal
-from PySide6.QtGui import QAction, QStandardItemModel, QStandardItem, QPainter, QMouseEvent, QIcon
-from PySide6.QtWidgets import QComboBox, QTreeView, QSizePolicy, QWidget, QStyledItemDelegate, QTableView, QScrollBar, \
-    QMenu, QAbstractItemView, QLineEdit, QCheckBox, QStyle, QApplication, QStyleOptionButton, QFileIconProvider
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QTreeView, QStyledItemDelegate, QTableView, QScrollBar, \
+    QMenu, QAbstractItemView, QLineEdit, QFileIconProvider
 
-from db_manager import DBManager
-from user_data import DiagnosisStepData, DiagnosisStepTypeEnum, DiagCase
-from utils import json_custom_decoder
+from app.core.db_manager import DBManager
+from app.user_data import DiagnosisStepData, DiagnosisStepTypeEnum, DiagCase
 
 logger = logging.getLogger('UDSTool.' + __name__)
 

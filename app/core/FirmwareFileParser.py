@@ -1,6 +1,7 @@
-import bincopy
 import os
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple
+
+import bincopy
 
 
 class FirmwareFileParser:

@@ -450,7 +450,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_StartFlash.clicked.connect(self.flash_executor.start_flash)
         self.pushButton_StartFlash.clicked.connect(self.on_start_flash)
 
-        self.pushButton_StopFlash.clicked.connect(self.flash_executor.stop_flash)
+        self.pushButton_StopFlash.clicked.connect(self.stop_flash)
         self.pushButton_ClearDoIPTrace.clicked.connect(self.tableView_DoIPTrace._clear_data)
 
         self.toolButton_LoadExternalScript.clicked.connect(self.choose_external_script)

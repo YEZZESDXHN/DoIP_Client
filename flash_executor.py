@@ -131,6 +131,7 @@ class QFlashExecutor(QObject):
                             self.flash_finish.emit(FlashFinishType.fail)
                             return
                     else:
+                        self.flash_finish.emit(FlashFinishType.fail)
                         return
                     flash_progress += 1
                     self.flash_progress.emit(flash_progress)
@@ -241,9 +242,6 @@ class QFlashExecutor(QObject):
             send_data_list.append(send_data)
         return send_data_list
 
-    def stop_flash(self):
-        print(self.flash_vars)
-        print(self.flash_config)
 
 
 if __name__ == '__main__':

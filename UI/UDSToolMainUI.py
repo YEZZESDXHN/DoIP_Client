@@ -158,7 +158,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_FlashFiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 1002, 422))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 949, 379))
         self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
 
         self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
@@ -195,6 +195,7 @@ class Ui_UDSToolMainWindow(object):
 
         self.pushButton_StopFlash = QPushButton(self.tab_Flash)
         self.pushButton_StopFlash.setObjectName(u"pushButton_StopFlash")
+        self.pushButton_StopFlash.setEnabled(False)
 
         self.horizontalLayout_5.addWidget(self.pushButton_StopFlash)
 
@@ -227,7 +228,7 @@ class Ui_UDSToolMainWindow(object):
         UDSToolMainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(UDSToolMainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
         self.menu_set = QMenu(self.menubar)
@@ -398,7 +399,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 77, 475))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 80, 435))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
 
         self.verticalLayout_8.addWidget(self.scrollArea_DiagTree)
@@ -419,7 +420,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_UdsCaseTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 77, 475))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 80, 435))
         self.scrollArea_UdsCaseTree.setWidget(self.scrollAreaWidgetContents_3)
 
         self.verticalLayout_9.addWidget(self.scrollArea_UdsCaseTree)

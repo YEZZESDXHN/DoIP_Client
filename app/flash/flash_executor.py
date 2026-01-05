@@ -2,7 +2,8 @@ import logging
 import os
 import re
 from enum import Enum
-from typing import Literal
+from time import sleep
+from typing import Literal, Dict, Callable
 from PySide6.QtCore import Signal, QObject
 
 from app.core.ChecksumStrategy import ALGORITHM_REGISTRY, ChecksumStrategy
@@ -19,12 +20,21 @@ class FlashFinishType(Enum):
     fail = "刷写失败"
     stop = "刷写终止"
 
+
+def flash_wait(secs: float) -> None:
+    sleep(secs)
+
+
+FLASH_CALL: Dict[str, Callable] = {
+    "Wait": flash_wait,
+}
+
+
 class QFlashExecutor(QObject):
     write_signal = Signal(str, str)
     flash_progress = Signal(int)
     flash_range = Signal(int)
     flash_finish = Signal(FlashFinishType)
-
 
     def __init__(self, uds_client: QUDSClient, flash_config: FlashConfig, flash_file_paths: dict):
         super().__init__()
@@ -33,7 +43,7 @@ class QFlashExecutor(QObject):
         self.flash_file_paths = flash_file_paths
         self.flash_file_parsers: dict[str: FirmwareFileParser] = {}
         self.flash_vars = gFlashVars
-        self._array_pattern = re.compile(r'^(.+)\[(\d+)\]$')
+        self._array_pattern = re.compile(r'^(.+)\[(\d+)]$')
         self.flash_step_num = 0
         self.display_trace = 0
         self.stop_flash_flag = False
@@ -60,7 +70,8 @@ class QFlashExecutor(QObject):
             _count = 1
             if step.data[0] == 0x36:
                 external_data_len = len(self.get_external_data(step.external_data))
-                _count = int(external_data_len / (self.flash_config.transmission_parameters.max_number_of_block_length - 2)) + 1
+                _count = int(
+                    external_data_len / (self.flash_config.transmission_parameters.max_number_of_block_length - 2)) + 1
             else:
                 pass
             step_num = step_num + _count
@@ -110,29 +121,55 @@ class QFlashExecutor(QObject):
                 self.flash_finish.emit(FlashFinishType.stop)
                 return
             try:
-                self.write_signal.emit("Flash", f"{step.step_name}")
-                send_data_list = self.construct_send_data_list(step)
-                for send_data in send_data_list:
-                    if self.stop_flash_flag:
-                        self.flash_finish.emit(FlashFinishType.stop)
-                        return
-                    resp = self.uds_client.send_payload(payload=send_data, display_trace=self.display_trace)
-                    if resp:
-                        if resp.code == 0:
-                            pass
-                        else:
-                            self.write_signal.emit("Flash", f"{step.step_name} 执行失败，code_name: {resp.code_name}")
-                            try:
-                                self.write_signal.emit("Flash", f"data:{resp.original_payload.hex(' ')}")
-                            except:
-                                pass
-                            self.flash_finish.emit(FlashFinishType.fail)
-                            return
-                    else:
+                if step.is_call:
+                    try:
+                        self.write_signal.emit("Flash", f"执行函数{step.step_name}")
+                        FLASH_CALL[step.step_name](int(step.external_data[0])/1000)
+                    except Exception as e:
+                        self.write_signal.emit("Flash", f"函数 {step.step_name} 执行失败：{e}")
                         self.flash_finish.emit(FlashFinishType.fail)
                         return
-                    flash_progress += 1
-                    self.flash_progress.emit(flash_progress)
+                else:
+                    self.write_signal.emit("Flash", f"开始执行{step.step_name}")
+                    send_data_list = self.construct_send_data_list(step)
+                    for send_data in send_data_list:
+                        if self.stop_flash_flag:
+                            self.flash_finish.emit(FlashFinishType.stop)
+                            return
+                        resp = self.uds_client.send_payload(payload=send_data, display_trace=self.display_trace)
+                        if resp:
+                            if resp.code == 0:
+                                try:
+                                    if step.exp_resp_data:
+                                        exp_data_len = len(step.exp_resp_data)
+                                        if len(resp.original_payload) < exp_data_len:
+                                            self.write_signal.emit("Flash", f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
+                                            self.flash_finish.emit(FlashFinishType.fail)
+                                            return
+                                        else:
+                                            if step.exp_resp_data != resp.original_payload[:exp_data_len]:
+                                                self.write_signal.emit("Flash",
+                                                                       f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
+                                                return
+
+                                except Exception as e:
+                                    self.write_signal.emit("Flash",f"执行失败: {e}")
+                                    self.flash_finish.emit(FlashFinishType.fail)
+                                    return
+                            else:
+                                self.write_signal.emit("Flash", f"{step.step_name} 执行失败，code_name: {resp.code_name}")
+                                try:
+                                    self.write_signal.emit("Flash", f"data:{resp.original_payload.hex(' ')}")
+                                except:
+                                    pass
+                                self.flash_finish.emit(FlashFinishType.fail)
+                                return
+                        else:
+                            self.flash_finish.emit(FlashFinishType.fail)
+                            return
+                        flash_progress += 1
+                        self.flash_progress.emit(flash_progress)
+                    self.write_signal.emit("Flash", f"{step.step_name}执行成功")
                 self.write_signal.emit("Flash", f"{step.step_name} 执行成功")
 
             except Exception as e:
@@ -251,7 +288,8 @@ if __name__ == '__main__':
 
     _flash_config = FlashConfig()
     _flash_config.transmission_parameters.max_number_of_block_length = 18
-    from app.windows.FlashConfigPanel import FileConfig
+    from app.windows.FlashConfigPanel import FileConfig, FlashConfig, Step
+
     _flash_config.files.append(FileConfig(name='test'))
     _flash_config.steps.append(step_36)
 

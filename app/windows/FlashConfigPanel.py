@@ -38,13 +38,14 @@ class FileConfig(BaseModel):
 # @dataclass
 class Step(BaseModel):
     step_name: str = ''
+    is_call: bool = False
     data: bytes = b''
+    exp_resp_data: bytes = b''
     external_data: list[str] = Field(default_factory=list)
 
     @field_serializer('data')
     def serialize_data(self, data: bytes, _info):
         return data.hex().upper()
-
 
     @field_validator('data', mode='before')
     @classmethod
@@ -110,8 +111,17 @@ class FileCol(IntEnum):
 # 定义步骤的列
 class StepCol(IntEnum):
     NAME = 0
-    DATA = 1
-    PARAMS_START = 2  # 参数起始列
+    REQ_DATA = 1
+    EXP_RESP_DATA = 2
+    PARAMS_START = 3  # 参数起始列
+
+
+class FlashStepCall(Enum):
+    wait = "Wait"
+
+
+STEP_CALL_VALUES = tuple(item.value for item in FlashStepCall)
+
 
 class VariableSelectionDelegate(QStyledItemDelegate):
     """
@@ -137,18 +147,29 @@ class VariableSelectionDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         # [优化]：逻辑内聚，Delegate 自己判断只处理参数列
         # 假设 StepModel 在这里，如果用于 FileModel 则可能需要调整，或者传入 filter
-        if index.column() < StepCol.PARAMS_START:
+        if index.column() == StepCol.NAME:
+            editor = QComboBox(parent)
+            editor.setEditable(True)
+            editor.addItems([item.value for item in FlashStepCall])
+            return editor
+        elif index.column() < StepCol.PARAMS_START:
             return super().createEditor(parent, option, index)
+        else:
+            model = index.model()
+            if not isinstance(model, StepsTableModel):
+                return super().createEditor(parent, option, index)
+            row = index.row()
+            if model.steps_list[row].is_call:
+                return super().createEditor(parent, option, index)
+            editor = QComboBox(parent)
+            editor.setEditable(True)
 
-        editor = QComboBox(parent)
-        editor.setEditable(True)
+            # 鸭子类型检查：如果 Model 有这个方法就调用
+            if hasattr(index.model(), 'get_variable_list'):
+                editor.addItems(index.model().get_variable_list())
 
-        # 鸭子类型检查：如果 Model 有这个方法就调用
-        if hasattr(index.model(), 'get_variable_list'):
-            editor.addItems(index.model().get_variable_list())
-
-        editor.completer().setCompletionMode(QCompleter.PopupCompletion)
-        return editor
+            editor.completer().setCompletionMode(QCompleter.PopupCompletion)
+            return editor
 
     def setEditorData(self, editor, index):
         value = index.model().data(index, Qt.EditRole)
@@ -314,25 +335,42 @@ class StepsTableModel(QAbstractTableModel):
         text_val = ""
         if col == StepCol.NAME:
             text_val = step.step_name
-        elif col == StepCol.DATA:
+        elif col == StepCol.REQ_DATA:
             text_val = step.data.hex().upper()
+        elif col == StepCol.EXP_RESP_DATA:
+            text_val = step.exp_resp_data.hex().upper()
         elif col >= StepCol.PARAMS_START:
             ext_idx = col - StepCol.PARAMS_START
             if ext_idx < len(step.external_data):
                 text_val = step.external_data[ext_idx]
 
-        # 样式处理逻辑保持不变，但建议将 CellType 判断逻辑提取为单独的方法
-        if role == Qt.ForegroundRole and col >= StepCol.PARAMS_START and text_val:
-            return self._get_color_for_value(text_val)  # 封装颜色逻辑
+        if role == Qt.ItemDataRole.ForegroundRole and col == StepCol.NAME and text_val:
+            if self.is_step_call(text_val):
+                return QColor("#0055AA")  # 蓝色
+            else:
+                return QColor("#000000")  # 蓝色
 
-        if role in (Qt.DisplayRole, Qt.EditRole): return text_val
-        if role == Qt.TextAlignmentRole and col > 0: return Qt.AlignCenter
+        # 样式处理逻辑保持不变，但建议将 CellType 判断逻辑提取为单独的方法
+        if role == Qt.ItemDataRole.ForegroundRole and col >= StepCol.PARAMS_START and text_val:
+            return self._get_color_for_value(step.is_call, text_val)  # 封装颜色逻辑
+
+        if role in (Qt.DisplayRole, Qt.EditRole):
+            return text_val
+        if role == Qt.TextAlignmentRole and col > 0:
+            return Qt.AlignCenter
         return None
 
-    # ==========================================
-    # 补全的方法
-    # ==========================================
-    def _get_color_for_value(self, text: str) -> QColor:
+
+    def is_step_call(self, text: str) -> bool:
+        if not text:
+            return False  # 使用默认颜色
+        if text in STEP_CALL_VALUES:
+            return True
+        else:
+            return False
+
+
+    def _get_color_for_value(self, is_step_call, text: str) -> QColor:
         """
         根据文本内容返回对应的字体颜色
         1. 变量名 (精确匹配 或 数组模式) -> 蓝色
@@ -342,6 +380,8 @@ class StepsTableModel(QAbstractTableModel):
         if not text:
             return None  # 使用默认颜色
 
+        if is_step_call:
+            return None
         if '[' in text:
             # 尝试用正则解析 "name[index]"
             match = self._array_pattern.match(text)
@@ -389,9 +429,18 @@ class StepsTableModel(QAbstractTableModel):
 
         if col == StepCol.NAME:
             step.step_name = val_str
-        elif col == StepCol.DATA:
+            if self.is_step_call(val_str):
+                step.is_call = True
+            else:
+                step.is_call = False
+        elif col == StepCol.REQ_DATA:
             try:
                 step.data = bytes.fromhex(val_str) if val_str else b''
+            except ValueError:
+                return False
+        elif col == StepCol.EXP_RESP_DATA:
+            try:
+                step.exp_resp_data = bytes.fromhex(val_str) if val_str else b''
             except ValueError:
                 return False
         elif col >= StepCol.PARAMS_START:
@@ -437,10 +486,16 @@ class StepsTableModel(QAbstractTableModel):
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole) -> Any:
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            if section == 0: return "Step Name"
-            if section == 1: return "Data (Hex)"
-            return f"Param {section - 2}"
-        if role == Qt.DisplayRole and orientation == Qt.Vertical: return str(section + 1)
+            if section == StepCol.NAME:
+                return "Step Name"
+            elif section == StepCol.REQ_DATA:
+                return "Req Data (Hex)"
+            elif section == StepCol.EXP_RESP_DATA:
+                return "Exp Resp Data (Hex)"
+            else:
+                return f"Param {section - 2}"
+        if role == Qt.DisplayRole and orientation == Qt.Vertical:
+            return str(section + 1)
         return None
 
     # 辅助增删方法

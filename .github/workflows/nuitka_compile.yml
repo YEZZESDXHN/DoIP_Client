@@ -70,7 +70,7 @@ jobs:
             --include-data-files="${{ github.workspace }}/logging.conf=logging.conf" `
             --include-data-files="${{ github.workspace }}/GenerateKeyExOpt/GenerateKeyExOptDemo.py=GenerateKeyExOpt/GenerateKeyExOptDemo.py" `
             --include-data-files="${{ github.workspace }}/external_scripts/api.py=external_scripts/api.py" `
-            --include-data-files="${{ github.workspace }}/external_scripts/external_script.py=external_scripts/external_script.py" `
+            --include-data-files="${{ github.workspace }}/external_scripts/external_script_demo.py=external_scripts/external_script_demo.py" `
             --include-data-files="${{ github.workspace }}/ExternalLib/__init__.py=ExternalLib/__init__.py" `
             --include-data-files="$qtPluginsPath\sqldrivers\qsqlite.dll"=sqldrivers\qsqlite.dll `
             ${{ env.ENTRY_SCRIPT }}

@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_serializer, field_valid
 
 from app.core.ChecksumStrategy import ChecksumType
 from app.global_variables import gFlashVars, FlashFileVars
+from app.resources.resources import IconEngine
 from app.ui.FlashCompositeControl import Ui_Form_FlashChooseFileControl
 from app.ui.FlashConfig import Ui_FlashConfig
 
@@ -526,6 +527,8 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
     def __init__(self, flash_config: Optional[FlashConfig], parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.setWindowIcon(IconEngine.get_icon('config'))
+        self.setWindowTitle("Flash Config")
 
         # 1. 初始化数据副本 (避免直接操作原始对象，直到点击 OK)
         # 建议：这里最好深拷贝 flash_config，防止 Cancel 后数据也被改了

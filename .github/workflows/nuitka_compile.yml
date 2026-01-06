@@ -66,6 +66,7 @@ jobs:
             --enable-plugin=pyside6 `
             --windows-console-mode=attach `
             --show-progress `
+            --windows-icon-from-ico=app/resources/icons/app_icon.ico `
             --show-memory `
             --include-data-files="${{ github.workspace }}/logging.conf=logging.conf" `
             --include-data-files="${{ github.workspace }}/GenerateKeyExOpt/GenerateKeyExOptDemo.py=GenerateKeyExOpt/GenerateKeyExOptDemo.py" `

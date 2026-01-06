@@ -6,6 +6,7 @@ from typing import Optional
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog, QCheckBox
 
+from app.resources.resources import IconEngine
 from app.ui.DoIPConfigUI import Ui_DoIPConfig
 from app.user_data import DoIPConfig
 from app.utils import hex_str_to_int
@@ -21,6 +22,7 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
     def __init__(self, configs_name: list[str], is_create_new_config: bool = False, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.setWindowIcon(IconEngine.get_icon('config'))
         self.config: Optional[DoIPConfig] = DoIPConfig(
             config_name='DoIP_config_panel_default',
             tester_logical_address=0x7e2,

@@ -41,6 +41,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+        self.setWindowIcon(IconEngine.get_icon('car_connected'))
+        self.setWindowTitle("UDS Client")
 
         empty_title = QWidget()
         self.dockWidget.setTitleBarWidget(empty_title)

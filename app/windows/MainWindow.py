@@ -7,7 +7,7 @@ from typing import Optional
 
 from PySide6.QtCore import Signal, QTimer, QThread, Slot, Qt
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QMainWindow, QWidget, QApplication, QStyle, QAbstractItemView, QVBoxLayout, QSpacerItem, \
+from PySide6.QtWidgets import QMainWindow, QWidget, QAbstractItemView, QVBoxLayout, QSpacerItem, \
     QSizePolicy, QHBoxLayout, QFileDialog, QDialog
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
@@ -26,9 +26,11 @@ from app.windows.DoIPConfigPanel_ui import DoIPConfigPanel
 from app.windows.DoIPTraceTable_ui import DoIPTraceTableView
 from app.windows.FlashConfigPanel import FlashConfig, FlashChooseFileControl, FlashConfigPanel
 from app.windows.UdsServicesTreeView_ui import UdsServicesTreeView
+from app.windows.custom_status_bar import CustomStatusBar
 from app.windows.sql_data_panel import SQLTablePanel
 
 logger = logging.getLogger('UDSTool.' + __name__)
+
 
 class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     """
@@ -84,10 +86,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self._init_flash_thread()
         self._init_signals()
         self._refresh_ip_list()
-        self.status_bar = self.statusBar()
-
-
-
 
     def add_external_lib(self):
         # ExternalLib sys.path
@@ -139,7 +137,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     @Slot(str)
     def status_bar_show_message(self, msg: str):
-        self.status_bar.showMessage(msg, 0)
+        self.custom_status_bar.label_SendPrompt.setText(msg)
 
     def _init_uds_client(self):
         """初始化DoIP客户端和线程"""
@@ -288,6 +286,16 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.setup_flash_control()
 
         self._init_ui_icon()
+
+        self._init_status_bar()
+
+    def _init_status_bar(self):
+        self.custom_status_bar = CustomStatusBar(self)
+        self.status_bar.addWidget(self.custom_status_bar, 1)
+
+        self.custom_status_bar.pushButton_ConnectState.setIcon(IconEngine.get_icon("unlink", 'red'))
+
+
 
     def on_reset_layout(self):
         self.restoreState(self.default_state)
@@ -815,16 +823,16 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_ConnectDoIP.setDisabled(False)
         if state:
             icon_name = "link"
-            btn_text = '已连接'
-            self.pushButton_ConnectDoIP.setText(btn_text)
+            self.pushButton_ConnectDoIP.setText("已连接")
             self.pushButton_ConnectDoIP.setIcon(IconEngine.get_icon(icon_name, 'green'))
-            logger.info(f"DoIP连接状态已更新为：{btn_text}")
+            self.custom_status_bar.pushButton_ConnectState.setIcon(IconEngine.get_icon(icon_name, 'green'))
+            logger.info(f"DoIP连接状态已更新为：已连接")
         else:
             icon_name = "unlink"
-            btn_text = '连接'
-            self.pushButton_ConnectDoIP.setText(btn_text)
+            self.pushButton_ConnectDoIP.setText("已连接")
             self.pushButton_ConnectDoIP.setIcon(IconEngine.get_icon(icon_name, 'red'))
-            logger.info(f"DoIP连接状态已更新为：{btn_text}")
+            self.custom_status_bar.pushButton_ConnectState.setIcon(IconEngine.get_icon(icon_name, 'red'))
+            logger.info(f"DoIP连接状态已更新为：未已连接")
 
     @Slot()
     def get_ip_list(self):

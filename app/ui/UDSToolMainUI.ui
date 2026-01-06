@@ -300,8 +300,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>96</width>
-               <height>26</height>
+               <width>961</width>
+               <height>400</height>
               </rect>
              </property>
             </widget>
@@ -427,7 +427,7 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>33</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_about">
@@ -805,8 +805,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>80</width>
-          <height>435</height>
+          <width>77</width>
+          <height>455</height>
          </rect>
         </property>
        </widget>
@@ -852,8 +852,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>80</width>
-          <height>435</height>
+          <width>77</width>
+          <height>455</height>
          </rect>
         </property>
        </widget>
@@ -900,6 +900,11 @@
      </item>
     </layout>
    </widget>
+  </widget>
+  <widget class="QStatusBar" name="status_bar">
+   <property name="sizeGripEnabled">
+    <bool>false</bool>
+   </property>
   </widget>
   <action name="action_database">
    <property name="text">

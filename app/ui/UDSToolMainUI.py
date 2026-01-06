@@ -21,7 +21,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDockWidget,
     QLabel, QLineEdit, QMainWindow, QMenu,
     QMenuBar, QPlainTextEdit, QProgressBar, QPushButton,
     QScrollArea, QSizePolicy, QSpacerItem, QSplitter,
-    QTabWidget, QToolButton, QVBoxLayout, QWidget)
+    QStatusBar, QTabWidget, QToolButton, QVBoxLayout,
+    QWidget)
 
 class Ui_UDSToolMainWindow(object):
     def setupUi(self, UDSToolMainWindow):
@@ -160,7 +161,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_FlashFiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 96, 26))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 961, 400))
         self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
 
         self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
@@ -240,7 +241,7 @@ class Ui_UDSToolMainWindow(object):
         UDSToolMainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(UDSToolMainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
         self.menu_set = QMenu(self.menubar)
@@ -411,7 +412,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 80, 435))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 77, 455))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
 
         self.verticalLayout_8.addWidget(self.scrollArea_DiagTree)
@@ -432,7 +433,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_UdsCaseTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 80, 435))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 77, 455))
         self.scrollArea_UdsCaseTree.setWidget(self.scrollAreaWidgetContents_3)
 
         self.verticalLayout_9.addWidget(self.scrollArea_UdsCaseTree)
@@ -458,6 +459,10 @@ class Ui_UDSToolMainWindow(object):
 
         self.dockWidget_write.setWidget(self.dockWidgetContents_6)
         UDSToolMainWindow.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dockWidget_write)
+        self.status_bar = QStatusBar(UDSToolMainWindow)
+        self.status_bar.setObjectName(u"status_bar")
+        self.status_bar.setSizeGripEnabled(False)
+        UDSToolMainWindow.setStatusBar(self.status_bar)
 
         self.menubar.addAction(self.menu_tool.menuAction())
         self.menubar.addAction(self.menu_view.menuAction())

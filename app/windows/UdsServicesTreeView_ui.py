@@ -332,9 +332,9 @@ class UdsServicesTreeView(QTreeView):
             payload = getattr(obj, 'payload', b'')
             if isinstance(payload, bytes):
                 if len(payload) > 10:
-                    display_text = f"{payload[:10].hex(' ')}...\n"
+                    display_text = f"{payload[:10].hex(' ')}..."
                 else:
-                    display_text = f"{payload[:10].hex(' ')}\n"
+                    display_text = f"{payload[:10].hex(' ')}"
                 self.status_bar_message.emit(display_text)
         else:
             self.status_bar_message.emit('')

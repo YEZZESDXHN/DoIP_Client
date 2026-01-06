@@ -157,6 +157,7 @@ class QFlashExecutor(QObject):
                                             if step.exp_resp_data != resp.original_payload[:exp_data_len]:
                                                 self.write_signal.emit("Flash",
                                                                        f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
+                                                self.flash_finish.emit(FlashFinishType.fail)
                                                 return
 
                                 except Exception as e:

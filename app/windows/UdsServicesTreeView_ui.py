@@ -7,6 +7,7 @@ from PySide6.QtCore import QModelIndex, Signal, QPoint, QMimeData, QByteArray, Q
 from PySide6.QtGui import QStandardItemModel, QStandardItem, Qt, QDrag
 from PySide6.QtWidgets import QTreeView, QMenu, QMessageBox, QDialog
 
+from app.resources.resources import IconEngine
 from app.ui.AddDiagServiceDialog import Ui_AddDiagServiceDialog
 from app.user_data import UdsService, DEFAULT_SERVICES, DiagnosisStepData, DiagnosisStepTypeEnum
 from app.utils import hex_str_to_bytes
@@ -42,6 +43,7 @@ class UdsServicesModel(QStandardItemModel):
                 new_path = key if not current_path else f"{current_path}.{key}"
                 node = QStandardItem(str(key))
                 node.setData(new_path, self.path_role)
+                # node.setIcon(IconEngine.get_icon("format_list_group"))
                 if isinstance(value, list):
                     node.setData(0, self.node_type_role)
                 else:
@@ -62,6 +64,7 @@ class UdsServicesModel(QStandardItemModel):
                     node.setData(item['payload'], self.path_role)
                     node.setData(path, self.path_role)
                     node.setData(1, self.node_type_role)
+                    node.setIcon(IconEngine.get_icon("send"))
                     parent_node.appendRow(node)
 
     def add_operation_node(self, parent_index: QModelIndex, node_name: str, custom_bytes: bytes = b""):

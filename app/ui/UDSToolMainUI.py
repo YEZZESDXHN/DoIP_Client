@@ -160,7 +160,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_FlashFiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 929, 377))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 96, 26))
         self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
 
         self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
@@ -264,7 +264,7 @@ class Ui_UDSToolMainWindow(object):
         self.pushButton_EditConfig.setObjectName(u"pushButton_EditConfig")
         sizePolicy.setHeightForWidth(self.pushButton_EditConfig.sizePolicy().hasHeightForWidth())
         self.pushButton_EditConfig.setSizePolicy(sizePolicy)
-        self.pushButton_EditConfig.setMaximumSize(QSize(50, 16777215))
+        self.pushButton_EditConfig.setMaximumSize(QSize(16777215, 16777215))
         self.pushButton_EditConfig.setFont(font)
 
         self.gridLayout_2.addWidget(self.pushButton_EditConfig, 1, 2, 1, 1)
@@ -322,7 +322,7 @@ class Ui_UDSToolMainWindow(object):
         self.pushButton_RefreshIP.setObjectName(u"pushButton_RefreshIP")
         sizePolicy.setHeightForWidth(self.pushButton_RefreshIP.sizePolicy().hasHeightForWidth())
         self.pushButton_RefreshIP.setSizePolicy(sizePolicy)
-        self.pushButton_RefreshIP.setMaximumSize(QSize(50, 16777215))
+        self.pushButton_RefreshIP.setMaximumSize(QSize(16777215, 16777215))
         self.pushButton_RefreshIP.setFont(font)
 
         self.gridLayout_2.addWidget(self.pushButton_RefreshIP, 0, 2, 1, 1)

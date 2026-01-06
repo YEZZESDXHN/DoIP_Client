@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QTreeView, QStyledItemDelegate, QTableView, QScrol
     QMenu, QAbstractItemView, QLineEdit, QFileIconProvider
 
 from app.core.db_manager import DBManager
+from app.resources.resources import IconEngine
 from app.user_data import DiagnosisStepData, DiagnosisStepTypeEnum, DiagCase
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -359,7 +360,7 @@ class DiagProcessCaseModel(QAbstractItemModel):
         super().__init__(parent)
         self.db_manager = db_manager
         self.root_node = DiagCaseNode(DiagCase(id=-1, case_name="Root", type=1))
-        self.folder_icon = QFileIconProvider().icon(QFileIconProvider.IconType.Folder)
+        # self.folder_icon = QFileIconProvider().icon(QFileIconProvider.IconType.Folder)
         self._build_tree_from_db()
 
     def _build_tree_from_db(self):
@@ -457,7 +458,7 @@ class DiagProcessCaseModel(QAbstractItemModel):
         # 图标
         elif role == Qt.ItemDataRole.DecorationRole:
             if case.type == 1:  # 分组显示文件夹图标
-                return self.folder_icon
+                return IconEngine.get_icon('folder')
 
         # 自定义角色（Case ID）
         elif role == self.CaseIdRole:

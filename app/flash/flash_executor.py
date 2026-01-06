@@ -68,7 +68,7 @@ class QFlashExecutor(QObject):
         step_num = 0
         for step in self.flash_config.steps:
             _count = 1
-            if step.data[0] == 0x36:
+            if not step.is_call and step.data[0] == 0x36:
                 external_data_len = len(self.get_external_data(step.external_data))
                 _count = int(
                     external_data_len / (self.flash_config.transmission_parameters.max_number_of_block_length - 2)) + 1
@@ -111,8 +111,13 @@ class QFlashExecutor(QObject):
             logger.exception(f'{str(e)}')
             return
 
-        self.flash_step_num = self.calculate_flash_step_num()
-        self.flash_range.emit(self.flash_step_num)
+        try:
+            self.flash_step_num = self.calculate_flash_step_num()
+            self.flash_range.emit(self.flash_step_num)
+        except Exception as e:
+            self.write_signal.emit("Flash", f"计算步骤失败,{e}")
+            self.flash_finish.emit(FlashFinishType.stop)
+            return
         self.flash_progress.emit(flash_progress)
 
         self.write_signal.emit("Flash", f"开始执行刷写步骤")
@@ -125,6 +130,8 @@ class QFlashExecutor(QObject):
                     try:
                         self.write_signal.emit("Flash", f"执行函数{step.step_name}")
                         FLASH_CALL[step.step_name](int(step.external_data[0])/1000)
+                        flash_progress += 1
+                        self.flash_progress.emit(flash_progress)
                     except Exception as e:
                         self.write_signal.emit("Flash", f"函数 {step.step_name} 执行失败：{e}")
                         self.flash_finish.emit(FlashFinishType.fail)
@@ -169,7 +176,6 @@ class QFlashExecutor(QObject):
                             return
                         flash_progress += 1
                         self.flash_progress.emit(flash_progress)
-                    self.write_signal.emit("Flash", f"{step.step_name}执行成功")
                 self.write_signal.emit("Flash", f"{step.step_name} 执行成功")
 
             except Exception as e:
@@ -178,6 +184,7 @@ class QFlashExecutor(QObject):
                 logger.exception(f"{str(e)}")
                 return
         self.flash_finish.emit(FlashFinishType.success)
+        print(f"flash_progress={flash_progress},self.flash_step_num={self.flash_step_num}")
         self.flash_progress.emit(self.flash_step_num)
 
     def get_external_data(self, external_data: list[str], byteorder: Literal["little", "big"] = 'big') -> bytes:

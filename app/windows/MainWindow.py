@@ -17,6 +17,7 @@ from app.core.uds_client import QUDSClient
 from app.external_scripts.external_scripts_executor import QExternalScriptsExecutor
 from app.flash.flash_executor import QFlashExecutor, FlashFinishType
 from app.global_variables import gFlashVars, FlashFileVars
+from app.resources.resources import IconEngine
 from app.ui.UDSToolMainUI import Ui_UDSToolMainWindow
 from app.user_data import DoIPConfig, UdsService
 from app.utils import get_ethernet_ips
@@ -204,14 +205,20 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         )
         self.plainTextEdit_DataDisplay.appendHtml(html_content)
 
-
+    def _init_ui_icon(self):
+        self.pushButton_ConnectDoIP.setIcon(IconEngine.get_icon("unlink", 'red'))
+        self.pushButton_SendDoIP.setIcon(IconEngine.get_icon("send", 'blue'))
+        self.pushButton_CreateConfig.setIcon(IconEngine.get_icon("circles_add"))
+        self.pushButton_EditConfig.setIcon(IconEngine.get_icon("pencil"))
+        self.pushButton_RefreshIP.setIcon(IconEngine.get_icon("refresh"))
+        # self.checkBox_AotuReconnect.setIcon(IconEngine.get_icon("auto_start"))
+        self.pushButton_StartFlash.setIcon(IconEngine.get_icon("start", 'blue'))
+        self.pushButton_StopFlash.setIcon(IconEngine.get_icon("stop", 'red'))
+        self.pushButton_FlashConfig.setIcon(IconEngine.get_icon("config"))
 
     def _init_ui(self):
         """初始化界面组件属性"""
         self.plainTextEdit_DataDisplay.setReadOnly(True)
-
-        icon_disconnected = QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
-        self.pushButton_ConnectDoIP.setIcon(icon_disconnected)
 
         # 添加表格
         self.tableView_DoIPTrace = self._add_custom_table_view(self.groupBox_DoIPTrace)
@@ -277,6 +284,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.default_state = self.saveState()
 
         self.setup_flash_control()
+
+        self._init_ui_icon()
 
     def on_reset_layout(self):
         self.restoreState(self.default_state)
@@ -673,6 +682,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             return
 
         client = self.uds_client
+        if client._uds_client:
+            return
         client.ecu_ip_address = self.current_uds_config.dut_ipv4_address
         client.ecu_logical_address = self.current_uds_config.dut_logical_address
         client.tcp_port = self.current_uds_config.tcp_port
@@ -800,15 +811,18 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     def _update_uds_connect_state(self, state: bool):
         """更新DoIP连接状态的UI显示"""
         self.pushButton_ConnectDoIP.setDisabled(False)
-
-        icon_connected = QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
-        icon_disconnected = QApplication.instance().style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
-
-        icon = icon_connected if state else icon_disconnected
-        btn_text = '已连接' if state else '连接'
-        self.pushButton_ConnectDoIP.setText(btn_text)
-        self.pushButton_ConnectDoIP.setIcon(icon)
-        logger.info(f"DoIP连接状态已更新为：{btn_text}")
+        if state:
+            icon_name = "link"
+            btn_text = '已连接'
+            self.pushButton_ConnectDoIP.setText(btn_text)
+            self.pushButton_ConnectDoIP.setIcon(IconEngine.get_icon(icon_name, 'green'))
+            logger.info(f"DoIP连接状态已更新为：{btn_text}")
+        else:
+            icon_name = "unlink"
+            btn_text = '连接'
+            self.pushButton_ConnectDoIP.setText(btn_text)
+            self.pushButton_ConnectDoIP.setIcon(IconEngine.get_icon(icon_name, 'red'))
+            logger.info(f"DoIP连接状态已更新为：{btn_text}")
 
     @Slot()
     def get_ip_list(self):

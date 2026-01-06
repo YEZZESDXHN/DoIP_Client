@@ -241,8 +241,6 @@ class QUDSClient(QObject):
         logger.debug('收到触发DoIP连接状态切换信号')
         if self._uds_client and self.uds_on_ip_client:
             self.disconnect_uds()
-            self.doip_connect_state.emit(False)
-            logger.info('断开DoIP连接')
         else:
             self.connect_uds()
 
@@ -251,6 +249,8 @@ class QUDSClient(QObject):
         self._uds_client = None
         self.uds_on_ip_client = None
         self.doip_connect_state.emit(False)
+        info_message = f'DoIP断开连接'
+        logger.info(info_message)
 
     def connect_uds(self):
         try:

@@ -1,16 +1,18 @@
 import copy
 import logging
+import os
 import re
 from enum import Enum, auto, IntEnum
-from typing import Any, Set, Optional
+from typing import Any, Set, Optional, List
 
 from PySide6.QtCore import (
     QAbstractTableModel, Qt, QModelIndex, Signal
 )
-from PySide6.QtGui import QColor, QAction, QCursor, QPalette
+from PySide6.QtGui import QColor, QAction, QCursor, QPalette, QMouseEvent, QContextMenuEvent
 from PySide6.QtWidgets import (
-    QTableView, QVBoxLayout, QWidget,QHeaderView,
-    QStyledItemDelegate, QComboBox, QMenu, QCompleter, QDialog, QStyleOptionViewItem, QLineEdit
+    QTableView, QVBoxLayout, QWidget, QHeaderView,
+    QStyledItemDelegate, QComboBox, QMenu, QCompleter, QDialog, QStyleOptionViewItem, QLineEdit, QFileDialog,
+    QAbstractItemView
 )
 from pydantic import BaseModel, Field, ConfigDict, field_serializer, field_validator
 
@@ -188,14 +190,99 @@ class VariableSelectionDelegate(QStyledItemDelegate):
             model.setData(index, value, Qt.EditRole)
 
 
+class FilesTableView(QTableView):
+    """自定义表格视图"""
 
-# ==========================================
-# 3. Files Model
-# ==========================================
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # 默认规则：双击/选中后单击 均可编辑
+        self.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.SelectedClicked)
+
+    def mousePressEvent(self, event: QMouseEvent):
+        """单击Path列单元格弹出文件选择框，其他列保留默认编辑逻辑"""
+        index = self.indexAt(event.pos())
+
+        # 仅拦截 Path 列的左键单击事件
+        if index.isValid() and index.column() == FileCol.PATH and event.button() == Qt.MouseButton.LeftButton:
+            self._open_file_dialog(index)
+            return  # 阻止Path列触发默认的"选中单击编辑"
+
+        # 其他列/情况执行默认逻辑（保留编辑能力）
+        super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        """仅拦截Path列的双击事件，其他列保留默认双击编辑"""
+        index = self.indexAt(event.pos())
+
+        if index.isValid() and index.column() == FileCol.PATH and event.button() == Qt.MouseButton.LeftButton:
+            self._open_file_dialog(index)  # 双击Path列也弹文件选择框（可选）
+            return
+
+        # 其他列执行默认双击编辑
+        super().mouseDoubleClickEvent(event)
+
+    def contextMenuEvent(self, event: QContextMenuEvent):
+        """右键菜单：为Path列添加手动编辑选项"""
+        index = self.indexAt(event.pos())
+        if not index.isValid():
+            super().contextMenuEvent(event)
+            return
+
+        # 为Path列定制右键菜单
+        if index.column() == FileCol.PATH:
+            menu = QMenu(self)
+
+            # 1. 选择文件选项
+            select_file_action = QAction("选择文件", self)
+            select_file_action.triggered.connect(lambda: self._open_file_dialog(index))
+            menu.addAction(select_file_action)
+
+            # 2. 手动编辑路径选项
+            edit_path_action = QAction("手动编辑路径", self)
+            edit_path_action.triggered.connect(lambda: self.edit(index))
+            menu.addAction(edit_path_action)
+
+            # 3. 清空路径选项（可选）
+            clear_path_action = QAction("清空路径", self)
+            clear_path_action.triggered.connect(lambda: self.model().setData(
+                index, "", Qt.ItemDataRole.EditRole
+            ))
+            menu.addAction(clear_path_action)
+
+            menu.exec(event.globalPos())
+        else:
+            # 其他列使用默认右键菜单（保留编辑能力）
+            super().contextMenuEvent(event)
+
+    def _open_file_dialog(self, index: QModelIndex):
+        """封装文件选择对话框逻辑，便于复用"""
+        # 获取当前单元格的路径作为初始目录
+        current_path = index.data() or os.getcwd()
+        abs_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "选择默认刷写文件",
+            current_path,
+            "Hex (*.hex);;bin (*.bin);;S19 (*.s19);;All Files (*)"
+        )
+
+        if abs_path:
+            try:
+                # 计算相对路径（以程序运行目录为基准）
+                rel_path = os.path.relpath(abs_path, os.getcwd())
+                file_path = rel_path
+            except ValueError:
+                # 跨盘符时使用绝对路径
+                file_path = abs_path
+
+            # 更新模型数据
+            self.model().setData(index, file_path, Qt.ItemDataRole.EditRole)
+            self.update(index)
+
+
 class FilesTableModel(QAbstractTableModel):
     variablesChanged = Signal()  # 通知外部变量可能变了
 
-    def __init__(self, files_list: list[FileConfig], parent=None):
+    def __init__(self, files_list: List[FileConfig], parent=None):
         super().__init__(parent)
         self.files_list = files_list
 
@@ -206,23 +293,25 @@ class FilesTableModel(QAbstractTableModel):
         return 3
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlags:
-        if not index.isValid(): return Qt.NoItemFlags
-        return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
+        if not index.isValid(): return Qt.ItemFlag.NoItemFlags
+        return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
 
-    def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
         if not index.isValid(): return None
         item = self.files_list[index.row()]
         col = index.column()
 
-        if role in (Qt.DisplayRole, Qt.EditRole):
-            # [优化] 使用 match 或 if-elif 配合枚举，清晰易读
-            if col == FileCol.NAME: return item.name
-            if col == FileCol.PATH: return item.default_path
-            if col == FileCol.ADDRESS: return item.address
+        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
+            if col == FileCol.NAME:
+                return item.name
+            if col == FileCol.PATH:
+                return item.default_path
+            if col == FileCol.ADDRESS:
+                return item.address
         return None
 
-    def setData(self, index: QModelIndex, value: Any, role: int = Qt.EditRole) -> bool:
-        if not index.isValid() or role != Qt.EditRole: return False
+    def setData(self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole) -> bool:
+        if not index.isValid() or role != Qt.ItemDataRole.EditRole: return False
 
         item = self.files_list[index.row()]
         col = index.column()
@@ -230,7 +319,6 @@ class FilesTableModel(QAbstractTableModel):
 
         if col == FileCol.NAME:
             if item.name != val_str:
-                # 查重逻辑保持不变
                 item.name = self._get_unique_name(val_str, index.row())
                 self.variablesChanged.emit()
         elif col == FileCol.PATH:
@@ -244,9 +332,6 @@ class FilesTableModel(QAbstractTableModel):
     def insert_file(self):
         row = self.rowCount()
         base_name = f"File_{row+1}"
-
-        # 核心修改：在插入前调用查重逻辑
-        # 传入 -1 作为 exclude_row，表示与列表中所有现有项进行对比
         unique_name = self._get_unique_name(base_name, -1)
 
         self.beginInsertRows(QModelIndex(), row, row)
@@ -269,10 +354,9 @@ class FilesTableModel(QAbstractTableModel):
         while f"{base_name}_{counter}" in existing: counter += 1
         return f"{base_name}_{counter}"
 
-    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole) -> Any:
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return ["Name (Prefix)", "Path", "Address"][section]
-        return None
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+            return ["Name (Prefix)", "Path", "Address(Hex)"][section]
 
 
 # ==========================================
@@ -541,7 +625,8 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
 
         # 3. 初始化 Views
         # 直接传入占位符 widget，内部自动处理布局
-        self.file_view = self._setup_view(self.groupBox_files, self.file_model)
+        self.file_view = self._setup_view(self.groupBox_files, self.file_model, FilesTableView())
+        self.file_view.setColumnWidth(FileCol.PATH, 300)
 
         # [优化] 设置全局 Delegate，Delegate 内部会智能判断列
         self.step_view = self._setup_view(self.groupBox_steps, self.step_model)
@@ -627,9 +712,10 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # StepModel 拿到这个列表后，负责更新高亮和下拉提示
         self.step_model.update_context(current_vars)
 
-    def _setup_view(self, parent_widget, model):
+    def _setup_view(self, parent_widget, model, view=None):
         """通用视图设置"""
-        view = QTableView()
+        if not view:
+            view = QTableView()
         view.setModel(model)
 
         # 常用视图设置

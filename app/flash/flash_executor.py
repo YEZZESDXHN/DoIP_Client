@@ -98,7 +98,9 @@ class QFlashExecutor(QObject):
                     self.flash_vars.files_vars[file.name].flash_block_vars.clear()
                     for addr, block_data in self.flash_file_parsers[file.name].get_segments():
                         base_vars = FlashBaseVars()
-                        base_vars.addr = addr
+                        if not file.address:
+                            if addr:
+                                base_vars.addr = addr
                         base_vars.size = len(block_data)
                         base_vars.data = bytes(block_data)
                         base_vars.checksum = self.compute_checksum(block_data)

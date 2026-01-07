@@ -281,6 +281,9 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.resizeDocks([self.dockWidget_DiagTree, self.dockWidget_UdsCaseTree], [200, 200], Qt.Orientation.Horizontal)
         self.resizeDocks([self.dockWidget_write], [150], Qt.Orientation.Vertical)
 
+        self.tabifyDockWidget(self.dockWidget_DiagTree, self.dockWidget_UdsCaseTree)
+        self.dockWidget_DiagTree.raise_()
+        self.dockWidget_DiagTree.show()
         self.default_state = self.saveState()
 
         self.setup_flash_control()
@@ -321,6 +324,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             self.flash_choose_file_controls.clear()
             self.flash_file_paths.clear()
             self.flash_choose_file_controls[file_cfg.name] = FlashChooseFileControl(self)
+            if file_cfg.default_path:
+                self.flash_choose_file_controls[file_cfg.name].lineEdit_FlashFilePath.setText(file_cfg.default_path)
             self.flash_choose_file_controls[file_cfg.name].label_FlashFileName.setText(file_cfg.name)
             self.flash_choose_file_controls[file_cfg.name].toolButton_LoadFlashFile.clicked.connect(
                 lambda checked=False, name=file_cfg.name, le=self.flash_choose_file_controls[file_cfg.name].lineEdit_FlashFilePath: self.choose_flash_file(name, le)

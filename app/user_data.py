@@ -12,6 +12,7 @@ from typing import Any, Optional, Type, get_args, get_origin
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
+from pydantic import BaseModel, Field
 
 
 @dataclass
@@ -460,7 +461,7 @@ class DiagnosisStepData:
         self.update_from_dict(data_dict)
 
 
-class MessageDir(Enum):
+class MessageDir(str, Enum):
     Tx = "Tx"
     Rx = "Rx"
     NoDir = ""
@@ -472,19 +473,22 @@ class DoIPMessageStruct:
     Time: str = ''
     Dir: MessageDir = MessageDir.NoDir
     Type: str = ''
-    Destination_IP: str = ''
-    Source_IP: str = ''
+    TX_id: int = 0
+    RX_id: int = 0
     DataLength: int = 0
     Data: str = ''
     ASCII: str = ''
+
     Data_bytes: bytes = b''
     code_name: str = ''
     uds_data: bytes = b''  # uds数据部分，如responses数据：62 f1 95 11 22 33,uds_data为：11 22 33
-
+    Destination_IP: str = ''
+    Source_IP: str = ''
     def update_data_by_data_bytes(self):
         """将Data_bytes转为hex并更新到Data"""
         try:
-            self.Data = self.Data_bytes.hex(' ')
+            if self.Data_bytes:
+                self.Data = self.Data_bytes.hex(' ')
         except Exception as e:
             raise e
 
@@ -609,120 +613,69 @@ class DoIPMessageStruct:
         self.update_from_dict(data_dict)
 
 
-@dataclass
-class DoIPConfig:
-    config_name: str = 'default_config'
+# @dataclass
+class DoIPConfig(BaseModel):
     tester_logical_address: int = 0x7e2
     dut_logical_address: int = 0x773
     dut_ipv4_address: str = '172.16.104.70'
 
+    protocol_version: int = 0x02
     tcp_port: int = TCP_DATA_UNSECURED
     udp_port: int = UDP_DISCOVERY
     activation_type: int = RoutingActivationRequest.ActivationType.Default
-    protocol_version: int = 0x02
     use_secure: int = 0
     is_routing_activation_use: bool = True
     is_oem_specific_use: bool = False
     oem_specific: int = 0
-    GenerateKeyExOptPath: str = ''
 
-    def get_attr_names(self) -> tuple:
+    def get_attr_names(self) -> tuple[str, ...]:
         """返回属性名字元组"""
-        return tuple(field.name for field in fields(self))
+        return tuple(self.model_fields.keys())
 
     def to_tuple(self) -> tuple:
         """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
         tuple_values = []
-        for field in fields(self):
-            value = getattr(self, field.name)
-            # 对枚举类型字段，提取其value；其他字段直接用原值
+
+        # 修改点：从 fields(self) 变为遍历 self.model_fields
+        for field_name in self.model_fields.keys():
+            value = getattr(self, field_name)
+
+            # 逻辑保持原样
             if isinstance(value, Enum):
                 tuple_values.append(value.value)
             elif isinstance(value, bytes):
+                # 注意：bytes.hex(sep) 需要 Python 3.8+
+                # 如果之前你的输出是大写，建议加上 .upper()，例如: value.hex(' ').upper()
                 tuple_values.append(value.hex(' '))
             else:
                 tuple_values.append(value)
+
         return tuple(tuple_values)
 
-    def to_dict(self) -> dict:
-        """转换为字典"""
-        data_dict = asdict(self)
-        for key, value in data_dict.items():
-            if isinstance(value, bytes):
-                encoded_bytes = base64.b64encode(value)
-                data_dict[key] = encoded_bytes.decode('utf-8')
-            elif isinstance(value, Enum):
-                data_dict[key] = value.value
+    def to_json(self) -> str:
+        return self.model_dump_json()
 
-        return data_dict
 
-    @staticmethod
-    def _json_default_converter(obj):
-        """数据类转换json时，不支持的类型转换规则"""
-        if isinstance(obj, bytes):
-            # 1. Base64 编码 (bytes -> bytes)
-            encoded_bytes = base64.b64encode(obj)
-            # 2. 转换为 UTF-8 字符串 (bytes -> str)
-            return encoded_bytes.decode('utf-8')
+# @dataclass
+class UdsOnCANConfig(BaseModel):
+    req_id: int = 0
+    resp_id: int = 0
 
-        # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+# @dataclass
+class UdsConfig(BaseModel):
+    config_name: str = 'default_config'
+    is_can_uds: bool = False
+    GenerateKeyExOptPath: str = ''
+    can: UdsOnCANConfig = Field(default_factory=UdsOnCANConfig)
+    doip: DoIPConfig = Field(default_factory=DoIPConfig)
 
     def to_json(self) -> str:
-        """数据类转json字符串"""
-        data_dict = asdict(self)
-        data_json = json.dumps(data_dict, default=self._json_default_converter)
-        return data_json
+        return self.model_dump_json()
 
-    def _get_field_type(self, field_name: str) -> Optional[Type]:
-        """辅助方法：获取属性的类型"""
-        if not is_dataclass(self):
-            return None
-        cls = type(self)
-        return cls.__annotations__.get(field_name)
-
-    def update_from_dict(self, data_dict: dict):
-        """从dict更新数据类"""
-        for key, value in data_dict.items():
-            if not hasattr(self, key):
-                continue
-            field_type = self._get_field_type(key)
-            current_value = getattr(self, key, None)
-
-            try:
-                # 处理枚举类型（字符串/数字转枚举实例）
-                if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
-                    value = field_type(value)
-                # 处理基础类型转换（如字符串转数字）
-                elif field_type in (int, float, bool, str) and value is not None:
-                    # bool类型特殊处理（避免"False"被转成True）
-                    if field_type == bool and isinstance(value, str):
-                        value = value.lower() in ("true", "1", "yes")
-                    else:
-                        value = field_type(value)
-                elif field_type is bytes:
-                    if isinstance(value, bytes):
-                        pass
-                    elif isinstance(value, str):
-                        try:
-                            # 尝试Base64解码（失败则说明不是Base64字符串，跳过）
-                            value = base64.b64decode(value.encode('utf-8'))
-                        except (binascii.Error, ValueError):
-                            value = b''
-
-            except (ValueError, TypeError, enum.EnumError) as e:
-                # 类型转换失败时打印提示，保留原值（也可改为raise抛出异常）
-                print(f"警告：属性{key}赋值失败（{e}），原值：{current_value}，待赋值：{value}")
-                continue
-
-                # 4. 最终赋值（仅当值有效时）
-            if value is not None:
-                setattr(self, key, value)
-
-    def update_from_json(self, json_str: str):
-        """从json更新数据类"""
-        data_dict = json.loads(json_str)
-        self.update_from_dict(data_dict)
+    @classmethod
+    def from_json(cls, json_str: str):
+        return cls.model_validate_json(json_str)
 
 
 if __name__ == '__main__':

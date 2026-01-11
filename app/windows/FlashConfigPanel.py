@@ -51,7 +51,6 @@ class Step(BaseModel):
         return data.hex().upper()
 
     @field_validator('data', mode='before')
-    @classmethod
     def validate_data(cls, v):
         # Pydantic 在校验类型前会先运行这个函数
         # v 就是从 JSON 里拿到的那个字符串，比如 "FF00"

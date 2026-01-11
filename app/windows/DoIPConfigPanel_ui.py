@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog, QCheckBox
 
 from app.resources.resources import IconEngine
 from app.ui.DoIPConfigUI import Ui_DoIPConfig
-from app.user_data import DoIPConfig
+from app.user_data import DoIPConfig, UdsOnCANConfig, UdsConfig
 from app.utils import hex_str_to_int
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -23,11 +23,14 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
         super().__init__(parent)
         self.setupUi(self)
         self.setWindowIcon(IconEngine.get_icon('config'))
-        self.config: Optional[DoIPConfig] = DoIPConfig(
+        self.config: Optional[UdsConfig] = UdsConfig(
             config_name='DoIP_config_panel_default',
-            tester_logical_address=0x7e2,
-            dut_logical_address=0x773,
-            dut_ipv4_address='172.16.104.70'
+            can=UdsOnCANConfig(),
+            doip=DoIPConfig(
+                tester_logical_address=0x7e2,
+                dut_logical_address=0x773,
+                dut_ipv4_address='172.16.104.70'
+            )
         )
         self.configs_name = configs_name
         self.is_create_new_config = is_create_new_config
@@ -130,7 +133,7 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
         else:
             text = tester_logical_address.strip()
             try:
-                self.config.tester_logical_address = hex_str_to_int(text)
+                self.config.doip.tester_logical_address = hex_str_to_int(text)
             except Exception as e:
                 # 捕获转换异常，提示具体错误
                 QMessageBox.critical(
@@ -148,7 +151,7 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
         else:
             text = DUT_logical_address.strip()
             try:
-                self.config.dut_logical_address = hex_str_to_int(text)
+                self.config.doip.dut_logical_address = hex_str_to_int(text)
             except Exception as e:
                 # 捕获转换异常，提示具体错误
                 QMessageBox.critical(
@@ -173,7 +176,7 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
                         "DUT IP地址输入错误",
                         f"数据格式非法！\n仅支持IPv4地址，当前输入为IPv{ip_obj.version}：{text}"
                     )
-                self.config.dut_ipv4_address = text
+                self.config.doip.dut_ipv4_address = text
             except Exception as e:
                 # 捕获转换异常，提示具体错误
                 QMessageBox.critical(
@@ -185,15 +188,15 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
                 return
 
         if self.checkBox_RouteActive.isChecked():
-            self.config.is_routing_activation_use = 1
+            self.config.doip.is_routing_activation_use = True
             try:
-                self.config.oem_specific = int(self.lineEdit_OEMSpecific.text())
+                self.config.doip.oem_specific = int(self.lineEdit_OEMSpecific.text())
             except Exception as e:
                 logger.exception(str(e))
 
 
         else:
-            self.config.is_routing_activation_use = 0
+            self.config.doip.is_routing_activation_use = False
 
         self.config.GenerateKeyExOptPath = self.lineEdit_GenerateKeyExOptPath.text()
 

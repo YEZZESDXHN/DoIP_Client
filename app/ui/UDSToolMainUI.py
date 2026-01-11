@@ -161,7 +161,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_FlashFiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 961, 400))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 38, 16))
         self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
 
         self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
@@ -261,33 +261,6 @@ class Ui_UDSToolMainWindow(object):
         self.verticalLayout_5.setObjectName(u"verticalLayout_5")
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.pushButton_EditConfig = QPushButton(self.dockWidgetContents_3)
-        self.pushButton_EditConfig.setObjectName(u"pushButton_EditConfig")
-        sizePolicy.setHeightForWidth(self.pushButton_EditConfig.sizePolicy().hasHeightForWidth())
-        self.pushButton_EditConfig.setSizePolicy(sizePolicy)
-        self.pushButton_EditConfig.setMaximumSize(QSize(16777215, 16777215))
-        self.pushButton_EditConfig.setFont(font)
-
-        self.gridLayout_2.addWidget(self.pushButton_EditConfig, 1, 2, 1, 1)
-
-        self.label_5 = QLabel(self.dockWidgetContents_3)
-        self.label_5.setObjectName(u"label_5")
-        sizePolicy.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
-        self.label_5.setSizePolicy(sizePolicy)
-        self.label_5.setMinimumSize(QSize(60, 0))
-        self.label_5.setFont(font)
-
-        self.gridLayout_2.addWidget(self.label_5, 0, 0, 1, 1)
-
-        self.pushButton_ConnectDoIP = QPushButton(self.dockWidgetContents_3)
-        self.pushButton_ConnectDoIP.setObjectName(u"pushButton_ConnectDoIP")
-        sizePolicy.setHeightForWidth(self.pushButton_ConnectDoIP.sizePolicy().hasHeightForWidth())
-        self.pushButton_ConnectDoIP.setSizePolicy(sizePolicy)
-        self.pushButton_ConnectDoIP.setMaximumSize(QSize(16777215, 16777215))
-        self.pushButton_ConnectDoIP.setFont(font)
-
-        self.gridLayout_2.addWidget(self.pushButton_ConnectDoIP, 0, 5, 1, 1)
-
         self.comboBox_ChooseConfig = QComboBox(self.dockWidgetContents_3)
         self.comboBox_ChooseConfig.setObjectName(u"comboBox_ChooseConfig")
         sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -298,26 +271,16 @@ class Ui_UDSToolMainWindow(object):
         self.comboBox_ChooseConfig.setMinimumSize(QSize(150, 0))
         self.comboBox_ChooseConfig.setFont(font)
 
-        self.gridLayout_2.addWidget(self.comboBox_ChooseConfig, 1, 1, 1, 1)
+        self.gridLayout_2.addWidget(self.comboBox_ChooseConfig, 2, 1, 1, 1)
 
-        self.comboBox_TesterIP = QComboBox(self.dockWidgetContents_3)
-        self.comboBox_TesterIP.setObjectName(u"comboBox_TesterIP")
-        sizePolicy2.setHeightForWidth(self.comboBox_TesterIP.sizePolicy().hasHeightForWidth())
-        self.comboBox_TesterIP.setSizePolicy(sizePolicy2)
-        self.comboBox_TesterIP.setMinimumSize(QSize(150, 0))
-        self.comboBox_TesterIP.setFont(font)
-        self.comboBox_TesterIP.setLabelDrawingMode(QComboBox.LabelDrawingMode.UseStyle)
+        self.label_5 = QLabel(self.dockWidgetContents_3)
+        self.label_5.setObjectName(u"label_5")
+        sizePolicy.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
+        self.label_5.setSizePolicy(sizePolicy)
+        self.label_5.setMinimumSize(QSize(60, 0))
+        self.label_5.setFont(font)
 
-        self.gridLayout_2.addWidget(self.comboBox_TesterIP, 0, 1, 1, 1)
-
-        self.label_6 = QLabel(self.dockWidgetContents_3)
-        self.label_6.setObjectName(u"label_6")
-        sizePolicy.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
-        self.label_6.setSizePolicy(sizePolicy)
-        self.label_6.setMinimumSize(QSize(60, 0))
-        self.label_6.setFont(font)
-
-        self.gridLayout_2.addWidget(self.label_6, 1, 0, 1, 1)
+        self.gridLayout_2.addWidget(self.label_5, 1, 0, 1, 1)
 
         self.pushButton_RefreshIP = QPushButton(self.dockWidgetContents_3)
         self.pushButton_RefreshIP.setObjectName(u"pushButton_RefreshIP")
@@ -326,7 +289,47 @@ class Ui_UDSToolMainWindow(object):
         self.pushButton_RefreshIP.setMaximumSize(QSize(16777215, 16777215))
         self.pushButton_RefreshIP.setFont(font)
 
-        self.gridLayout_2.addWidget(self.pushButton_RefreshIP, 0, 2, 1, 1)
+        self.gridLayout_2.addWidget(self.pushButton_RefreshIP, 1, 2, 1, 1)
+
+        self.label_6 = QLabel(self.dockWidgetContents_3)
+        self.label_6.setObjectName(u"label_6")
+        sizePolicy.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
+        self.label_6.setSizePolicy(sizePolicy)
+        self.label_6.setMinimumSize(QSize(60, 0))
+        self.label_6.setFont(font)
+
+        self.gridLayout_2.addWidget(self.label_6, 2, 0, 1, 1)
+
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayout_2.addItem(self.horizontalSpacer_2, 2, 4, 1, 1)
+
+        self.pushButton_EditConfig = QPushButton(self.dockWidgetContents_3)
+        self.pushButton_EditConfig.setObjectName(u"pushButton_EditConfig")
+        sizePolicy.setHeightForWidth(self.pushButton_EditConfig.sizePolicy().hasHeightForWidth())
+        self.pushButton_EditConfig.setSizePolicy(sizePolicy)
+        self.pushButton_EditConfig.setMaximumSize(QSize(16777215, 16777215))
+        self.pushButton_EditConfig.setFont(font)
+
+        self.gridLayout_2.addWidget(self.pushButton_EditConfig, 2, 2, 1, 1)
+
+        self.comboBox_HardwareChannel = QComboBox(self.dockWidgetContents_3)
+        self.comboBox_HardwareChannel.setObjectName(u"comboBox_HardwareChannel")
+        sizePolicy2.setHeightForWidth(self.comboBox_HardwareChannel.sizePolicy().hasHeightForWidth())
+        self.comboBox_HardwareChannel.setSizePolicy(sizePolicy2)
+        self.comboBox_HardwareChannel.setMinimumSize(QSize(150, 0))
+        self.comboBox_HardwareChannel.setFont(font)
+        self.comboBox_HardwareChannel.setLabelDrawingMode(QComboBox.LabelDrawingMode.UseStyle)
+
+        self.gridLayout_2.addWidget(self.comboBox_HardwareChannel, 1, 1, 1, 1)
+
+        self.pushButton_CreateConfig = QPushButton(self.dockWidgetContents_3)
+        self.pushButton_CreateConfig.setObjectName(u"pushButton_CreateConfig")
+        sizePolicy.setHeightForWidth(self.pushButton_CreateConfig.sizePolicy().hasHeightForWidth())
+        self.pushButton_CreateConfig.setSizePolicy(sizePolicy)
+        self.pushButton_CreateConfig.setFont(font)
+
+        self.gridLayout_2.addWidget(self.pushButton_CreateConfig, 2, 3, 1, 1)
 
         self.checkBox_AotuReconnect = QCheckBox(self.dockWidgetContents_3)
         self.checkBox_AotuReconnect.setObjectName(u"checkBox_AotuReconnect")
@@ -335,19 +338,35 @@ class Ui_UDSToolMainWindow(object):
         self.checkBox_AotuReconnect.setChecked(True)
         self.checkBox_AotuReconnect.setAutoRepeat(False)
 
-        self.gridLayout_2.addWidget(self.checkBox_AotuReconnect, 0, 3, 1, 1)
+        self.gridLayout_2.addWidget(self.checkBox_AotuReconnect, 1, 3, 1, 1)
 
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.label_7 = QLabel(self.dockWidgetContents_3)
+        self.label_7.setObjectName(u"label_7")
+        sizePolicy.setHeightForWidth(self.label_7.sizePolicy().hasHeightForWidth())
+        self.label_7.setSizePolicy(sizePolicy)
+        self.label_7.setMinimumSize(QSize(60, 0))
+        self.label_7.setFont(font)
 
-        self.gridLayout_2.addItem(self.horizontalSpacer_2, 1, 4, 1, 1)
+        self.gridLayout_2.addWidget(self.label_7, 0, 0, 1, 1)
 
-        self.pushButton_CreateConfig = QPushButton(self.dockWidgetContents_3)
-        self.pushButton_CreateConfig.setObjectName(u"pushButton_CreateConfig")
-        sizePolicy.setHeightForWidth(self.pushButton_CreateConfig.sizePolicy().hasHeightForWidth())
-        self.pushButton_CreateConfig.setSizePolicy(sizePolicy)
-        self.pushButton_CreateConfig.setFont(font)
+        self.comboBox_HardwareType = QComboBox(self.dockWidgetContents_3)
+        self.comboBox_HardwareType.setObjectName(u"comboBox_HardwareType")
+        sizePolicy2.setHeightForWidth(self.comboBox_HardwareType.sizePolicy().hasHeightForWidth())
+        self.comboBox_HardwareType.setSizePolicy(sizePolicy2)
+        self.comboBox_HardwareType.setMinimumSize(QSize(150, 0))
+        self.comboBox_HardwareType.setFont(font)
+        self.comboBox_HardwareType.setLabelDrawingMode(QComboBox.LabelDrawingMode.UseStyle)
 
-        self.gridLayout_2.addWidget(self.pushButton_CreateConfig, 1, 3, 1, 1)
+        self.gridLayout_2.addWidget(self.comboBox_HardwareType, 0, 1, 1, 1)
+
+        self.pushButton_ConnectDoIP = QPushButton(self.dockWidgetContents_3)
+        self.pushButton_ConnectDoIP.setObjectName(u"pushButton_ConnectDoIP")
+        sizePolicy.setHeightForWidth(self.pushButton_ConnectDoIP.sizePolicy().hasHeightForWidth())
+        self.pushButton_ConnectDoIP.setSizePolicy(sizePolicy)
+        self.pushButton_ConnectDoIP.setMaximumSize(QSize(16777215, 16777215))
+        self.pushButton_ConnectDoIP.setFont(font)
+
+        self.gridLayout_2.addWidget(self.pushButton_ConnectDoIP, 0, 5, 1, 1)
 
         self.gridLayout_2.setColumnStretch(0, 1)
 
@@ -412,7 +431,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 77, 455))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 77, 425))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
 
         self.verticalLayout_8.addWidget(self.scrollArea_DiagTree)
@@ -433,7 +452,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_UdsCaseTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 77, 455))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 77, 425))
         self.scrollArea_UdsCaseTree.setWidget(self.scrollAreaWidgetContents_3)
 
         self.verticalLayout_9.addWidget(self.scrollArea_UdsCaseTree)
@@ -507,13 +526,14 @@ class Ui_UDSToolMainWindow(object):
         self.menu_set.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u8bbe\u7f6e", None))
         self.menu_tool.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u5de5\u5177", None))
         self.menu_view.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u89c6\u56fe", None))
-        self.pushButton_EditConfig.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u7f16\u8f91", None))
-        self.label_5.setText(QCoreApplication.translate("UDSToolMainWindow", u"Tester IP", None))
-        self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u8fde\u63a5", None))
-        self.label_6.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u914d\u7f6e", None))
+        self.label_5.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u901a\u9053", None))
         self.pushButton_RefreshIP.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u65b0", None))
-        self.checkBox_AotuReconnect.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
+        self.label_6.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u914d\u7f6e", None))
+        self.pushButton_EditConfig.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u7f16\u8f91", None))
         self.pushButton_CreateConfig.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u65b0\u5efa\u914d\u7f6e", None))
+        self.checkBox_AotuReconnect.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
+        self.label_7.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u8bbe\u5907\u63a5\u53e3", None))
+        self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u8fde\u63a5", None))
         self.pushButton_SendDoIP.setText(QCoreApplication.translate("UDSToolMainWindow", u"Send", None))
         self.checkBox_TesterPresent.setText(QCoreApplication.translate("UDSToolMainWindow", u"Tester Present", None))
         self.dockWidget_DiagTree.setWindowTitle(QCoreApplication.translate("UDSToolMainWindow", u"UDS Services", None))

@@ -2,12 +2,12 @@ import logging
 import sqlite3
 from typing import Optional, List
 
-from app.user_data import DoIPConfig, DEFAULT_SERVICES, DiagCase, DiagnosisStepData
+from app.user_data import DEFAULT_SERVICES, DiagCase, DiagnosisStepData, UdsConfig
 from app.windows.FlashConfigPanel import FlashConfig
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
-DOIP_CONFIG_TABLE_NAME = "DoIP_Config"
+UDS_CONFIG_TABLE_NAME = "UDS_Config"
 CURRENT_CONFIG_TABLE_NAME = 'current_active_config'
 SERVICES_TABLE_NAME = 'services_table'
 CASE_TABLE_NAME = 'uds_cases'
@@ -18,9 +18,7 @@ FLASH_CONFIG_TABLE_NAME = 'flash_config'
 class DBManager:
     def __init__(self, db_path: str):
         self.db_path = db_path
-        self.default_config = DoIPConfig()
-        self.keys_tuple = self.default_config.get_attr_names()
-        self.primary_key = DoIPConfig().get_attr_names()[0]
+        self.default_config = UdsConfig()
         self.init_config_database()
         self.init_services_database()
         self.init_case_database()
@@ -64,26 +62,6 @@ class DBManager:
             return None
 
     def init_config_database(self):
-        # --- 动态生成 CREATE TABLE SQL(doip config) ---
-        field_definitions = []
-        for field, value in DoIPConfig().to_dict().items():
-            # 确定 SQL 类型和约束
-            sql_type = 'TEXT' if isinstance(value, str) else 'INTEGER'
-            constraints = 'PRIMARY KEY' if field == self.primary_key else 'NOT NULL'
-
-            # 添加 DEFAULT 子句（如果不是主键）
-            if field != self.primary_key:
-                constraints += f" DEFAULT {repr(value)}"
-
-            field_definitions.append(f"{field} {sql_type} {constraints}")
-
-        fields_sql = ',\n'.join(field_definitions)
-        create_doip_config_sql = f"""
-                CREATE TABLE IF NOT EXISTS {DOIP_CONFIG_TABLE_NAME} (
-                    {fields_sql}
-                );
-                """
-
         # ---生成当前配置的CREATE TABLE SQL---
         create_current_config_sql = f"""
                         CREATE TABLE IF NOT EXISTS {CURRENT_CONFIG_TABLE_NAME} (
@@ -94,20 +72,33 @@ class DBManager:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute(create_doip_config_sql)
+                cursor.execute(f"""
+                                CREATE TABLE IF NOT EXISTS {UDS_CONFIG_TABLE_NAME} (
+                                    config_name TEXT PRIMARY KEY,
+                                    json_data TEXT NOT NULL
+                                )
+                            """)
                 cursor.execute(create_current_config_sql)
                 conn.commit()
-                logger.info(f"数据库初始化完成！{DOIP_CONFIG_TABLE_NAME} ，{CURRENT_CONFIG_TABLE_NAME}表创建/验证成功")
+                logger.info(f"数据库初始化完成！{UDS_CONFIG_TABLE_NAME} ，{CURRENT_CONFIG_TABLE_NAME}表创建/验证成功")
 
                 # 检查表中是否有数据
-                cursor.execute(f"SELECT COUNT(*) FROM {DOIP_CONFIG_TABLE_NAME}")
+                cursor.execute(f"SELECT COUNT(*) FROM {UDS_CONFIG_TABLE_NAME}")
                 count = cursor.fetchone()[0]
 
                 if count == 0:
                     # 如果没有数据，插入默认配置
-                    self._insert_default_doip_config(conn)
+                    default_config = UdsConfig()
+                    config_name = getattr(default_config, 'config_name', 'default')
+                    json_data = default_config.to_json()
+                    sql = f"""
+                                    INSERT OR REPLACE INTO {UDS_CONFIG_TABLE_NAME} 
+                                    (config_name, json_data) VALUES (?, ?)
+                                """
+                    conn.execute(sql, (config_name, json_data))
+                    conn.commit()
                 else:
-                    logger.info(f"表 {DOIP_CONFIG_TABLE_NAME} 中已存在 {count} 条配置，跳过写入默认配置。")
+                    logger.info(f"表 {UDS_CONFIG_TABLE_NAME} 中已存在 {count} 条配置，跳过写入默认配置。")
 
                 # 检查并设置当前激活的配置名称到激活配置表
                 cursor.execute(f"SELECT COUNT(*) FROM {CURRENT_CONFIG_TABLE_NAME}")
@@ -721,26 +712,23 @@ class DBManager:
             logger.exception(f"检查配置存在性失败：{str(e)}")
             return False
 
-    def _insert_default_doip_config(self, conn: sqlite3.Connection):
-        """内部方法：将默认配置写入数据库"""
-        # 构建 SQL 插入语句
-        keys = ', '.join(self.keys_tuple)
-        # 使用 ? 占位符防止 SQL 注入
-        placeholders = ', '.join(['?'] * len(self.keys_tuple))
-        insert_sql = f"""
-        INSERT INTO {DOIP_CONFIG_TABLE_NAME} ({keys}) 
-        VALUES ({placeholders})
+    def save_uds_config(self, config_obj: UdsConfig):
         """
-
-        values = self.default_config.to_tuple()
-
-        try:
-            cursor = conn.cursor()
-            cursor.execute(insert_sql, values)
+        将 Pydantic 配置对象保存到数据库。
+        如果 config_name 已存在，则覆盖旧数据 (Upsert)。
+        """
+        config_name = getattr(config_obj, 'config_name', 'default')
+        json_data = config_obj.to_json()
+        sql = f"""
+                INSERT OR REPLACE INTO {UDS_CONFIG_TABLE_NAME} 
+                (config_name, json_data) VALUES (?, ?)
+            """
+        with sqlite3.connect(self.db_path) as conn:
+            # 使用 REPLACE 语法实现 Upsert (Update or Insert)
+            conn.execute(sql, (config_name, json_data))
             conn.commit()
-            logger.info(f"成功写入默认配置: {self.default_config.config_name}")
-        except sqlite3.Error as e:
-            logger.exception(f"写入默认配置失败: {str(e)}")
+            logger.info(f"Saved: {config_name}")
+
 
     def delete_services_config(self, config_name: str) -> bool:
         delete_sql = f"DELETE FROM {SERVICES_TABLE_NAME} WHERE config_name = ?;"
@@ -788,9 +776,9 @@ class DBManager:
         try:
             cursor = conn.cursor()
             # 使用默认配置实例的 config_name
-            cursor.execute(insert_meta_sql, (DoIPConfig().config_name,))
+            cursor.execute(insert_meta_sql, (UdsConfig().config_name,))
             conn.commit()
-            logger.info(f"成功将 '{DoIPConfig().config_name}' 设置为当前激活配置。")
+            logger.info(f"成功将 '{UdsConfig().config_name}' 设置为当前激活配置。")
         except sqlite3.Error as e:
             logger.exception(f"设置激活配置名称失败: {str(e)}")
 
@@ -809,10 +797,10 @@ class DBManager:
                 cursor = conn.cursor()
 
                 # 1. 验证新的配置名称是否在 doip_config 表中存在
-                cursor.execute(f"SELECT COUNT(*) FROM {DOIP_CONFIG_TABLE_NAME} WHERE config_name = ?",
+                cursor.execute(f"SELECT COUNT(*) FROM {UDS_CONFIG_TABLE_NAME} WHERE config_name = ?",
                                (new_config_name,))
                 if cursor.fetchone()[0] == 0:
-                    logger.warning(f"更新失败：配置名称 '{new_config_name}' 在 {DOIP_CONFIG_TABLE_NAME} 表中不存在。")
+                    logger.warning(f"更新失败：配置名称 '{new_config_name}' 在 {UDS_CONFIG_TABLE_NAME} 表中不存在。")
                     return False
 
                 # 2. 更新 current_active_config 表中的唯一一行数据
@@ -852,103 +840,36 @@ class DBManager:
             logger.exception(f"获取当前激活配置名称失败：{str(e)}")
             return None
 
-    def add_doip_config(self, config: DoIPConfig) -> bool:
-        """
-        新增 DOIP 配置 (动态字段)
-        """
-        keys = ', '.join(self.keys_tuple)
-        placeholders = ', '.join(['?'] * len(self.keys_tuple))
-        insert_sql = f"""
-        INSERT INTO {DOIP_CONFIG_TABLE_NAME} ({keys})
-        VALUES ({placeholders});
-        """
-        values = config.to_tuple()
+    def load_uds_config(self, config_name: str) -> Optional[FlashConfig]:
+        """读取配置，返回 FlashConfig 对象"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(f"SELECT json_data FROM {UDS_CONFIG_TABLE_NAME} WHERE name = ?", (config_name,))
+            row = cursor.fetchone()
+            if row:
+                try:
+                    return FlashConfig.from_json(row[0])
+                except Exception as e:
+                    logger.exception(f'读取uds配置错误：{e}')
+                    return None
+            return None
 
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute(insert_sql, values)
-            logger.info(f"新增 DOIP 配置成功：{config}")
-            return True
-        except sqlite3.IntegrityError as e:
-            logger.error(f"新增配置失败（主键重复/约束冲突）：{config.config_name} - {str(e)}")
-            return False
-        except sqlite3.Error as e:
-            logger.exception(f"新增配置异常：{config.config_name} - {str(e)}")
-            return False
-
-    def query_doip_config(self, config_name: str) -> Optional[DoIPConfig]:
+    def query_uds_config(self, config_name: str) -> Optional[UdsConfig]:
         """
         查询指定名称的 DOIP 配置 (动态字段)
         """
-        keys = ', '.join(self.keys_tuple)
-        query_sql = f"SELECT {keys} FROM {DOIP_CONFIG_TABLE_NAME} WHERE config_name = ?;"
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(query_sql, (config_name,))
-                result = cursor.fetchone()
-
-            if result:
-                logger.info(f"查询到配置：{config_name}")
-                # 动态创建 DoIPConfig 实例
-                config_data = dict(zip(self.keys_tuple, result))
-                return DoIPConfig(**config_data)
-            else:
-                logger.warning(f"未找到配置：{config_name}")
-                return None
-        except sqlite3.Error as e:
-            logger.exception(f"查询配置异常：{config_name} - {str(e)}")
+        with sqlite3.connect(self.db_path) as conn:
+            try:
+                cursor = conn.execute(f"SELECT json_data FROM {UDS_CONFIG_TABLE_NAME} WHERE config_name = ?", (config_name,))
+            except Exception as e:
+                logger.exception(str(e))
+            row = cursor.fetchone()
+            if row:
+                try:
+                    return UdsConfig.from_json(row[0])
+                except Exception as e:
+                    logger.exception(f'读取uds配置错误：{e}')
+                    return None
             return None
-
-    def query_all_doip_configs(self) -> List[DoIPConfig]:
-        """
-        查询所有 DOIP 配置 (动态字段)
-        """
-        keys = ', '.join(self.keys_tuple)
-        query_sql = f"SELECT {keys} FROM {DOIP_CONFIG_TABLE_NAME} ORDER BY config_name ASC;"
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(query_sql)
-                results = cursor.fetchall()
-
-            config_list = []
-            for row in results:
-                # 动态创建 DoIPConfig 实例
-                config_data = dict(zip(self.keys_tuple, row))
-                config_list.append(DoIPConfig(**config_data))
-
-            logger.info(f"查询到 {len(config_list)} 条配置")
-            return config_list
-        except sqlite3.Error as e:
-            logger.exception(f"查询所有配置异常：{str(e)}")
-            return []
-
-    def update_doip_config(self, config: DoIPConfig) -> bool:
-        """
-        更新 DOIP 配置 (动态字段)
-        """
-        set_clauses = ', '.join([f"{key} = ?" for key in config.get_attr_names()[1:]])
-
-        update_sql = f"""
-        UPDATE {DOIP_CONFIG_TABLE_NAME}
-        SET {set_clauses}
-        WHERE {self.primary_key} = ?;
-        """
-        # 值：更新字段的值 + 主键的值
-        values = config.to_tuple()[1:] + (config.config_name,)
-
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(update_sql, values)
-                if cursor.rowcount > 0:
-                    conn.commit()
-                    logger.info(f"更新配置成功：{config}")
-                    return True
-                else:
-                    logger.warning(f"更新失败：未找到配置 {config.config_name}")
-                    return False
-        except sqlite3.Error as e:
-            logger.exception(f"更新配置异常：{config.config_name} - {str(e)}")
-            return False
 
     def delete_doip_config(self, config_name: str) -> bool:
         """
@@ -956,7 +877,7 @@ class DBManager:
         :param config_name: 配置名称（主键）
         :return: 删除成功返回 True，失败返回 False
         """
-        delete_sql = f"DELETE FROM {DOIP_CONFIG_TABLE_NAME} WHERE config_name = ?;"
+        delete_sql = f"DELETE FROM {UDS_CONFIG_TABLE_NAME} WHERE config_name = ?;"
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(delete_sql, (config_name,))
@@ -976,7 +897,7 @@ class DBManager:
         获取 doip_config 表中所有的配置名称
         :return: 配置名称列表（为空则返回空列表）
         """
-        query_sql = f"SELECT config_name FROM {DOIP_CONFIG_TABLE_NAME} ORDER BY config_name ASC;"
+        query_sql = f"SELECT config_name FROM {UDS_CONFIG_TABLE_NAME} ORDER BY config_name ASC;"
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(query_sql)

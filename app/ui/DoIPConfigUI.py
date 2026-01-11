@@ -8,11 +8,17 @@
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from PySide6.QtCore import (QCoreApplication, QMetaObject, QSize, Qt)
-from PySide6.QtGui import (QFont)
-from PySide6.QtWidgets import (QCheckBox, QDialogButtonBox, QGroupBox, QHBoxLayout, QLabel,
-                               QLineEdit, QPushButton, QSizePolicy, QToolButton,
-                               QVBoxLayout)
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
+    QMetaObject, QObject, QPoint, QRect,
+    QSize, QTime, QUrl, Qt)
+from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
+    QFont, QFontDatabase, QGradient, QIcon,
+    QImage, QKeySequence, QLinearGradient, QPainter,
+    QPalette, QPixmap, QRadialGradient, QTransform)
+from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QDialog,
+    QDialogButtonBox, QGroupBox, QHBoxLayout, QLabel,
+    QLineEdit, QPushButton, QSizePolicy, QSpacerItem,
+    QToolButton, QVBoxLayout, QWidget)
 
 class Ui_DoIPConfig(object):
     def setupUi(self, DoIPConfig):
@@ -40,8 +46,8 @@ class Ui_DoIPConfig(object):
         self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
         self.label_ConfigName = QLabel(self.groupBox_DoIPConfig)
         self.label_ConfigName.setObjectName(u"label_ConfigName")
-        self.label_ConfigName.setMinimumSize(QSize(90, 0))
-        self.label_ConfigName.setMaximumSize(QSize(90, 16777215))
+        self.label_ConfigName.setMinimumSize(QSize(95, 0))
+        self.label_ConfigName.setMaximumSize(QSize(95, 16777215))
         font = QFont()
         font.setFamilies([u"\u5fae\u8f6f\u96c5\u9ed1"])
         self.label_ConfigName.setFont(font)
@@ -75,8 +81,8 @@ class Ui_DoIPConfig(object):
         self.label_3.setObjectName(u"label_3")
         sizePolicy1.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
         self.label_3.setSizePolicy(sizePolicy1)
-        self.label_3.setMinimumSize(QSize(90, 0))
-        self.label_3.setMaximumSize(QSize(90, 16777215))
+        self.label_3.setMinimumSize(QSize(95, 0))
+        self.label_3.setMaximumSize(QSize(95, 16777215))
         self.label_3.setSizeIncrement(QSize(0, 0))
         self.label_3.setFont(font)
 
@@ -98,8 +104,8 @@ class Ui_DoIPConfig(object):
         self.label_6.setObjectName(u"label_6")
         sizePolicy1.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
         self.label_6.setSizePolicy(sizePolicy1)
-        self.label_6.setMinimumSize(QSize(90, 0))
-        self.label_6.setMaximumSize(QSize(90, 16777215))
+        self.label_6.setMinimumSize(QSize(95, 0))
+        self.label_6.setMaximumSize(QSize(95, 16777215))
         self.label_6.setFont(font)
 
         self.horizontalLayout_6.addWidget(self.label_6)
@@ -119,8 +125,8 @@ class Ui_DoIPConfig(object):
         self.label_2.setObjectName(u"label_2")
         sizePolicy1.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
         self.label_2.setSizePolicy(sizePolicy1)
-        self.label_2.setMinimumSize(QSize(90, 0))
-        self.label_2.setMaximumSize(QSize(90, 16777215))
+        self.label_2.setMinimumSize(QSize(95, 0))
+        self.label_2.setMaximumSize(QSize(95, 16777215))
         self.label_2.setBaseSize(QSize(0, 0))
         self.label_2.setFont(font)
 
@@ -139,7 +145,8 @@ class Ui_DoIPConfig(object):
         self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
         self.label_4 = QLabel(self.groupBox_DoIPConfig)
         self.label_4.setObjectName(u"label_4")
-        self.label_4.setMinimumSize(QSize(90, 0))
+        self.label_4.setMinimumSize(QSize(95, 0))
+        self.label_4.setMaximumSize(QSize(95, 16777215))
         self.label_4.setFont(font)
 
         self.horizontalLayout_8.addWidget(self.label_4)
@@ -164,6 +171,8 @@ class Ui_DoIPConfig(object):
         self.checkBox_RouteActive.setObjectName(u"checkBox_RouteActive")
         sizePolicy1.setHeightForWidth(self.checkBox_RouteActive.sizePolicy().hasHeightForWidth())
         self.checkBox_RouteActive.setSizePolicy(sizePolicy1)
+        self.checkBox_RouteActive.setMinimumSize(QSize(92, 26))
+        self.checkBox_RouteActive.setMaximumSize(QSize(92, 16777215))
         self.checkBox_RouteActive.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         self.checkBox_RouteActive.setChecked(True)
 
@@ -171,6 +180,10 @@ class Ui_DoIPConfig(object):
 
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalSpacer = QSpacerItem(3, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer)
+
         self.label = QLabel(self.groupBox_DoIPConfig)
         self.label.setObjectName(u"label")
         self.label.setFont(font)
@@ -183,7 +196,7 @@ class Ui_DoIPConfig(object):
 
         self.horizontalLayout.addWidget(self.lineEdit_OEMSpecific)
 
-        self.horizontalLayout.setStretch(1, 3)
+        self.horizontalLayout.setStretch(2, 3)
 
         self.horizontalLayout_5.addLayout(self.horizontalLayout)
 

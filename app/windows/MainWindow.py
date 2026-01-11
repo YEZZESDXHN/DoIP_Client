@@ -1,9 +1,10 @@
 import logging
 import os
+import pprint
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from PySide6.QtCore import Signal, QTimer, QThread, Slot, Qt
 from PySide6.QtGui import QAction
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QAbstractItemView, QVBoxLayo
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
+from app.core.interface_manager import InterfaceManager, CANInterfaceName
 from app.core.db_manager import DBManager
 from app.core.uds_client import QUDSClient
 from app.external_scripts.external_scripts_executor import QExternalScriptsExecutor
@@ -19,8 +21,7 @@ from app.flash.flash_executor import QFlashExecutor, FlashFinishType
 from app.global_variables import gFlashVars, FlashFileVars
 from app.resources.resources import IconEngine
 from app.ui.UDSToolMainUI import Ui_UDSToolMainWindow
-from app.user_data import DoIPConfig, UdsService
-from app.utils import get_ethernet_ips
+from app.user_data import UdsService, UdsConfig, UdsOnCANConfig, DoIPConfig
 from app.windows.AutomaticDiagnosisProcess_ui import DiagProcessCaseTreeView, DiagProcessTableView
 from app.windows.DoIPConfigPanel_ui import DoIPConfigPanel
 from app.windows.DoIPTraceTable_ui import DoIPTraceTableView
@@ -45,12 +46,14 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.setupUi(self)
         self.setWindowIcon(IconEngine.get_icon('car_connected'))
         self.setWindowTitle("UDS Client")
+        self.interface_channels = None
+        self.current_can_interface = None
 
         empty_title = QWidget()
         self.dockWidget.setTitleBarWidget(empty_title)
 
         self.tester_ip_address: Optional[str] = None
-        self.current_uds_config: Optional[DoIPConfig] = None
+        self.current_uds_config: Optional[UdsConfig] = None
         self.db_manager: Optional[DBManager] = None
         self.uds_client: Optional[QUDSClient] = None
         self.uds_client_thread = None
@@ -58,8 +61,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.uds_request_timeout: Optional[float] = None
         self.uds_config: ClientConfig = default_client_config
         self.external_script_path: str = ''
-
-        self.ip_list = []
 
         self.db_path = 'Database/database.db'
         self.init_database(self.db_path)
@@ -81,11 +82,54 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         # 初始化UI、客户端、信号、IP列表
         self._init_ui()
-        self._init_uds_client()
         self._init_external_scripts_thread()
         self._init_flash_thread()
+        self._init_interface_manager()
+        self._init_uds_client()
         self._init_signals()
-        self._refresh_ip_list()
+
+    def _init_interface_manager(self):
+        self.interface_manager = InterfaceManager()
+        self.interface_manager_thread = QThread()
+        self.interface_manager = InterfaceManager()
+
+        self.interface_manager.moveToThread(self.interface_manager_thread)
+        self.interface_manager.signal_interface_channels.connect(self.on_interface_update)
+
+        # 启动线程
+        self.interface_manager_thread.start()
+        logger.info("InterfaceManager线程线程已启动")
+
+    def update_can_interface(self):
+        channels = []
+        can_interface_name = self.comboBox_HardwareType.currentText()
+        if can_interface_name in list(CANInterfaceName):
+            if can_interface_name == CANInterfaceName.vector:
+                for ch in self.interface_channels:
+                    channels.append(f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
+
+            else:
+                if can_interface_name == CANInterfaceName.tosun:
+                    for ch in self.interface_channels:
+                        channels.append(
+                            f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
+        self.comboBox_HardwareChannel.addItems(channels)
+    def on_interface_update(self, interface_channels):
+        try:
+            self.comboBox_HardwareChannel.clear()
+            self.interface_channels = interface_channels
+            if self.current_uds_config.is_can_uds:
+                self.update_can_interface()
+            else:
+
+                ips = []
+                for _, ip in self.interface_channels:
+                    ips.append(ip)
+                self.comboBox_HardwareChannel.addItems(ips)
+            if self.interface_channels:
+                self.current_can_interface = self.interface_channels[0]
+        except Exception as e:
+            logger.exception(f'更新channel失败，{e}')
 
     def add_external_lib(self):
         # ExternalLib sys.path
@@ -96,7 +140,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     def _init_current_uds_config(self):
         try:
             current_config_name = self.db_manager.get_active_config_name()
-            self.current_uds_config = self.db_manager.query_doip_config(current_config_name)
+            self.current_uds_config = self.db_manager.query_uds_config(current_config_name)
             if not self.current_uds_config:
                 doip_config_names = self.db_manager.get_all_config_names()
                 if len(doip_config_names) > 0:
@@ -106,7 +150,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                         for config in doip_config_names:
                             self.comboBox_ChooseConfig.addItem(config)
                         self.comboBox_ChooseConfig.setCurrentText(self.current_uds_config.config_name)
-                        self.current_uds_config = self.db_manager.query_doip_config(current_config_name)
+                        self.current_uds_config = self.db_manager.query_uds_config(current_config_name)
                     except Exception as e:
                         self.db_manager.set_active_config('')
                         logger.exception(str(e))
@@ -115,11 +159,14 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         except Exception as e:
             logger.exception(f'{str(e)}')
 
-            self.current_uds_config = DoIPConfig(
-                config_name='default',
-                tester_logical_address=0x7e2,
-                dut_logical_address=0x773,
-                dut_ipv4_address='172.16.104.70',
+            self.current_uds_config = UdsConfig(
+                config_name='DoIP_config_panel_default',
+                can=UdsOnCANConfig(),
+                doip=DoIPConfig(
+                    tester_logical_address=0x7e2,
+                    dut_logical_address=0x773,
+                    dut_ipv4_address='172.16.104.70'
+                )
             )
 
     def init_database(self, db):
@@ -184,7 +231,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     def update_flash_variables(self):
         gFlashVars.files_vars.clear()
-
+        if not self.flash_config:
+            return
         for f in self.flash_config.files:
             if f.name:
                 gFlashVars.files_vars[f.name] = FlashFileVars()
@@ -292,6 +340,23 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self._init_status_bar()
 
+        self.comboBox_HardwareType.addItem('Windows Ethernet')
+        self.comboBox_HardwareType.addItems(list(CANInterfaceName))
+
+    def on_hardware_type_change(self, index: int):
+        current_text = self.comboBox_HardwareType.currentText()
+        if current_text in list(CANInterfaceName):
+            self.current_uds_config.is_can_uds = True
+            self.interface_manager.is_can_interface = True
+            self.interface_manager.can_interface_name = current_text
+
+            # self.interface_channels
+
+        else:
+            self.current_uds_config.is_can_uds = False
+            self.interface_manager.is_can_interface = False
+        self.pushButton_RefreshIP.clicked.emit()
+
     def _init_status_bar(self):
         self.custom_status_bar = CustomStatusBar(self)
         self.status_bar.addWidget(self.custom_status_bar, 1)
@@ -319,6 +384,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             elif item.spacerItem():
                 pass
         # 4. 【循环添加新控件】
+        if not self.flash_config:
+            return
         for file_cfg in self.flash_config.files:
             # 使用上面定义的包装类
             self.flash_choose_file_controls.clear()
@@ -466,7 +533,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_SendDoIP.clicked.connect(self._get_input_hex_and_send_raw_uds_payload)
         self.pushButton_EditConfig.clicked.connect(self.open_edit_config_panel)
         self.pushButton_CreateConfig.clicked.connect(self.open_create_config_panel)
-        self.pushButton_RefreshIP.clicked.connect(self.get_ip_list)
+        self.pushButton_RefreshIP.clicked.connect(self.interface_manager.scan_interfaces)
+        self.pushButton_RefreshIP.clicked.emit()
         self.pushButton_StartFlash.clicked.connect(self.flash_executor.start_flash)
         self.pushButton_StartFlash.clicked.connect(self.on_start_flash)
 
@@ -481,7 +549,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # 复选框和下拉框信号
         self.checkBox_AotuReconnect.stateChanged.connect(self.set_auto_reconnect_tcp)
         self.checkBox_TesterPresent.stateChanged.connect(self.uds_client.set_tester_present_timer)
-        self.comboBox_TesterIP.currentIndexChanged.connect(self.set_tester_ip)
+        self.comboBox_HardwareChannel.currentIndexChanged.connect(self.set_interface_channel)
+        self.comboBox_HardwareType.currentIndexChanged.connect(self.on_hardware_type_change)
         self.comboBox_ChooseConfig.currentIndexChanged.connect(self._on_uds_config_chaneged)
 
         # 自定义信号（传递给DoIP客户端）
@@ -557,7 +626,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.uds_client.warning_signal.connect(self._on_warning_received)
         self.uds_client.error_signal.connect(self._on_error_received)
 
-        self.uds_client.doip_connect_state.connect(self._update_uds_connect_state)
+        self.uds_client.uds_connect_state.connect(self._update_uds_connect_state)
 
         self.uds_client.doip_response.connect(self.tableView_DoIPTrace.add_trace_data)
         self.uds_client.doip_request.connect(self.tableView_DoIPTrace.add_trace_data)
@@ -611,7 +680,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         if index == -1:
             return
         config_name = self.comboBox_ChooseConfig.currentText()
-        self.current_uds_config = self.db_manager.query_doip_config(config_name)
+        self.current_uds_config = self.db_manager.query_uds_config(config_name)
         self.db_manager.set_active_config(config_name)
         self.db_manager.init_services_database()
 
@@ -628,10 +697,13 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.flash_executor.flash_config = self.flash_config
         self.flash_executor.flash_file_paths = self.flash_file_paths
 
-    def set_tester_ip(self, index: int):
+    def set_interface_channel(self, index: int):
         """设置测试机IP"""
-        self.tester_ip_address = None if index == 0 else self.comboBox_TesterIP.currentText()
-        logger.debug(f"测试机IP已设置为：{self.tester_ip_address}")
+        if self.current_uds_config.is_can_uds:
+            self.current_can_interface = self.interface_channels[index]
+        else:
+            self.tester_ip_address = self.comboBox_HardwareChannel.currentText()
+            logger.debug(f"测试机IP已设置为：{self.tester_ip_address}")
 
     @Slot()
     def set_auto_reconnect_tcp(self, state):
@@ -680,13 +752,23 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         except Exception as e:
             logger.exception(f"发送DoIP数据失败：{str(e)}")
 
+    def _change_ui_state(self, set_disabled: bool):
+        self.pushButton_ConnectDoIP.setDisabled(set_disabled)
+        self.comboBox_HardwareType.setDisabled(set_disabled)
+        self.comboBox_ChooseConfig.setDisabled(set_disabled)
+        self.comboBox_HardwareChannel.setDisabled(set_disabled)
+        self.pushButton_RefreshIP.setDisabled(set_disabled)
+        self.pushButton_EditConfig.setDisabled(set_disabled)
+        self.pushButton_CreateConfig.setDisabled(set_disabled)
+        self.checkBox_AotuReconnect.setDisabled(set_disabled)
+
+
     def change_uds_connect_state(self):
         """切换DoIP连接状态（连接/断开）"""
+        self._change_ui_state(True)
+
         # 更新客户端配置
         self._update_uds_client_config()
-
-        # 禁用按钮防止重复点击
-        self.pushButton_ConnectDoIP.setDisabled(True)
         self.connect_or_disconnect_uds_signal.emit()
         logger.debug("已触发DoIP连接状态切换信号")
 
@@ -699,23 +781,19 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         client = self.uds_client
         if client._uds_client:
             return
-        client.ecu_ip_address = self.current_uds_config.dut_ipv4_address
-        client.ecu_logical_address = self.current_uds_config.dut_logical_address
-        client.tcp_port = self.current_uds_config.tcp_port
-        client.udp_port = self.current_uds_config.udp_port
-        client.activation_type = self.current_uds_config.activation_type
-        client.protocol_version = self.current_uds_config.protocol_version
-        client.client_logical_address = self.current_uds_config.tester_logical_address
+        client.is_can_uds = self.current_uds_config.is_can_uds
+        client.uds_on_ip_config = self.current_uds_config.doip
+        client.uds_on_can_config = self.current_uds_config.can
+
         client.client_ip_address = self.tester_ip_address
-        client.use_secure = self.current_uds_config.use_secure
         client.auto_reconnect_tcp = self.auto_reconnect_tcp
-        client.vm_specific = self.current_uds_config.oem_specific
-        client.GenerateKeyExOptPath = self.current_uds_config.GenerateKeyExOptPath
-        # client.GenerateKeyExOptPath = 'GenerateKeyExOpt/GenerateKeyExOptDemo.py'
+
+        client.can_interface = self.current_can_interface
+
         client.uds_request_timeout = self.uds_request_timeout
         client.uds_config = self.uds_config
 
-        client.load_generate_key_ex_opt(client.GenerateKeyExOptPath)
+        client.load_generate_key_ex_opt(self.current_uds_config.GenerateKeyExOptPath)
 
         logger.debug("DoIP客户端配置已更新")
 
@@ -732,29 +810,32 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         """打开DoIP新建配置面板"""
         config_panel = DoIPConfigPanel(parent=self, is_create_new_config=True, configs_name=self.db_manager.get_all_config_names())
         config_panel.setWindowTitle('新建配置')
-        new_config = DoIPConfig()
+        new_config = UdsConfig()
 
         # config_panel.lineEdit_ConfigName.setText(self.db_manager.get_active_config_name())
         # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
-        config_panel.lineEdit_DUT_IP.setText(new_config.dut_ipv4_address)
-        config_panel.lineEdit_TesterLogicalAddress.setText(f"{new_config.tester_logical_address:X}")
-        config_panel.lineEdit_DUTLogicalAddress.setText(f"{new_config.dut_logical_address:X}")
-        config_panel.lineEdit_OEMSpecific.setText(str(new_config.oem_specific))
+        config_panel.lineEdit_DUT_IP.setText(new_config.doip.dut_ipv4_address)
+        config_panel.lineEdit_TesterLogicalAddress.setText(f"{new_config.doip.tester_logical_address:X}")
+        config_panel.lineEdit_DUTLogicalAddress.setText(f"{new_config.doip.dut_logical_address:X}")
+        config_panel.lineEdit_OEMSpecific.setText(str(new_config.doip.oem_specific))
         config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
 
         if config_panel.exec() == QDialog.Accepted:
             new_config.config_name = config_panel.config.config_name
-            new_config.tester_logical_address = config_panel.config.tester_logical_address
-            new_config.dut_logical_address = config_panel.config.dut_logical_address
-            new_config.dut_ipv4_address = config_panel.config.dut_ipv4_address
-            new_config.is_routing_activation_use = config_panel.config.is_routing_activation_use
-            new_config.oem_specific = config_panel.config.oem_specific
-            self.current_uds_config.GenerateKeyExOptPath = config_panel.config.GenerateKeyExOptPath
+            new_config.doip.tester_logical_address = config_panel.config.doip.tester_logical_address
+            new_config.doip.dut_logical_address = config_panel.config.doip.dut_logical_address
+            new_config.doip.dut_ipv4_address = config_panel.config.doip.dut_ipv4_address
+            new_config.doip.is_routing_activation_use = config_panel.config.doip.is_routing_activation_use
+            new_config.doip.oem_specific = config_panel.config.doip.oem_specific
+            new_config.GenerateKeyExOptPath = config_panel.config.GenerateKeyExOptPath
             logger.info(
-                f"新DoIP配置 - 测试机逻辑地址: 0x{config_panel.config.tester_logical_address:X}, "
-                f"ECU逻辑地址: 0x{config_panel.config.dut_logical_address:X}, ECU IP: {config_panel.config.dut_ipv4_address}"
+                f"新DoIP配置 - 测试机逻辑地址: 0x{config_panel.config.doip.tester_logical_address:X}, "
+                f"ECU逻辑地址: 0x{config_panel.config.doip.dut_logical_address:X}, ECU IP: {config_panel.config.doip.dut_ipv4_address}"
             )
-            self.db_manager.add_doip_config(new_config)
+            try:
+                self.db_manager.save_uds_config(new_config)
+            except Exception as e:
+                logger.exception(f"保存配置{new_config.config_name}失败，{e}")
             self.comboBox_ChooseConfig.addItem(new_config.config_name)
 
     @Slot()
@@ -775,12 +856,12 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         config_panel.setWindowTitle('修改配置')
         config_panel.lineEdit_ConfigName.setText(self.db_manager.get_active_config_name())
         # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
-        config_panel.lineEdit_DUT_IP.setText(self.current_uds_config.dut_ipv4_address)
-        config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.current_uds_config.tester_logical_address:X}")
-        config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.current_uds_config.dut_logical_address:X}")
-        config_panel.lineEdit_OEMSpecific.setText(str(self.current_uds_config.oem_specific))
+        config_panel.lineEdit_DUT_IP.setText(self.current_uds_config.doip.dut_ipv4_address)
+        config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.current_uds_config.doip.tester_logical_address:X}")
+        config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.current_uds_config.doip.dut_logical_address:X}")
+        config_panel.lineEdit_OEMSpecific.setText(str(self.current_uds_config.doip.oem_specific))
         config_panel.lineEdit_GenerateKeyExOptPath.setText(str(self.current_uds_config.GenerateKeyExOptPath))
-        if self.current_uds_config.is_routing_activation_use:
+        if self.current_uds_config.doip.is_routing_activation_use:
             config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
         else:
             config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Unchecked)
@@ -808,18 +889,18 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                         logger.exception(str(e))
                 else:
                     self.comboBox_ChooseConfig.clear()
-            elif isinstance(config_panel.config, DoIPConfig):
+            elif isinstance(config_panel.config, UdsConfig):
                 self.current_uds_config.config_name = config_panel.config.config_name
-                self.current_uds_config.tester_logical_address = config_panel.config.tester_logical_address
-                self.current_uds_config.dut_logical_address = config_panel.config.dut_logical_address
-                self.current_uds_config.dut_ipv4_address = config_panel.config.dut_ipv4_address
-                self.current_uds_config.is_routing_activation_use = config_panel.config.is_routing_activation_use
-                self.current_uds_config.oem_specific = config_panel.config.oem_specific
+                self.current_uds_config.doip.tester_logical_address = config_panel.config.doip.tester_logical_address
+                self.current_uds_config.doip.dut_logical_address = config_panel.config.doip.dut_logical_address
+                self.current_uds_config.doip.dut_ipv4_address = config_panel.config.doip.dut_ipv4_address
+                self.current_uds_config.doip.is_routing_activation_use = config_panel.config.doip.is_routing_activation_use
+                self.current_uds_config.doip.oem_specific = config_panel.config.doip.oem_specific
                 self.current_uds_config.GenerateKeyExOptPath = config_panel.config.GenerateKeyExOptPath
-                self.db_manager.update_doip_config(self.current_uds_config)
+                self.db_manager.save_uds_config(self.current_uds_config)
                 logger.info(
-                    f"DoIP配置已更新 - 测试机逻辑地址: 0x{config_panel.config.tester_logical_address:X}, "
-                    f"ECU逻辑地址: 0x{config_panel.config.dut_logical_address:X}, ECU IP: {config_panel.config.dut_ipv4_address}"
+                    f"DoIP配置已更新 - 测试机逻辑地址: 0x{config_panel.config.doip.tester_logical_address:X}, "
+                    f"ECU逻辑地址: 0x{config_panel.config.doip.dut_logical_address:X}, ECU IP: {config_panel.config.doip.dut_ipv4_address}"
                 )
 
     @Slot(bool)
@@ -834,25 +915,13 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             logger.info(f"DoIP连接状态已更新为：已连接")
         else:
             icon_name = "unlink"
-            self.pushButton_ConnectDoIP.setText("已连接")
+            self.pushButton_ConnectDoIP.setText("未连接")
             self.pushButton_ConnectDoIP.setIcon(IconEngine.get_icon(icon_name, 'red'))
             self.custom_status_bar.pushButton_ConnectState.setIcon(IconEngine.get_icon(icon_name, 'red'))
+            self._change_ui_state(False)
             logger.info(f"DoIP连接状态已更新为：未已连接")
 
-    @Slot()
-    def get_ip_list(self):
-        """获取本地IP列表"""
-        try:
-            ethernet_ips = get_ethernet_ips()
-            self.ip_list = [('Auto', '')] + list(ethernet_ips.items())
-            self._update_ip_combobox()
-            logger.debug(f"已获取本地IP列表，共{len(self.ip_list) - 1}个可用IP")
-        except Exception as e:
-            logger.error(f"获取IP列表失败：{str(e)}")
 
-    def _refresh_ip_list(self) -> None:
-        """刷新本地IP列表到下拉框"""
-        self.get_ip_list()  # 复用get_ip_list方法，减少冗余
 
     @Slot(int)
     def on_set_flash_progress_range(self, progress_range: int):
@@ -902,13 +971,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     def stop_flash(self):
         self.flash_executor.stop_flash_flag = True
 
-    def _update_ip_combobox(self):
-        """更新IP下拉框"""
-        self.comboBox_TesterIP.clear()
-        self.comboBox_TesterIP.addItem('Auto')
-        for _, ip in self.ip_list[1:]:  # 跳过Auto选项
-            self.comboBox_TesterIP.addItem(ip)
-
     def closeEvent(self, event) -> None:
         """重写关闭事件，优雅退出线程"""
         # 停止Flash线程
@@ -934,5 +996,12 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                 logger.info("uds客户端线程已正常停止")
             else:
                 logger.warning("uds客户端线程强制退出")
+
+        if self.interface_manager_thread:
+            self.interface_manager_thread.quit()
+            if self.interface_manager_thread.wait(3000):  # 等待3秒超时
+                logger.info("interface_manager_thread线程已正常停止")
+            else:
+                logger.warning("interface_manager_thread线程强制退出")
 
         event.accept()

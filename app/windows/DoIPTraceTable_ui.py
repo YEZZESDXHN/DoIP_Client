@@ -58,7 +58,10 @@ class DoIPTraceTableModel(QAbstractTableModel):
 
         # 显示数据
         if role == Qt.ItemDataRole.DisplayRole:
-            return getattr(self._data[row], col_name, '')
+            if col_name == 'TX_id' or col_name == 'RX_id':
+                return hex(getattr(self._data[row], col_name, '')).upper()[2:]
+            else:
+                return getattr(self._data[row], col_name, '')
 
     def append_trace_data(self, table_view_data: DoIPMessageStruct):
         """
@@ -381,7 +384,7 @@ class DoIPTraceTableView(QTableView):
             self.trace_model.append_trace_data(data)
             if self._auto_scroll:
                 self.scrollToBottom()  # 自动滚动到底部
-        except ValueError as e:
+        except Exception as e:
             logger.error(f"添加表格数据失败：{str(e)}")
 
     def clear_trace_data(self):

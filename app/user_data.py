@@ -658,8 +658,17 @@ class DoIPConfig(BaseModel):
 
 # @dataclass
 class UdsOnCANConfig(BaseModel):
-    req_id: int = 0
-    resp_id: int = 0
+    req_id: int = 0x772
+    resp_id: int = 0x773
+    fun_id: int = 0x7df
+    is_fd: bool = False
+
+    controller_mode: str = 'CANFD'
+    f_clock: int = 80_000_000
+    nom_bitrate: int = 500_000
+    nom_sample_point: float = 80.0
+    data_bitrate: int = 2000_000
+    data_sample_point: float = 80.0
 
 
 # @dataclass

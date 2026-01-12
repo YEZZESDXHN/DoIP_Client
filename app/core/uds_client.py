@@ -5,11 +5,12 @@ import socket
 import ssl
 import sys
 from datetime import datetime
-from typing import Optional, Any, runtime_checkable, Protocol
+from typing import Optional, Any, runtime_checkable, Protocol, Union
 
 import can
 import isotp
 from PySide6.QtCore import QObject, Signal, Slot, QTimer
+from can import BitTiming, BitTimingFd
 from doipclient import DoIPClient
 from doipclient.connectors import DoIPClientUDSConnector
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
@@ -22,7 +23,7 @@ import importlib.util
 
 from udsoncan.connections import PythonIsoTpConnection
 
-from app.core.interface_manager import DEFAULT_BIT_TIMING
+from app.core.interface_manager import DEFAULT_BIT_TIMING, DEFAULT_BIT_TIMING_FD
 from app.user_data import DoIPMessageStruct, MessageDir, DoIPConfig, UdsOnCANConfig
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -284,8 +285,7 @@ class QUDSClient(QObject):
     def isotp_error_handler(self, error):
         print(f"isotp error:{error}")
 
-
-    def init_can_bus(self, can_channel, timing=DEFAULT_BIT_TIMING) -> can.Bus:
+    def init_can_bus(self, can_channel, timing=DEFAULT_BIT_TIMING_FD) -> can.Bus:
         try:
             logger.debug(f"[*] 正在连接到 {can_channel['interface']} (通道: {can_channel['channel']}) ...")
 
@@ -331,7 +331,7 @@ class QUDSClient(QObject):
                     # 设置后，此值将覆盖接收器stmin要求。当 时None，将遵守接收器 stmin参数。
                     # 在执行优先级较低或线程分辨率较粗的系统上，通过将此参数设置为 0（尽可能快地发送），可以加快传输速度。
                     'max_frame_size': 4095,  # Limit the size of receive frame.
-                    'can_fd': True,
+                    'can_fd': self.uds_on_can_config.is_fd,
                     # Does not set the can_fd flag on the output CAN messages
                     'bitrate_switch': False,  # Does not set the bitrate_switch flag on the output CAN messages
                     'rate_limit_enable': False,  # Disable the rate limiter
@@ -341,10 +341,28 @@ class QUDSClient(QObject):
                     # Ignored when rate_limit_enable=False. Sets the averaging window size for bitrate calculation when rate_limit_enable=True
                     'listen_mode': False,  # Does not use the listen_mode which prevent transmission.
                 }
-                self.can_bus = self.init_can_bus(self.can_interface)
-                self.can_notifier = can.Notifier(self.can_bus, [can.Printer()])
-                self.tp_addr = isotp.Address(isotp.AddressingMode.Normal_11bits, txid=123, rxid=456,
-                                        functional_id=789)
+                if self.uds_on_can_config.controller_mode == "CANFD":
+                    timing = BitTimingFd.from_sample_point(
+                        f_clock=self.uds_on_can_config.f_clock,
+                        nom_bitrate=self.uds_on_can_config.nom_bitrate,
+                        nom_sample_point=self.uds_on_can_config.nom_sample_point,
+                        data_bitrate=self.uds_on_can_config.data_bitrate,
+                        data_sample_point=self.uds_on_can_config.data_sample_point,
+                    )
+                else:
+                    timing = BitTiming.from_sample_point(
+                        f_clock=self.uds_on_can_config.f_clock,
+                        bitrate=self.uds_on_can_config.nom_bitrate,
+                        sample_point=self.uds_on_can_config.nom_sample_point,
+                    )
+                self.can_bus = self.init_can_bus(self.can_interface, timing)
+                # self.can_notifier = can.Notifier(self.can_bus, [can.Printer()])
+                self.can_notifier = can.Notifier(self.can_bus, [])
+                self.tp_addr = isotp.Address(
+                    isotp.AddressingMode.Normal_11bits,
+                    txid=self.uds_on_can_config.req_id,
+                    rxid=self.uds_on_can_config.resp_id,
+                    functional_id=self.uds_on_can_config.fun_id)
                 self.cantp_stack = isotp.NotifierBasedCanStack(bus=self.can_bus, notifier=self.can_notifier, address=self.tp_addr,
                                                                params=isotpparams,
                                                                error_handler=self.isotp_error_handler)

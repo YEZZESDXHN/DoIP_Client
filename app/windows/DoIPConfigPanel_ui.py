@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog, QCheckBox
+from PySide6.QtWidgets import QDialog, QMessageBox, QFileDialog, QCheckBox, QLayout
 
 from app.resources.resources import IconEngine
 from app.ui.DoIPConfigUI import Ui_DoIPConfig
@@ -43,9 +43,20 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
 
         if not self.is_create_new_config:
             self.lineEdit_ConfigName.setDisabled(True)
-            self.label_ConfigName.setDisabled(True)
+            # self.label_ConfigName.setDisabled(True)
         else:
             self.pushButton_delete.setVisible(False)
+        # self.verticalLayout_main.setSizeConstraint(QLayout.SetMinimumSize)
+
+        self.comboBox_CANControllerMode.currentIndexChanged.connect(self.on_CAN_controller_mode_change)
+
+    def on_CAN_controller_mode_change(self, index):
+        if index == 0:
+            self.groupBox_data.setVisible(False)
+            self.lineEdit_CANControllerClockFrequency.setText('16000000')
+        else:
+            self.groupBox_data.setVisible(True)
+            self.lineEdit_CANControllerClockFrequency.setText('80000000')
 
     def _on_delete_config(self):
         self.is_delete_config = True
@@ -126,77 +137,240 @@ class DoIPConfigPanel(QDialog, Ui_DoIPConfig):
                     return
             self.config.config_name = config_name
 
-        if not tester_logical_address:
-            QMessageBox.warning(self, "输入错误", "Tester逻辑地址不能为空！")
-            self.lineEdit_TesterLogicalAddress.setFocus()  # 聚焦到输入框重新输入
-            return
+        if self.config.is_can_uds:
+            # ***********************Uds on can***********************
+            can_req_id = self.lineEdit_CANReqID.text()
+            can_resp_id = self.lineEdit_CANRespID.text()
+            can_fun_id = self.lineEdit_CANFunID.text()
+
+            self.config.can.is_fd = True if self.checkBox_IsFD.isChecked() else False
+
+            if not can_req_id:
+                QMessageBox.warning(self, "输入错误", "物理寻址不能为空！")
+                self.lineEdit_CANReqID.setFocus()  # 聚焦到输入框重新输入
+                return
+            else:
+                text = can_req_id.strip()
+                try:
+                    self.config.can.req_id = hex_str_to_int(text)
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
+                    QMessageBox.critical(
+                        self,
+                        "物理寻址输入错误",
+                        f"数据格式非法！\n错误原因：{str(e)}\n请输入合法的十六进制字符串（如1A3F、FF00）。"
+                    )
+                    self.lineEdit_CANReqID.setFocus()  # 聚焦到输入框重新输入
+                    return
+
+            if not can_resp_id:
+                QMessageBox.warning(self, "输入错误", "响应id不能为空！")
+                self.lineEdit_CANRespID.setFocus()  # 聚焦到输入框重新输入
+                return
+            else:
+                text = can_resp_id.strip()
+                try:
+                    self.config.can.resp_id = hex_str_to_int(text)
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
+                    QMessageBox.critical(
+                        self,
+                        "响应id输入错误",
+                        f"数据格式非法！\n错误原因：{str(e)}\n请输入合法的十六进制字符串（如1A3F、FF00）。"
+                    )
+                    self.lineEdit_CANRespID.setFocus()  # 聚焦到输入框重新输入
+                    return
+
+            if not can_fun_id:
+                QMessageBox.warning(self, "输入错误", "功能寻址不能为空！")
+                self.lineEdit_CANFunID.setFocus()  # 聚焦到输入框重新输入
+                return
+            else:
+                text = can_fun_id.strip()
+                try:
+                    self.config.can.fun_id = hex_str_to_int(text)
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
+                    QMessageBox.critical(
+                        self,
+                        "功能寻址输入错误",
+                        f"数据格式非法！\n错误原因：{str(e)}\n请输入合法的十六进制字符串（如1A3F、FF00）。"
+                    )
+                    self.lineEdit_CANFunID.setFocus()  # 聚焦到输入框重新输入
+                    return
+
+            # ***********************CAN TP***********************
+
+            # ***********************CAN Controller***********************
+            controller_mode = self.comboBox_CANControllerMode.currentText()
+            f_clock = self.lineEdit_CANControllerClockFrequency.text()
+            nom_bitrate = self.lineEdit_NormalBitrate.text()
+            nom_sample_point = self.lineEdit_NormalSamplePoint.text()
+            data_bitrate = self.lineEdit_DataBitrate.text()
+            data_sample_point = self.lineEdit_DataSamplePoint.text()
+
+            self.config.can.controller_mode = controller_mode
+            if not f_clock:
+                QMessageBox.warning(self, "输入错误", "时钟频率不能为空！")
+                self.lineEdit_CANControllerClockFrequency.setFocus()  # 聚焦到输入框重新输入
+                return
+            else:
+                text = f_clock.strip()
+                try:
+                    self.config.can.f_clock = int(text)
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
+                    QMessageBox.critical(
+                        self,
+                        "时钟频率输入错误",
+                        f"数据格式非法！\n错误原因：{str(e)}\n请输入int类型数据"
+                    )
+                    self.lineEdit_CANControllerClockFrequency.setFocus()  # 聚焦到输入框重新输入
+                    return
+
+            if not nom_bitrate:
+                QMessageBox.warning(self, "输入错误", "仲裁段波特率不能为空！")
+                self.lineEdit_NormalBitrate.setFocus()  # 聚焦到输入框重新输入
+                return
+            else:
+                text = nom_bitrate.strip()
+                try:
+                    self.config.can.nom_bitrate = int(text)
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
+                    QMessageBox.critical(
+                        self,
+                        "仲裁段波特率输入错误",
+                        f"数据格式非法！\n错误原因：{str(e)}\n请输入int类型数据"
+                    )
+                    self.lineEdit_NormalBitrate.setFocus()  # 聚焦到输入框重新输入
+                    return
+
+            if not nom_sample_point:
+                QMessageBox.warning(self, "输入错误", "仲裁段采样点不能为空！")
+                self.lineEdit_NormalSamplePoint.setFocus()  # 聚焦到输入框重新输入
+                return
+            else:
+                text = nom_sample_point.strip()
+                try:
+                    self.config.can.nom_sample_point = float(text)
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
+                    QMessageBox.critical(
+                        self,
+                        "仲裁段波特率输入错误",
+                        f"数据格式非法！\n错误原因：{str(e)}\n请输入float类型数据"
+                    )
+                    self.lineEdit_NormalSamplePoint.setFocus()  # 聚焦到输入框重新输入
+                    return
+            if controller_mode == 'CANFD':
+                if not data_bitrate:
+                    QMessageBox.warning(self, "输入错误", "数据段波特率不能为空！")
+                    self.lineEdit_DataBitrate.setFocus()  # 聚焦到输入框重新输入
+                    return
+                else:
+                    text = data_bitrate.strip()
+                    try:
+                        self.config.can.data_bitrate = int(text)
+                    except Exception as e:
+                        # 捕获转换异常，提示具体错误
+                        QMessageBox.critical(
+                            self,
+                            "数据段波特率输入错误",
+                            f"数据格式非法！\n错误原因：{str(e)}\n请输入int类型数据"
+                        )
+                        self.lineEdit_DataBitrate.setFocus()  # 聚焦到输入框重新输入
+                        return
+
+                if not data_sample_point:
+                    QMessageBox.warning(self, "输入错误", "数据段采样点不能为空！")
+                    self.lineEdit_DataSamplePoint.setFocus()  # 聚焦到输入框重新输入
+                    return
+                else:
+                    text = data_sample_point.strip()
+                    try:
+                        self.config.can.data_sample_point = float(text)
+                    except Exception as e:
+                        # 捕获转换异常，提示具体错误
+                        QMessageBox.critical(
+                            self,
+                            "数据段采样点输入错误",
+                            f"数据格式非法！\n错误原因：{str(e)}\n请输入float类型数据"
+                        )
+                        self.lineEdit_DataSamplePoint.setFocus()  # 聚焦到输入框重新输入
+                        return
+
+
         else:
-            text = tester_logical_address.strip()
-            try:
-                self.config.doip.tester_logical_address = hex_str_to_int(text)
-            except Exception as e:
-                # 捕获转换异常，提示具体错误
-                QMessageBox.critical(
-                    self,
-                    "Tester逻辑地址输入错误",
-                    f"数据格式非法！\n错误原因：{str(e)}\n请输入合法的十六进制字符串（如1A3F、FF00）。"
-                )
+            if not tester_logical_address:
+                QMessageBox.warning(self, "输入错误", "Tester逻辑地址不能为空！")
                 self.lineEdit_TesterLogicalAddress.setFocus()  # 聚焦到输入框重新输入
                 return
+            else:
+                text = tester_logical_address.strip()
+                try:
+                    self.config.doip.tester_logical_address = hex_str_to_int(text)
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
+                    QMessageBox.critical(
+                        self,
+                        "Tester逻辑地址输入错误",
+                        f"数据格式非法！\n错误原因：{str(e)}\n请输入合法的十六进制字符串（如1A3F、FF00）。"
+                    )
+                    self.lineEdit_TesterLogicalAddress.setFocus()  # 聚焦到输入框重新输入
+                    return
 
-        if not DUT_logical_address:
-            QMessageBox.warning(self, "输入错误", "DUT逻辑地址不能为空！")
-            self.lineEdit_DUTLogicalAddress.setFocus()  # 聚焦到输入框重新输入
-            return
-        else:
-            text = DUT_logical_address.strip()
-            try:
-                self.config.doip.dut_logical_address = hex_str_to_int(text)
-            except Exception as e:
-                # 捕获转换异常，提示具体错误
-                QMessageBox.critical(
-                    self,
-                    "DUT逻辑地址输入错误",
-                    f"数据格式非法！\n错误原因：{str(e)}\n请输入合法的十六进制字符串（如1A3F、FF00）。"
-                )
+            if not DUT_logical_address:
+                QMessageBox.warning(self, "输入错误", "DUT逻辑地址不能为空！")
                 self.lineEdit_DUTLogicalAddress.setFocus()  # 聚焦到输入框重新输入
                 return
+            else:
+                text = DUT_logical_address.strip()
+                try:
+                    self.config.doip.dut_logical_address = hex_str_to_int(text)
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
+                    QMessageBox.critical(
+                        self,
+                        "DUT逻辑地址输入错误",
+                        f"数据格式非法！\n错误原因：{str(e)}\n请输入合法的十六进制字符串（如1A3F、FF00）。"
+                    )
+                    self.lineEdit_DUTLogicalAddress.setFocus()  # 聚焦到输入框重新输入
+                    return
 
-        if not DUT_ipv4_address:
-            QMessageBox.warning(self, "输入错误", "DUT IP地址不能为空！")
-            self.lineEdit_DUT_IP.setFocus()  # 聚焦到输入框重新输入
-            return
-        else:
-            text = DUT_ipv4_address.strip()
-            try:
-                ip_obj = ipaddress.ip_address(text)
-                if ip_obj.version != 4:
+            if not DUT_ipv4_address:
+                QMessageBox.warning(self, "输入错误", "DUT IP地址不能为空！")
+                self.lineEdit_DUT_IP.setFocus()  # 聚焦到输入框重新输入
+                return
+            else:
+                text = DUT_ipv4_address.strip()
+                try:
+                    ip_obj = ipaddress.ip_address(text)
+                    if ip_obj.version != 4:
+                        QMessageBox.critical(
+                            self,
+                            "DUT IP地址输入错误",
+                            f"数据格式非法！\n仅支持IPv4地址，当前输入为IPv{ip_obj.version}：{text}"
+                        )
+                    self.config.doip.dut_ipv4_address = text
+                except Exception as e:
+                    # 捕获转换异常，提示具体错误
                     QMessageBox.critical(
                         self,
                         "DUT IP地址输入错误",
-                        f"数据格式非法！\n仅支持IPv4地址，当前输入为IPv{ip_obj.version}：{text}"
+                        f"仅支持IPv4地址"
                     )
-                self.config.doip.dut_ipv4_address = text
-            except Exception as e:
-                # 捕获转换异常，提示具体错误
-                QMessageBox.critical(
-                    self,
-                    "DUT IP地址输入错误",
-                    f"仅支持IPv4地址"
-                )
-                self.lineEdit_DUT_IP.setFocus()  # 聚焦到输入框重新输入
-                return
+                    self.lineEdit_DUT_IP.setFocus()  # 聚焦到输入框重新输入
+                    return
 
-        if self.checkBox_RouteActive.isChecked():
-            self.config.doip.is_routing_activation_use = True
-            try:
-                self.config.doip.oem_specific = int(self.lineEdit_OEMSpecific.text())
-            except Exception as e:
-                logger.exception(str(e))
-
-
-        else:
-            self.config.doip.is_routing_activation_use = False
+            if self.checkBox_RouteActive.isChecked():
+                self.config.doip.is_routing_activation_use = True
+                try:
+                    self.config.doip.oem_specific = int(self.lineEdit_OEMSpecific.text())
+                except Exception as e:
+                    logger.exception(str(e))
+            else:
+                self.config.doip.is_routing_activation_use = False
 
         self.config.GenerateKeyExOptPath = self.lineEdit_GenerateKeyExOptPath.text()
 

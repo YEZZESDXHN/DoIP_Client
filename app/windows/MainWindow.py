@@ -90,6 +90,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     def _init_interface_manager(self):
         self.interface_manager = InterfaceManager()
+        self.interface_manager.is_can_interface = self.current_uds_config.is_can_uds
         self.interface_manager_thread = QThread()
         self.interface_manager = InterfaceManager()
 
@@ -150,7 +151,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                         for config in doip_config_names:
                             self.comboBox_ChooseConfig.addItem(config)
                         self.comboBox_ChooseConfig.setCurrentText(self.current_uds_config.config_name)
-                        self.current_uds_config = self.db_manager.query_uds_config(current_config_name)
+                        # self.current_uds_config = self.db_manager.query_uds_config(current_config_name)
+
                     except Exception as e:
                         self.db_manager.set_active_config('')
                         logger.exception(str(e))
@@ -534,7 +536,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_EditConfig.clicked.connect(self.open_edit_config_panel)
         self.pushButton_CreateConfig.clicked.connect(self.open_create_config_panel)
         self.pushButton_RefreshIP.clicked.connect(self.interface_manager.scan_interfaces)
-        self.pushButton_RefreshIP.clicked.emit()
+
+        # self.pushButton_RefreshIP.clicked.emit()
         self.pushButton_StartFlash.clicked.connect(self.flash_executor.start_flash)
         self.pushButton_StartFlash.clicked.connect(self.on_start_flash)
 
@@ -551,6 +554,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.checkBox_TesterPresent.stateChanged.connect(self.uds_client.set_tester_present_timer)
         self.comboBox_HardwareChannel.currentIndexChanged.connect(self.set_interface_channel)
         self.comboBox_HardwareType.currentIndexChanged.connect(self.on_hardware_type_change)
+        self.comboBox_HardwareType.currentIndexChanged.emit(-1)
         self.comboBox_ChooseConfig.currentIndexChanged.connect(self._on_uds_config_chaneged)
 
         # 自定义信号（传递给DoIP客户端）
@@ -779,7 +783,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             return
 
         client = self.uds_client
-        if client._uds_client:
+        if client._uds_client or client.cantp_stack:
             return
         client.is_can_uds = self.current_uds_config.is_can_uds
         client.uds_on_ip_config = self.current_uds_config.doip
@@ -807,31 +811,52 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     @Slot()
     def open_create_config_panel(self):
-        """打开DoIP新建配置面板"""
+        """打开新建uds配置面板"""
         config_panel = DoIPConfigPanel(parent=self, is_create_new_config=True, configs_name=self.db_manager.get_all_config_names())
         config_panel.setWindowTitle('新建配置')
         new_config = UdsConfig()
 
-        # config_panel.lineEdit_ConfigName.setText(self.db_manager.get_active_config_name())
-        # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
-        config_panel.lineEdit_DUT_IP.setText(new_config.doip.dut_ipv4_address)
-        config_panel.lineEdit_TesterLogicalAddress.setText(f"{new_config.doip.tester_logical_address:X}")
-        config_panel.lineEdit_DUTLogicalAddress.setText(f"{new_config.doip.dut_logical_address:X}")
-        config_panel.lineEdit_OEMSpecific.setText(str(new_config.doip.oem_specific))
-        config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
+        config_panel.config.is_can_uds = self.current_uds_config.is_can_uds
+        if self.current_uds_config.is_can_uds:
+            config_panel.groupBox_DoIPConfig.setVisible(False)
+
+            # 设置配置面板初始值
+            # ********************UDS on CAN config**********************
+            if new_config.can.is_fd:
+                config_panel.checkBox_IsFD.setCheckState(Qt.CheckState.Checked)
+            else:
+                config_panel.checkBox_IsFD.setCheckState(Qt.CheckState.Unchecked)
+            config_panel.lineEdit_CANReqID.setText(f"{new_config.can.req_id:X}")
+            config_panel.lineEdit_CANRespID.setText(f"{new_config.can.resp_id:X}")
+            config_panel.lineEdit_CANFunID.setText(f"{new_config.can.fun_id:X}")
+
+            # ********************CAN Bus config**********************
+            config_panel.comboBox_CANControllerMode.setCurrentText(new_config.can.controller_mode)
+            config_panel.comboBox_CANControllerMode.currentIndexChanged.emit(
+                config_panel.comboBox_CANControllerMode.currentIndex())
+
+            config_panel.lineEdit_CANControllerClockFrequency.setText(str(new_config.can.f_clock))
+            config_panel.lineEdit_NormalBitrate.setText(str(new_config.can.nom_bitrate))
+            config_panel.lineEdit_NormalSamplePoint.setText(str(new_config.can.nom_sample_point))
+            config_panel.lineEdit_DataBitrate.setText(str(new_config.can.data_bitrate))
+            config_panel.lineEdit_DataSamplePoint.setText(str(new_config.can.data_sample_point))
+
+            # ********************CAN TP config**********************
+        else:
+            config_panel.groupBox_CANTPConfig.setVisible(False)
+            config_panel.groupBox_CANBusConfig.setVisible(False)
+            config_panel.groupBox_UDSonCANConfig.setVisible(False)
+
+            # config_panel.lineEdit_ConfigName.setText(self.db_manager.get_active_config_name())
+            # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
+            config_panel.lineEdit_DUT_IP.setText(new_config.doip.dut_ipv4_address)
+            config_panel.lineEdit_TesterLogicalAddress.setText(f"{new_config.doip.tester_logical_address:X}")
+            config_panel.lineEdit_DUTLogicalAddress.setText(f"{new_config.doip.dut_logical_address:X}")
+            config_panel.lineEdit_OEMSpecific.setText(str(new_config.doip.oem_specific))
+            config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
 
         if config_panel.exec() == QDialog.Accepted:
-            new_config.config_name = config_panel.config.config_name
-            new_config.doip.tester_logical_address = config_panel.config.doip.tester_logical_address
-            new_config.doip.dut_logical_address = config_panel.config.doip.dut_logical_address
-            new_config.doip.dut_ipv4_address = config_panel.config.doip.dut_ipv4_address
-            new_config.doip.is_routing_activation_use = config_panel.config.doip.is_routing_activation_use
-            new_config.doip.oem_specific = config_panel.config.doip.oem_specific
-            new_config.GenerateKeyExOptPath = config_panel.config.GenerateKeyExOptPath
-            logger.info(
-                f"新DoIP配置 - 测试机逻辑地址: 0x{config_panel.config.doip.tester_logical_address:X}, "
-                f"ECU逻辑地址: 0x{config_panel.config.doip.dut_logical_address:X}, ECU IP: {config_panel.config.doip.dut_ipv4_address}"
-            )
+            new_config = config_panel.config
             try:
                 self.db_manager.save_uds_config(new_config)
             except Exception as e:
@@ -854,17 +879,48 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         """打开DoIP配置编辑面板"""
         config_panel = DoIPConfigPanel(parent=self, configs_name=self.db_manager.get_all_config_names())
         config_panel.setWindowTitle('修改配置')
-        config_panel.lineEdit_ConfigName.setText(self.db_manager.get_active_config_name())
-        # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
-        config_panel.lineEdit_DUT_IP.setText(self.current_uds_config.doip.dut_ipv4_address)
-        config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.current_uds_config.doip.tester_logical_address:X}")
-        config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.current_uds_config.doip.dut_logical_address:X}")
-        config_panel.lineEdit_OEMSpecific.setText(str(self.current_uds_config.doip.oem_specific))
+
+        config_panel.lineEdit_ConfigName.setText(self.current_uds_config.config_name)
+        config_panel.config.is_can_uds = self.current_uds_config.is_can_uds
         config_panel.lineEdit_GenerateKeyExOptPath.setText(str(self.current_uds_config.GenerateKeyExOptPath))
-        if self.current_uds_config.doip.is_routing_activation_use:
-            config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
+        if self.current_uds_config.is_can_uds:
+            config_panel.groupBox_DoIPConfig.setVisible(False)
+
+            # ********************UDS on CAN config**********************
+            if self.current_uds_config.can.is_fd:
+                config_panel.checkBox_IsFD.setCheckState(Qt.CheckState.Checked)
+            else:
+                config_panel.checkBox_IsFD.setCheckState(Qt.CheckState.Unchecked)
+            config_panel.lineEdit_CANReqID.setText(f"{self.current_uds_config.can.req_id:X}")
+            config_panel.lineEdit_CANRespID.setText(f"{self.current_uds_config.can.resp_id:X}")
+            config_panel.lineEdit_CANFunID.setText(f"{self.current_uds_config.can.fun_id:X}")
+
+            # ********************CAN Bus config**********************
+            config_panel.comboBox_CANControllerMode.setCurrentText(self.current_uds_config.can.controller_mode)
+            config_panel.comboBox_CANControllerMode.currentIndexChanged.emit(config_panel.comboBox_CANControllerMode.currentIndex())
+
+            config_panel.lineEdit_CANControllerClockFrequency.setText(str(self.current_uds_config.can.f_clock))
+            config_panel.lineEdit_NormalBitrate.setText(str(self.current_uds_config.can.nom_bitrate))
+            config_panel.lineEdit_NormalSamplePoint.setText(str(self.current_uds_config.can.nom_sample_point))
+            config_panel.lineEdit_DataBitrate.setText(str(self.current_uds_config.can.data_bitrate))
+            config_panel.lineEdit_DataSamplePoint.setText(str(self.current_uds_config.can.data_sample_point))
+
+            # ********************CAN TP config**********************
         else:
-            config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Unchecked)
+            config_panel.groupBox_CANTPConfig.setVisible(False)
+            config_panel.groupBox_CANBusConfig.setVisible(False)
+            config_panel.groupBox_UDSonCANConfig.setVisible(False)
+
+            # ********************DoIP config**********************
+            # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
+            config_panel.lineEdit_DUT_IP.setText(self.current_uds_config.doip.dut_ipv4_address)
+            config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.current_uds_config.doip.tester_logical_address:X}")
+            config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.current_uds_config.doip.dut_logical_address:X}")
+            config_panel.lineEdit_OEMSpecific.setText(str(self.current_uds_config.doip.oem_specific))
+            if self.current_uds_config.doip.is_routing_activation_use:
+                config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Checked)
+            else:
+                config_panel.checkBox_RouteActive.setCheckState(Qt.CheckState.Unchecked)
 
         if config_panel.exec() == QDialog.Accepted:
             if config_panel.config is None and config_panel.is_delete_config:  # 删除配置
@@ -891,17 +947,42 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                     self.comboBox_ChooseConfig.clear()
             elif isinstance(config_panel.config, UdsConfig):
                 self.current_uds_config.config_name = config_panel.config.config_name
-                self.current_uds_config.doip.tester_logical_address = config_panel.config.doip.tester_logical_address
-                self.current_uds_config.doip.dut_logical_address = config_panel.config.doip.dut_logical_address
-                self.current_uds_config.doip.dut_ipv4_address = config_panel.config.doip.dut_ipv4_address
-                self.current_uds_config.doip.is_routing_activation_use = config_panel.config.doip.is_routing_activation_use
-                self.current_uds_config.doip.oem_specific = config_panel.config.doip.oem_specific
                 self.current_uds_config.GenerateKeyExOptPath = config_panel.config.GenerateKeyExOptPath
-                self.db_manager.save_uds_config(self.current_uds_config)
-                logger.info(
-                    f"DoIP配置已更新 - 测试机逻辑地址: 0x{config_panel.config.doip.tester_logical_address:X}, "
-                    f"ECU逻辑地址: 0x{config_panel.config.doip.dut_logical_address:X}, ECU IP: {config_panel.config.doip.dut_ipv4_address}"
-                )
+                if self.current_uds_config.is_can_uds:
+                    # ********************UDS on CAN config**********************
+                    if config_panel.checkBox_IsFD.isChecked():
+                        self.current_uds_config.can.is_fd = True
+                    else:
+                        self.current_uds_config.can.is_fd = False
+                    self.current_uds_config.can.req_id = config_panel.config.can.req_id
+                    self.current_uds_config.can.resp_id = config_panel.config.can.resp_id
+                    self.current_uds_config.can.fun_id = config_panel.config.can.fun_id
+
+                    # ********************CAN bus config**********************
+                    self.current_uds_config.can.controller_mode = config_panel.comboBox_CANControllerMode.currentText()
+
+                    self.current_uds_config.can.f_clock = int(config_panel.lineEdit_CANControllerClockFrequency.text())
+                    self.current_uds_config.can.nom_bitrate = int(config_panel.lineEdit_NormalBitrate.text())
+                    self.current_uds_config.can.nom_sample_point = float(config_panel.lineEdit_NormalSamplePoint.text())
+                    self.current_uds_config.can.data_bitrate = int(config_panel.lineEdit_DataBitrate.text())
+                    self.current_uds_config.can.data_sample_point = float(config_panel.lineEdit_DataSamplePoint.text())
+
+                    # ********************CAN TP config**********************
+
+                    self.db_manager.save_uds_config(self.current_uds_config)
+                else:
+                    # ********************DoIP config**********************
+                    self.current_uds_config.doip.tester_logical_address = config_panel.config.doip.tester_logical_address
+                    self.current_uds_config.doip.dut_logical_address = config_panel.config.doip.dut_logical_address
+                    self.current_uds_config.doip.dut_ipv4_address = config_panel.config.doip.dut_ipv4_address
+                    self.current_uds_config.doip.is_routing_activation_use = config_panel.config.doip.is_routing_activation_use
+                    self.current_uds_config.doip.oem_specific = config_panel.config.doip.oem_specific
+
+                    self.db_manager.save_uds_config(self.current_uds_config)
+                    logger.info(
+                        f"DoIP配置已更新 - 测试机逻辑地址: 0x{config_panel.config.doip.tester_logical_address:X}, "
+                        f"ECU逻辑地址: 0x{config_panel.config.doip.dut_logical_address:X}, ECU IP: {config_panel.config.doip.dut_ipv4_address}"
+                    )
 
     @Slot(bool)
     def _update_uds_connect_state(self, state: bool):

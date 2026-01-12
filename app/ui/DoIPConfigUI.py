@@ -25,7 +25,7 @@ class Ui_DoIPConfig(object):
     def setupUi(self, DoIPConfig):
         if not DoIPConfig.objectName():
             DoIPConfig.setObjectName(u"DoIPConfig")
-        DoIPConfig.resize(725, 793)
+        DoIPConfig.resize(725, 821)
         DoIPConfig.setMinimumSize(QSize(500, 0))
         DoIPConfig.setMaximumSize(QSize(1000, 1000))
         self.verticalLayout_9 = QVBoxLayout(DoIPConfig)
@@ -334,17 +334,20 @@ class Ui_DoIPConfig(object):
         self.verticalLayout_5.setContentsMargins(0, 0, 0, 0)
         self.scrollArea = QScrollArea(self.groupBox_CANTPConfig)
         self.scrollArea.setObjectName(u"scrollArea")
+        self.scrollArea.setStyleSheet(u"#scrollArea {\n"
+"    border: none;\n"
+"}")
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 699, 54))
-        self.widget = QWidget(self.scrollAreaWidgetContents)
-        self.widget.setObjectName(u"widget")
-        self.widget.setGeometry(QRect(30, 20, 253, 27))
-        self.horizontalLayout_14 = QHBoxLayout(self.widget)
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 703, 54))
+        self.layoutWidget = QWidget(self.scrollAreaWidgetContents)
+        self.layoutWidget.setObjectName(u"layoutWidget")
+        self.layoutWidget.setGeometry(QRect(30, 20, 253, 27))
+        self.horizontalLayout_14 = QHBoxLayout(self.layoutWidget)
         self.horizontalLayout_14.setObjectName(u"horizontalLayout_14")
         self.horizontalLayout_14.setContentsMargins(0, 0, 0, 0)
-        self.label_10 = QLabel(self.widget)
+        self.label_10 = QLabel(self.layoutWidget)
         self.label_10.setObjectName(u"label_10")
         sizePolicy.setHeightForWidth(self.label_10.sizePolicy().hasHeightForWidth())
         self.label_10.setSizePolicy(sizePolicy)
@@ -355,7 +358,7 @@ class Ui_DoIPConfig(object):
 
         self.horizontalLayout_14.addWidget(self.label_10)
 
-        self.lineEdit_CANReqID_3 = QLineEdit(self.widget)
+        self.lineEdit_CANReqID_3 = QLineEdit(self.layoutWidget)
         self.lineEdit_CANReqID_3.setObjectName(u"lineEdit_CANReqID_3")
         self.lineEdit_CANReqID_3.setMinimumSize(QSize(120, 0))
         self.lineEdit_CANReqID_3.setFont(font)
@@ -379,10 +382,13 @@ class Ui_DoIPConfig(object):
         self.scrollArea_2 = QScrollArea(self.groupBox_CANBusConfig)
         self.scrollArea_2.setObjectName(u"scrollArea_2")
         self.scrollArea_2.setMinimumSize(QSize(0, 200))
+        self.scrollArea_2.setStyleSheet(u"#scrollArea_2 {\n"
+"    border: none;\n"
+"}")
         self.scrollArea_2.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 687, 299))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, -99, 691, 299))
         self.verticalLayout_6 = QVBoxLayout(self.scrollAreaWidgetContents_2)
         self.verticalLayout_6.setObjectName(u"verticalLayout_6")
         self.horizontalLayout_13 = QHBoxLayout()
@@ -611,16 +617,16 @@ class Ui_DoIPConfig(object):
         self.comboBox_CANControllerMode.setItemText(1, QCoreApplication.translate("DoIPConfig", u"CANFD", None))
 
         self.label_16.setText(QCoreApplication.translate("DoIPConfig", u"\u65f6\u949f\u9891\u7387", None))
-        self.lineEdit_CANControllerClockFrequency.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 7E2)", None))
+        self.lineEdit_CANControllerClockFrequency.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 80_000_000)", None))
         self.groupBox_arbitration.setTitle(QCoreApplication.translate("DoIPConfig", u"\u4ef2\u88c1", None))
         self.label_11.setText(QCoreApplication.translate("DoIPConfig", u"\u6ce2\u7279\u7387", None))
-        self.lineEdit_NormalBitrate.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 7E2)", None))
+        self.lineEdit_NormalBitrate.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 500_000)", None))
         self.label_12.setText(QCoreApplication.translate("DoIPConfig", u"\u91c7\u6837\u70b9", None))
-        self.lineEdit_NormalSamplePoint.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 7E2)", None))
+        self.lineEdit_NormalSamplePoint.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 80.0)", None))
         self.groupBox_data.setTitle(QCoreApplication.translate("DoIPConfig", u"\u6570\u636e", None))
         self.label_15.setText(QCoreApplication.translate("DoIPConfig", u"\u6ce2\u7279\u7387", None))
-        self.lineEdit_DataBitrate.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 7E2)", None))
+        self.lineEdit_DataBitrate.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 2000_000)", None))
         self.label_14.setText(QCoreApplication.translate("DoIPConfig", u"\u91c7\u6837\u70b9", None))
-        self.lineEdit_DataSamplePoint.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 7E2)", None))
+        self.lineEdit_DataSamplePoint.setPlaceholderText(QCoreApplication.translate("DoIPConfig", u"(e.g. 80.0)", None))
     # retranslateUi
 

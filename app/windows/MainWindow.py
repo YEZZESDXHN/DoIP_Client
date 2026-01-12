@@ -115,6 +115,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                         channels.append(
                             f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
         self.comboBox_HardwareChannel.addItems(channels)
+
     def on_interface_update(self, interface_channels):
         try:
             self.comboBox_HardwareChannel.clear()

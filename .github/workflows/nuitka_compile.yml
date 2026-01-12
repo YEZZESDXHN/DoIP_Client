@@ -60,6 +60,7 @@ jobs:
             --assume-yes-for-downloads `
             --include-package=Crypto `
             --include-package=crcmod `
+            --include-package=can `
             --lto=yes `
             --output-dir="${{ github.workspace }}/dist" `
             --output-filename=${{ env.APP_NAME }}.exe `

@@ -13,12 +13,13 @@ DoIP_Client 支持一下功能：
 - [x] 添加删除UDS指令到UDS Service Tree，并双击发送。
 - [x] 加载外部.py脚本实现自动化诊断流程或其他操作（v0.0.3打包release版本内置pycryptodome和crcmod库）。
 - [x] 加载.py脚本实现27解锁服务。
-- [x] UDS刷写。
+- [x] UDS刷写，可自行配置刷写步骤，支持hex,bin,s19,但当前只验证了hex格式
+- [x] 支持Vector设置,其他python-can支持的设备理论也可很轻松的集成
 - [ ] 生成测试报告。
 - [ ] 导入导出配置文件。
 - [ ] 加载符合vector规范的.dll实现27解锁服务（默认打包release程序为64位，如dll为32位会加载失败）。
 - [ ] 可视化方式编写自动化诊断流程。
-- [ ] 支持Vector,ZLG,TsMaster等设备实现CAN UDS。
+- [ ] TSMaster暂不支，获取到设备后连接失败，部分电脑甚至无法获取设备列表，原因未知
 
 更多体验及细节持续优化。
 
@@ -27,17 +28,38 @@ DoIP_Client 支持一下功能：
 
 ## 仓库结构（主要文件/目录）
 
-- main.py — 应用示例 / 启动入口
-- UDSClient.py — DoIP/UDS 客户端实现（核心通讯逻辑）
-- db_manager.py — 本地数据库 / 持久化（会话、用户、日志索引等）
-- user_data.py — 用户与会话数据模型、管理工具
-- utils.py — 辅助函数（字节/十六进制处理、时间/序列工具等）
-- ScriptAPI.py — 统一集成api
-- external_scripts_executor.py - 执行外部脚本，在单独线程运行
-- flash_executor.py - 执行刷写，在单独线程运行
-- global_variables.py - 全局变量，当前主要存储刷写文件相关变量，在执行刷写时根据加载的文件生成
-- logging.conf — logging 配置样例（调整日志级别、输出位置）
-- requirements.txt — Python 依赖清单
+```
+/
+├─ .github/
+│  └─ workflows/                    # GitHub Actions workflow 配置
+├─ .gitignore                        # Git 忽略规则
+├─ ExternalLib/
+│  └─ __init__.py                    # ExternalLib 包初始化（占位）
+├─ GenerateKeyExOpt/
+│  └─ GenerateKeyExOptDemo.py       # 密钥算法演示脚本
+├─ app/
+│  ├─ core/                          # 应用核心模块
+│  ├─ external_scripts/              # 执行外部脚本模块
+│  ├─ flash/                         # 执行刷写模块
+│  ├─ resources/                     # 静态资源（图标、布局等）
+│  ├─ ui/                            # 界面层代码
+│  ├─ windows/                       # 自定义界面
+│  ├─ global_variables.py            # 全局变量与配置常量
+│  ├─ user_data.py                   # 用户数据处理与持久化
+│  └─ utils.py                       # 通用工具函数
+├─ external_scripts/
+│  ├─ api.py                         # 对外/脚本化 API 实现
+│  └─ external_script_demo.py        # external_scripts 演示脚本
+├─ logging.conf                       # 日志配置（Python logging）
+├─ main.py                            # 程序入口 / 客户端主逻辑
+├─ requirements.txt                   # Python 依赖列表
+├─ tosun/
+│  ├─ TSMasterApi/                   # TSMaster API 子模块
+│  ├─ __init__.py                    # tosun 包初始化
+│  └─ canlib.py                      # CAN 总线相关库封装
+├─ tsmaster_test.py                   # 测试 / 示例脚本（TSMaster 相关）
+└─ README.md
+```
 
 ---
 

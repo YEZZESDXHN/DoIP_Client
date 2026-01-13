@@ -146,10 +146,11 @@ class EthInterfaceManager:
         return list(ethernet_ips.items())
 
 
-class CanInterfaceManager:
+class CanInterfaceManager(QObject):
     """
     CAN 管理器：负责设备扫描、连接建立以及数据发送。
     """
+    signal_interface_channels = Signal(object)
 
     def __init__(self):
         super().__init__()
@@ -169,6 +170,7 @@ class CanInterfaceManager:
 
         # 传入 interfaces 参数进行过滤
         self.available_configs = can.detect_available_configs(interfaces=interfaces)
+        self.signal_interface_channels.emit(self.available_configs)
         return self.available_configs
 
     def print_devices(self):

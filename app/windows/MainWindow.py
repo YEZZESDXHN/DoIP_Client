@@ -26,6 +26,7 @@ from app.windows.AutomaticDiagnosisProcess_ui import DiagProcessCaseTreeView, Di
 from app.windows.DoIPConfigPanel_ui import DoIPConfigPanel
 from app.windows.DoIPTraceTable_ui import DoIPTraceTableView
 from app.windows.FlashConfigPanel import FlashConfig, FlashChooseFileControl, FlashConfigPanel
+from app.windows.IG_Panel import CANIGPanel
 from app.windows.UdsServicesTreeView_ui import UdsServicesTreeView
 from app.windows.custom_status_bar import CustomStatusBar
 from app.windows.sql_data_panel import SQLTablePanel
@@ -48,6 +49,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.setWindowTitle("UDS Client")
         self.interface_channels = None
         self.current_can_interface = None
+
+        self.can_ig_panel = None
 
         empty_title = QWidget()
         self.dockWidget.setTitleBarWidget(empty_title)
@@ -80,12 +83,14 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.flash_timer.timeout.connect(self.update_flash_time)  # 定时刷新时间
         self.flash_start_dt = None
 
-        # 初始化UI、客户端、信号、IP列表
-        self._init_ui()
+        self._init_interface_manager()
         self._init_external_scripts_thread()
         self._init_flash_thread()
-        self._init_interface_manager()
         self._init_uds_client()
+
+        # 初始化UI、客户端、信号、IP列表
+        self._init_ui()
+
         self._init_signals()
 
     def _init_interface_manager(self):
@@ -346,6 +351,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.comboBox_HardwareType.addItem('Windows Ethernet')
         self.comboBox_HardwareType.addItems(list(CANInterfaceName))
 
+        self.setup_ig_panel()
+
     def on_hardware_type_change(self, index: int):
         current_text = self.comboBox_HardwareType.currentText()
         if current_text in list(CANInterfaceName):
@@ -366,10 +373,17 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.custom_status_bar.pushButton_ConnectState.setIcon(IconEngine.get_icon("unlink", 'red'))
 
-
-
     def on_reset_layout(self):
         self.restoreState(self.default_state)
+
+    def setup_ig_panel(self):
+        layout = self.tab_CANIG.layout()
+        if not layout:
+            layout = QVBoxLayout(self.tab_CANIG)
+            layout.setSpacing(15)  # 控件之间的间距
+
+        self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, parent=self)
+        layout.addWidget(self.can_ig_panel)
 
     def setup_flash_control(self):
         layout = self.scrollArea_FlashFiles.layout()

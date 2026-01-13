@@ -161,7 +161,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_FlashFiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 38, 16))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 949, 319))
         self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
 
         self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
@@ -235,13 +235,16 @@ class Ui_UDSToolMainWindow(object):
         self.verticalLayout_10.addLayout(self.horizontalLayout_9)
 
         self.tabWidget.addTab(self.tab_Flash, "")
+        self.tab_CANIG = QWidget()
+        self.tab_CANIG.setObjectName(u"tab_CANIG")
+        self.tabWidget.addTab(self.tab_CANIG, "")
 
         self.horizontalLayout.addWidget(self.tabWidget)
 
         UDSToolMainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(UDSToolMainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
         self.menu_set = QMenu(self.menubar)
@@ -431,7 +434,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 77, 425))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 80, 377))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
 
         self.verticalLayout_8.addWidget(self.scrollArea_DiagTree)
@@ -452,7 +455,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_UdsCaseTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 77, 425))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 80, 377))
         self.scrollArea_UdsCaseTree.setWidget(self.scrollAreaWidgetContents_3)
 
         self.verticalLayout_9.addWidget(self.scrollArea_UdsCaseTree)
@@ -507,7 +510,7 @@ class Ui_UDSToolMainWindow(object):
         self.actionUDSCase.setText(QCoreApplication.translate("UDSToolMainWindow", u"UDS\u6d4b\u8bd5\u6d41\u7a0b", None))
         self.pushButton_ClearDoIPTrace.setText(QCoreApplication.translate("UDSToolMainWindow", u"Clear", None))
         self.groupBox_DoIPTrace.setTitle("")
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_DoIPTrace), QCoreApplication.translate("UDSToolMainWindow", u"\u8bca\u65ad\u63a7\u5236\u53f0", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_DoIPTrace), QCoreApplication.translate("UDSToolMainWindow", u"\u62a5\u6587", None))
         self.pushButton.setText(QCoreApplication.translate("UDSToolMainWindow", u"Run", None))
         self.groupBox_AutomatedDiagProcessTable.setTitle("")
         self.groupBox_AutomatedDiagTrace.setTitle("")
@@ -522,6 +525,7 @@ class Ui_UDSToolMainWindow(object):
         self.pushButton_StopFlash.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u505c\u6b62\u5237\u5199", None))
         self.label_FlashState.setText("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_Flash), QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u5199", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_CANIG), QCoreApplication.translate("UDSToolMainWindow", u"CAN_IG", None))
         self.menu_about.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u5173\u4e8e", None))
         self.menu_set.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u8bbe\u7f6e", None))
         self.menu_tool.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u5de5\u5177", None))

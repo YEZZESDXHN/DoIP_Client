@@ -52,7 +52,7 @@
       </property>
       <widget class="QWidget" name="tab_DoIPTrace">
        <attribute name="title">
-        <string>诊断控制台</string>
+        <string>报文</string>
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <property name="spacing">
@@ -300,8 +300,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>38</width>
-               <height>16</height>
+               <width>949</width>
+               <height>319</height>
               </rect>
              </property>
             </widget>
@@ -417,6 +417,11 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="tab_CANIG">
+       <attribute name="title">
+        <string>CAN_IG</string>
+       </attribute>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -427,7 +432,7 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>22</height>
+     <height>33</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_about">
@@ -853,8 +858,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>77</width>
-          <height>425</height>
+          <width>80</width>
+          <height>377</height>
          </rect>
         </property>
        </widget>
@@ -900,8 +905,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>77</width>
-          <height>425</height>
+          <width>80</width>
+          <height>377</height>
          </rect>
         </property>
        </widget>

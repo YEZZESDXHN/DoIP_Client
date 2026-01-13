@@ -383,7 +383,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             layout = QVBoxLayout(self.tab_CANIG)
             layout.setSpacing(15)  # 控件之间的间距
 
-        self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, parent=self)
+        self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, db_manager=self.db_manager, parent=self)
         layout.addWidget(self.can_ig_panel)
 
     def setup_flash_control(self):

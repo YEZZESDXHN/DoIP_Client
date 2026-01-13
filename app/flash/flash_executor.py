@@ -5,6 +5,7 @@ from enum import Enum
 from time import sleep
 from typing import Literal, Dict, Callable
 from PySide6.QtCore import Signal, QObject
+from udsoncan import Response
 
 from app.core.ChecksumStrategy import ALGORITHM_REGISTRY, ChecksumStrategy
 from app.core.FirmwareFileParser import FirmwareFileParser
@@ -147,33 +148,54 @@ class QFlashExecutor(QObject):
                             return
                         resp = self.uds_client.send_payload(payload=send_data, display_trace=self.display_trace)
                         if resp:
-                            if resp.code == 0:
+                            if isinstance(resp, bytes):
                                 try:
                                     if step.exp_resp_data:
                                         exp_data_len = len(step.exp_resp_data)
-                                        if len(resp.original_payload) < exp_data_len:
-                                            self.write_signal.emit("Flash", f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
+                                        if len(resp) < exp_data_len:
+                                            self.write_signal.emit("Flash",
+                                                                   f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.hex(' ')}")
                                             self.flash_finish.emit(FlashFinishType.fail)
                                             return
                                         else:
-                                            if step.exp_resp_data != resp.original_payload[:exp_data_len]:
+                                            if step.exp_resp_data != resp[:exp_data_len]:
                                                 self.write_signal.emit("Flash",
-                                                                       f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
+                                                                       f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp}.hex(' ')")
                                                 self.flash_finish.emit(FlashFinishType.fail)
                                                 return
-
                                 except Exception as e:
-                                    self.write_signal.emit("Flash",f"执行失败: {e}")
+                                    self.write_signal.emit("Flash", f"执行失败: {e}")
                                     self.flash_finish.emit(FlashFinishType.fail)
                                     return
-                            else:
-                                self.write_signal.emit("Flash", f"{step.step_name} 执行失败，code_name: {resp.code_name}")
-                                try:
-                                    self.write_signal.emit("Flash", f"data:{resp.original_payload.hex(' ')}")
-                                except:
-                                    pass
-                                self.flash_finish.emit(FlashFinishType.fail)
-                                return
+
+                            elif isinstance(resp, Response):
+                                if resp.code == 0:
+                                    try:
+                                        if step.exp_resp_data:
+                                            exp_data_len = len(step.exp_resp_data)
+                                            if len(resp.original_payload) < exp_data_len:
+                                                self.write_signal.emit("Flash", f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
+                                                self.flash_finish.emit(FlashFinishType.fail)
+                                                return
+                                            else:
+                                                if step.exp_resp_data != resp.original_payload[:exp_data_len]:
+                                                    self.write_signal.emit("Flash",
+                                                                           f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
+                                                    self.flash_finish.emit(FlashFinishType.fail)
+                                                    return
+
+                                    except Exception as e:
+                                        self.write_signal.emit("Flash", f"执行失败: {e}")
+                                        self.flash_finish.emit(FlashFinishType.fail)
+                                        return
+                                else:
+                                    self.write_signal.emit("Flash", f"{step.step_name} 执行失败，code_name: {resp.code_name}")
+                                    try:
+                                        self.write_signal.emit("Flash", f"data:{resp.original_payload.hex(' ')}")
+                                    except:
+                                        pass
+                                    self.flash_finish.emit(FlashFinishType.fail)
+                                    return
                         else:
                             self.flash_finish.emit(FlashFinishType.fail)
                             return

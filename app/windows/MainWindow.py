@@ -83,10 +83,11 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.flash_timer.timeout.connect(self.update_flash_time)  # 定时刷新时间
         self.flash_start_dt = None
 
+        self._init_uds_client()
         self._init_interface_manager()
         self._init_external_scripts_thread()
         self._init_flash_thread()
-        self._init_uds_client()
+
 
         # 初始化UI、客户端、信号、IP列表
         self._init_ui()
@@ -403,16 +404,23 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # 4. 【循环添加新控件】
         if not self.flash_config:
             return
+
+        self.flash_choose_file_controls.clear()
+        self.flash_file_paths.clear()
         for file_cfg in self.flash_config.files:
             # 使用上面定义的包装类
-            self.flash_choose_file_controls.clear()
-            self.flash_file_paths.clear()
             self.flash_choose_file_controls[file_cfg.name] = FlashChooseFileControl(self)
             if file_cfg.default_path:
                 self.flash_choose_file_controls[file_cfg.name].lineEdit_FlashFilePath.setText(file_cfg.default_path)
+                self.flash_file_paths[file_cfg.name] = file_cfg.default_path
             self.flash_choose_file_controls[file_cfg.name].label_FlashFileName.setText(file_cfg.name)
+            # self.flash_choose_file_controls[file_cfg.name].toolButton_LoadFlashFile.clicked.connect(
+            #     lambda checked=False, name=file_cfg.name, le=self.flash_choose_file_controls[file_cfg.name].lineEdit_FlashFilePath: self.choose_flash_file(name, le)
+            # )
             self.flash_choose_file_controls[file_cfg.name].toolButton_LoadFlashFile.clicked.connect(
-                lambda checked=False, name=file_cfg.name, le=self.flash_choose_file_controls[file_cfg.name].lineEdit_FlashFilePath: self.choose_flash_file(name, le)
+                lambda checked=False, name=file_cfg.name,
+                       le=self.flash_choose_file_controls[file_cfg.name].lineEdit_FlashFilePath: self.choose_flash_file(
+                    name, le)
             )
             layout.addWidget(self.flash_choose_file_controls[file_cfg.name])
 

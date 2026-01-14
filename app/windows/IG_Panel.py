@@ -49,7 +49,7 @@ class CanIgMessages(BaseModel):
     type: MessageType = MessageType.CAN
     data_length: int = 8
     brs: bool = False
-    data: bytes = b''
+    data: bytes = b'\x00\x00\x00\x00\x00\x00\x00\x00'
 
     def __setattr__(self, name, value):
         # 1. 先执行默认的属性赋值逻辑
@@ -411,7 +411,7 @@ class IgTableModel(QAbstractTableModel):
             if isinstance(value, bool):
                 trigger = self.ig_messages[row].trigger
                 if trigger == 0:
-                    pass
+                    self.ig_messages_timer[row].timeout.emit()
                 else:
                     setattr(self.ig_messages[row], field_name, value)
                     if value:
@@ -423,6 +423,17 @@ class IgTableModel(QAbstractTableModel):
         elif col == IgTableCol.trigger:
             setattr(self.ig_messages[row], field_name, value)
             self.ig_messages_timer[row].setInterval(value)
+            if value == 0:
+                self.ig_messages_timer[row].stop()
+                setattr(self.ig_messages[row], 'send', False)
+        elif col == IgTableCol.data_length:
+            setattr(self.ig_messages[row], field_name, value)
+            data = getattr(self.ig_messages[row], 'data', bytes([0] * value))
+            if len(data) < value:
+                data = data + bytes([0] * (value - len(data)))
+            else:
+                data = data[:value]
+            setattr(self.ig_messages[row], 'data', data)
         else:
             setattr(self.ig_messages[row], field_name, value)
         return True
@@ -513,11 +524,13 @@ class CANIGPanel(Ui_IG, QWidget):
 
         self.tableView_data.setModel(self.messages_date_model)
 
+        self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
+
     def _signal_init(self):
         self.pushButton_NMRefreshCANChannel.clicked.connect(self.scan_can_devices)
         self.signal_scan_can_devices.connect(self.interface_manager.can_interface_manager.scan_devices)
         self.interface_manager.can_interface_manager.signal_interface_channels.connect(self.update_channels)
-        self.pushButton_NMConnectCANBus.clicked.connect(self.init_can_bus)
+        self.pushButton_NMConnectCANBus.clicked.connect(self.change_bus_connect_state)
         self.pushButton_NMCANbusConfig.clicked.connect(self.open_can_bus_config_panel)
 
         self.pushButton_NMRefreshCANChannel.clicked.emit()
@@ -525,6 +538,7 @@ class CANIGPanel(Ui_IG, QWidget):
     def open_can_bus_config_panel(self):
         config_panel = IgBusConfigPanel(self)
         config_panel.setWindowTitle('设置can控制器')
+        
         if config_panel.exec() == QDialog.Accepted:
             pass
 
@@ -532,9 +546,23 @@ class CANIGPanel(Ui_IG, QWidget):
         current_text = self.comboBox_NMHardwareType.currentText()
         self.signal_scan_can_devices.emit(current_text)
 
-    def init_can_bus(self, can_channel):
+    def change_ui_state_disabled(self, state: bool):
+        self.comboBox_NMHardwareType.setDisabled(state)
+        self.comboBox_NMHardwareChannel.setDisabled(state)
+        self.pushButton_NMRefreshCANChannel.setDisabled(state)
+        self.pushButton_NMCANbusConfig.setDisabled(state)
+
+    def change_bus_connect_state(self):
+        if self.bus_connect_state:
+            self.can_bus.shutdown()
+            self.bus_connect_state = False
+            self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
+            self.change_ui_state_disabled(False)
+        else:
+            self.init_can_bus()
+
+    def init_can_bus(self):
         try:
-            logger.debug(f"[*] 正在连接到 {can_channel['interface']} (通道: {can_channel['channel']}) ...")
             if self.can_controller_config.controller_mode == "CANFD":
                 timing = BitTimingFd.from_sample_point(
                     f_clock=self.can_controller_config.f_clock,
@@ -552,14 +580,20 @@ class CANIGPanel(Ui_IG, QWidget):
 
             # 初始化 Bus 对象
             # **target_config 会将字典解包为关键字参数传入
-            self.can_bus = can.Bus(**can_channel, timing=timing)
-
+            self.can_bus = can.Bus(**self.current_can_interface, timing=timing)
+            self.bus_connect_state = True
+            self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("link", 'green'))
+            self.change_ui_state_disabled(True)
             logger.debug(f"[+] 连接成功！总线状态: {self.can_bus.state}")
         except Exception as e:
             try:
-                self.can_bus = can.Bus(**can_channel)
-                logger.error(f"[+] {str(e)}，总线状态: {self.can_bus.state}")
+                self.can_bus = can.Bus(**self.current_can_interface)
+                self.bus_connect_state = True
+                self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("link", 'green'))
+                self.change_ui_state_disabled(True)
             except Exception as e:
+                self.bus_connect_state = False
+                self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
                 logger.exception(f"[-] 连接失败: {str(e)}")
 
     def update_can_interface(self):
@@ -591,11 +625,37 @@ class CANIGPanel(Ui_IG, QWidget):
             logger.exception(f'更新channel失败，{e}')
 
     def send_message(self):
+        if not self.bus_connect_state:
+            return
         timer = self.sender()
 
         # 2. 在列表中查找它的索引
         if timer in self.ig_messages_timer:
             index = self.ig_messages_timer.index(timer)
-            print(index)
+
+            '''
+            timestamp: float = 0.0,
+            arbitration_id: int = 0,
+            is_extended_id: bool = True,
+            is_remote_frame: bool = False,
+            is_error_frame: bool = False,
+            channel: Optional[typechecking.Channel] = None,
+            dlc: Optional[int] = None,
+            data: Optional[typechecking.CanData] = None,
+            is_fd: bool = False,
+            is_rx: bool = True,
+            bitrate_switch: bool = False,
+            error_state_indicator: bool = False,
+            check: bool = False,
+            '''
+            ig_messages = self.ig_messages[index]
+            msg = can.Message(
+                arbitration_id=ig_messages.id,
+                data=ig_messages.data,
+                is_extended_id=False,
+                dlc=ig_messages.data_length,
+                check=True  # 检查数据长度等参数是否合法
+            )
+            self.can_bus.send(msg)
 
 

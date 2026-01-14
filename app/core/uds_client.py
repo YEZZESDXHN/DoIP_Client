@@ -226,7 +226,7 @@ class QUDSClient(QObject):
             return None
 
         try:
-            self.info_signal.emit(f"正在计算 Key (Seed: {seed.hex(' ')}, Level: {level})")
+            # self.info_signal.emit(f"正在计算 Key (Seed: {seed.hex(' ')}, Level: {level})")
 
             # 这里完全匹配你定义的签名
             key = self.generate_key_func(
@@ -245,7 +245,7 @@ class QUDSClient(QObject):
             if not isinstance(key, (bytes, bytearray)):
                 self.error_signal.emit(f"算法返回类型错误: 期望 bytes, 实际是 {type(key)}")
                 return None
-            self.info_signal.emit(f"计算完成,key: {key.hex(' ')}")
+            # self.info_signal.emit(f"计算完成,key: {key.hex(' ')}")
             return bytes(key)
 
         except Exception as e:

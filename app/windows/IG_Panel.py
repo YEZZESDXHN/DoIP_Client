@@ -1,15 +1,19 @@
 import logging
-from typing import Optional, Any
+from functools import cached_property
+from typing import Optional, Any, List
 
 import can
-from PySide6.QtCore import Signal, QAbstractTableModel, Qt, QModelIndex
-from PySide6.QtWidgets import QWidget, QDialog, QMessageBox
+from PySide6.QtCore import Signal, QAbstractTableModel, Qt, QModelIndex, QEvent, QRect, QTimer
+from PySide6.QtGui import QIcon, QAction, QCursor
+from PySide6.QtWidgets import QWidget, QDialog, QMessageBox, QStyledItemDelegate, QCheckBox, QStyleOptionButton, QStyle, \
+    QApplication, QMenu
 from can import BitTiming, BitTimingFd
 from pydantic import BaseModel, field_validator, field_serializer
-from enum import Enum
+from enum import Enum, IntEnum
 
 from app.core.db_manager import DBManager
 from app.core.interface_manager import CANInterfaceName, InterfaceManager
+from app.resources.resources import IconEngine
 from app.ui.IGPanelUI import Ui_IG
 from app.ui.IgBusConfigPanel_ui import Ui_IgBusConfig
 
@@ -40,11 +44,28 @@ class MessageType(str, Enum):
 class CanIgMessages(BaseModel):
     send: bool = False
     trigger: int = 0
+    name: str = ''
     id: int = 0
     type: MessageType = MessageType.CAN
     data_length: int = 8
     brs: bool = False
     data: bytes = b''
+
+    def __setattr__(self, name, value):
+        # 1. 先执行默认的属性赋值逻辑
+        super().__setattr__(name, value)
+        # 2. 若存在 to_tuple 缓存，自动清空
+        cache_attr_name = 'to_tuple'
+        if hasattr(self, cache_attr_name):
+            delattr(self, cache_attr_name)
+
+    @cached_property
+    def to_tuple(self) -> tuple:
+        tuple_values = []
+        for key in self.model_fields.keys():
+            value = getattr(self, key)
+            tuple_values.append(value)
+        return tuple(tuple_values)
 
     def get_attr_names(self) -> tuple[str, ...]:
         """返回属性名字元组"""
@@ -186,17 +207,167 @@ class IgBusConfigPanel(Ui_IgBusConfig, QDialog):
         self.accept()
 
 
-class IgTableModel(QAbstractTableModel):
+# 定义步骤的列
+class IgTableCol(IntEnum):
+    send = 0
+    trigger = 1
+    name = 2
+    id = 3
+    type = 4
+    data_length = 5
+    brs = 6
+
+
+class IgTableDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        """自定义绘制"""
+
+        if index.column() == IgTableCol.brs:
+            # 获取数据
+            value = index.data(Qt.ItemDataRole.EditRole)
+
+            # 1. 如果是 Bool 类型，画复选框
+            if isinstance(value, bool):
+                # 准备绘制参数
+                opt = QStyleOptionButton()
+                opt.state = QStyle.State_Enabled if (option.state & QStyle.State_Enabled) else QStyle.State_None
+
+                # 设置勾选状态
+                if value:
+                    opt.state |= QStyle.State_On
+                else:
+                    opt.state |= QStyle.State_Off
+
+                # --- 计算居中位置 ---
+                # 获取当前样式下 CheckBox 的标准尺寸
+                checkbox_size = QApplication.style().pixelMetric(QStyle.PixelMetric.PM_IndicatorWidth)
+                # 计算 X, Y 让图标居中
+                x = option.rect.x() + (option.rect.width() - checkbox_size) // 2
+                y = option.rect.y() + (option.rect.height() - checkbox_size) // 2
+
+                opt.rect.setRect(x, y, checkbox_size, checkbox_size)
+
+                # 绘制复选框 (PE_IndicatorCheckBox 只画框和钩，不画文字)
+                QApplication.style().drawPrimitive(QStyle.PrimitiveElement.PE_IndicatorCheckBox, opt, painter)
+
+                # # 如果被选中（高亮），画一个虚线框或者背景色（可选，保持默认即可）
+                # if option.state & QStyle.State_Selected:
+                #     painter.save()
+                #     painter.setPen(option.palette.highlight().color())
+                #     painter.setBrush(Qt.BrushStyle.NoBrush)
+                #     painter.drawRect(option.rect)  # 简单的选中框
+                #     painter.restore()
+            else:
+                super().paint(painter, option, index)
+        elif index.column() == IgTableCol.send:
+            value = index.data(Qt.ItemDataRole.EditRole)
+            if isinstance(value, bool):
+                target_icon = IconEngine.get_icon('stop', 'red') if value else IconEngine.get_icon('start', 'red')
+
+                icon_size = QApplication.style().pixelMetric(QStyle.PixelMetric.PM_ButtonIconSize)
+                max_size = min(icon_size, option.rect.height() - 4)
+
+                x = option.rect.x() + (option.rect.width() - icon_size) // 2
+                y = option.rect.y() + (option.rect.height() - icon_size) // 2
+                target_rect = QRect(x, y, max_size, max_size)
+
+                # mode 参数可以控制图标是 "激活" 还是 "禁用" 状态
+                mode = QIcon.Mode.Normal
+                if not (option.state & QStyle.State_Enabled):
+                    mode = QIcon.Mode.Disabled
+
+                # 开始绘制
+                target_icon.paint(painter, target_rect, Qt.AlignmentFlag.AlignCenter, mode)
+
+
+        # 2. 其他类型，使用默认绘制
+        else:
+            super().paint(painter, option, index)
+
+    def editorEvent(self, event, model, option, index):
+        """处理点击事件，实现单击切换"""
+
+        if index.column() == IgTableCol.brs:
+            value = index.data(Qt.ItemDataRole.EditRole)
+
+            # 只拦截 Bool 类型的点击
+            if isinstance(value, bool):
+                # 判断是否是鼠标左键释放 (Click)
+                # 也可以用 MouseButtonPress，但 Release 更符合习惯
+                if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+                    # 切换数据：True -> False, False -> True
+                    new_value = not value
+                    # 更新 Model
+                    model.setData(index, new_value, Qt.ItemDataRole.EditRole)
+                    return True  # 事件已处理，不再向下传递
+
+                # 拦截双击事件，防止双击 bool 列时产生不必要的行为
+                if event.type() == QEvent.Type.MouseButtonDblClick:
+                    return True
+        elif index.column() == IgTableCol.send:
+            value = index.data(Qt.ItemDataRole.EditRole)
+
+            # 只拦截 Bool 类型的点击
+            if isinstance(value, bool):
+                # 判断是否是鼠标左键释放 (Click)
+                # 也可以用 MouseButtonPress，但 Release 更符合习惯
+                if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+                    # 切换数据：True -> False, False -> True
+                    new_value = not value
+                    # 更新 Model
+                    model.setData(index, new_value, Qt.ItemDataRole.EditRole)
+                    return True  # 事件已处理，不再向下传递
+
+                # 拦截双击事件，防止双击 bool 列时产生不必要的行为
+                if event.type() == QEvent.Type.MouseButtonDblClick:
+                    return True
+
+        return super().editorEvent(event, model, option, index)
+
+    def createEditor(self, parent, option, index):
+        """禁止 Bool 类型创建默认编辑器"""
+        if index.column() == IgTableCol.brs:
+            value = index.data(Qt.ItemDataRole.EditRole)
+            if isinstance(value, bool):
+                return None  # 这一步很关键！防止双击弹出空白框
+
+        return super().createEditor(parent, option, index)
+
+
+class IgMessageDateTableModel(QAbstractTableModel):
     def __init__(self, db_manager: DBManager, ig_messages: list[CanIgMessages]):
         super().__init__()
         self.db_manager = db_manager
         self.ig_messages = ig_messages
+
+
+class IgTableModel(QAbstractTableModel):
+    def __init__(self, db_manager: DBManager, ig_messages: list[CanIgMessages], ig_messages_timer: List[QTimer]):
+        super().__init__()
+        self.db_manager = db_manager
+        self.ig_messages = ig_messages
+        self.ig_messages_timer = ig_messages_timer
         self._headers = CanIgMessages().get_attr_names()[:-1]
 
     def clear(self):
         self.beginResetModel()
         self.ig_messages.clear()
         self.endResetModel()
+
+    def add_message(self):
+        row = self.rowCount()
+        self.beginInsertRows(QModelIndex(), row, row)
+        self.ig_messages.append(CanIgMessages())
+        self.endInsertRows()
+
+    def delete_message(self, row):
+        if 0 <= row < self.rowCount():
+            self.beginRemoveRows(QModelIndex(), row, row)
+            self.ig_messages.pop(row)
+            self.ig_messages_timer[row].stop()
+            self.ig_messages_timer[row].deleteLater()
+            self.ig_messages_timer.pop(row)
+            self.endRemoveRows()
 
     def headerData(self, section: int, orientation: Qt.Orientation,
                    role: int = Qt.ItemDataRole.DisplayRole):
@@ -218,23 +389,43 @@ class IgTableModel(QAbstractTableModel):
 
         row = index.row()
         col = index.column()
+        msg_tuple = self.ig_messages[row].to_tuple
 
         # 显示数据
-        if col == 0 and role == Qt.ItemDataRole.CheckStateRole:
-            pass
+        if role in (Qt.DisplayRole, Qt.EditRole):
+            return msg_tuple[col]
         return None
 
-    def setData(self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole) -> bool:
-        if not index.isValid():
+    def setData(self, index: QModelIndex, value, role: int = Qt.ItemDataRole.EditRole) -> bool:
+        if not index.isValid() or role != Qt.ItemDataRole.EditRole:
             return False
 
         row = index.row()
         col = index.column()
+        field_name = self._headers[col]
 
-        if role == Qt.ItemDataRole.EditRole:
-            pass
-
-        return False
+        if col == IgTableCol.brs:
+            if isinstance(value, bool):
+                setattr(self.ig_messages[row], field_name, value)
+        elif col == IgTableCol.send:
+            if isinstance(value, bool):
+                trigger = self.ig_messages[row].trigger
+                if trigger == 0:
+                    pass
+                else:
+                    setattr(self.ig_messages[row], field_name, value)
+                    if value:
+                        self.ig_messages_timer[row].start()
+                    else:
+                        self.ig_messages_timer[row].stop()
+        elif col == IgTableCol.type:
+            setattr(self.ig_messages[row], field_name, value)
+        elif col == IgTableCol.trigger:
+            setattr(self.ig_messages[row], field_name, value)
+            self.ig_messages_timer[row].setInterval(value)
+        else:
+            setattr(self.ig_messages[row], field_name, value)
+        return True
 
     def flags(self, index: QModelIndex):
         if not index.isValid():
@@ -244,14 +435,10 @@ class IgTableModel(QAbstractTableModel):
         default_flags = super().flags(index)
         flags = default_flags | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
-        col = index.column()
-        # 检查是否是第 0 列
-        if col == 0:
-            return flags | Qt.ItemFlag.ItemIsUserCheckable
-        elif col == 1:
-            return flags
-        elif col in (2, 3):
-            row = index.row()
+        # current_obj = self.ig_messages[index.row()]
+        # value = getattr(current_obj, self._headers[index.column()])
+        # if isinstance(value, bool):
+        #     return flags | Qt.ItemFlag.ItemIsUserCheckable
 
         return flags | Qt.ItemFlag.ItemIsEditable
 
@@ -264,7 +451,15 @@ class CANIGPanel(Ui_IG, QWidget):
         self.setupUi(self)
 
         self.can_controller_config: CANControllerConfig = CANControllerConfig()
-        self.ig_messages: list[CanIgMessages] = []
+        self.ig_messages: List[CanIgMessages] = []
+        self.ig_messages_timer: List[QTimer] = []
+        self.ig_messages_timer.clear()
+        for msg in self.ig_messages:
+            msg.send = False
+            timer = QTimer()
+            timer.setInterval(msg.trigger)
+            timer.timeout.connect(self.send_message)
+            self.ig_messages_timer.append(timer)
 
         self.can_bus: Optional[can.Bus] = None
         self.current_can_interface = None
@@ -273,12 +468,50 @@ class CANIGPanel(Ui_IG, QWidget):
 
         self.db_manager = db_manager
         self.interface_manager = interface_manager
+        self.messages_model = IgTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages, ig_messages_timer=self.ig_messages_timer)
+        self.messages_date_model = IgMessageDateTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages)
         self._ui_init()
-
+        self._init_data_context_menu()
         self._signal_init()
+
+    def _init_data_context_menu(self):
+        """初始化数据区域右键菜单：复制、清空"""
+        # 设置表格视图的上下文菜单策略为自定义（表头的策略已单独设置，不冲突）
+        self.tableView_messages.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        # 绑定数据区域右键菜单信号
+        self.tableView_messages.customContextMenuRequested.connect(self._show_data_context_menu)
+
+    def _show_data_context_menu(self, pos):
+        """显示数据区域右键菜单"""
+        menu = QMenu(self)
+        index = self.tableView_messages.indexAt(pos)
+        add_action = QAction("add", self)
+        add_action.triggered.connect(self.add_message)
+        menu.addAction(add_action)
+
+        if index.isValid():
+            del_action = QAction("del", self)
+            del_action.triggered.connect(lambda: self.delete_message(index.row()))
+            menu.addAction(del_action)
+
+        menu.exec(QCursor.pos())
+        # menu.exec(self.tableView_messages.mapToGlobal(pos))
+
+    def delete_message(self, row):
+        self.messages_model.delete_message(row)
+
+    def add_message(self):
+        self.messages_model.add_message()
+        timer = QTimer()
+        timer.timeout.connect(self.send_message)
+        self.ig_messages_timer.append(timer)
 
     def _ui_init(self):
         self.comboBox_NMHardwareType.addItems(list(CANInterfaceName))
+        self.tableView_messages.setModel(self.messages_model)
+        self.tableView_messages.setItemDelegate(IgTableDelegate(self.tableView_messages))
+
+        self.tableView_data.setModel(self.messages_date_model)
 
     def _signal_init(self):
         self.pushButton_NMRefreshCANChannel.clicked.connect(self.scan_can_devices)
@@ -356,5 +589,13 @@ class CANIGPanel(Ui_IG, QWidget):
                 self.current_can_interface = self.can_interface_channels[0]
         except Exception as e:
             logger.exception(f'更新channel失败，{e}')
+
+    def send_message(self):
+        timer = self.sender()
+
+        # 2. 在列表中查找它的索引
+        if timer in self.ig_messages_timer:
+            index = self.ig_messages_timer.index(timer)
+            print(index)
 
 

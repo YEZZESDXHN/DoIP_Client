@@ -103,8 +103,17 @@ class IgBusConfigPanel(Ui_IgBusConfig, QDialog):
         super().__init__(parent)
         self.setupUi(self)
         self.can_controller_config: CANControllerConfig = CANControllerConfig()
+        self.comboBox_CANControllerMode.currentIndexChanged.connect(self.on_can_controller_mode_change)
 
         self.buttonBox.accepted.connect(self._on_accept)
+
+    def on_can_controller_mode_change(self, index):
+        if index == 0:
+            self.groupBox_data.setVisible(False)
+            self.lineEdit_CANControllerClockFrequency.setText('16000000')
+        else:
+            self.groupBox_data.setVisible(True)
+            self.lineEdit_CANControllerClockFrequency.setText('80000000')
 
     def _on_accept(self):
         controller_mode = self.comboBox_CANControllerMode.currentText()
@@ -786,9 +795,18 @@ class CANIGPanel(Ui_IG, QWidget):
     def open_can_bus_config_panel(self):
         config_panel = IgBusConfigPanel(self)
         config_panel.setWindowTitle('设置can控制器')
+
+        config_panel.comboBox_CANControllerMode.setCurrentText(self.can_controller_config.controller_mode)
+        config_panel.comboBox_CANControllerMode.currentIndexChanged.emit(
+            config_panel.comboBox_CANControllerMode.currentIndex())
+        config_panel.lineEdit_DataBitrate.setText(str(self.can_controller_config.data_bitrate))
+        config_panel.lineEdit_NormalBitrate.setText(str(self.can_controller_config.nom_bitrate))
+        config_panel.lineEdit_CANControllerClockFrequency.setText(str(self.can_controller_config.f_clock))
+        config_panel.lineEdit_DataSamplePoint.setText(str(self.can_controller_config.data_sample_point))
+        config_panel.lineEdit_NormalSamplePoint.setText(str(self.can_controller_config.nom_sample_point))
         
         if config_panel.exec() == QDialog.Accepted:
-            pass
+            self.can_controller_config = config_panel.can_controller_config
 
     def scan_can_devices(self):
         current_text = self.comboBox_NMHardwareType.currentText()
@@ -844,9 +862,11 @@ class CANIGPanel(Ui_IG, QWidget):
                 self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
                 logger.exception(f"[-] 连接失败: {str(e)}")
 
-    def update_can_interface(self):
+    def update_can_interface(self, interface_channels):
         if self.bus_connect_state:
             return
+        self.comboBox_NMHardwareChannel.clear()
+        self.can_interface_channels = interface_channels
         channels = []
         can_interface_name = self.comboBox_NMHardwareType.currentText()
         if can_interface_name in list(CANInterfaceName):
@@ -863,9 +883,7 @@ class CANIGPanel(Ui_IG, QWidget):
 
     def update_channels(self, interface_channels):
         try:
-            self.comboBox_NMHardwareChannel.clear()
-            self.can_interface_channels = interface_channels
-            self.update_can_interface()
+            self.update_can_interface(interface_channels)
 
             if self.can_interface_channels:
                 self.current_can_interface = self.can_interface_channels[0]

@@ -3,10 +3,10 @@ from functools import cached_property
 from typing import Optional, Any, List
 
 import can
-from PySide6.QtCore import Signal, QAbstractTableModel, Qt, QModelIndex, QEvent, QRect, QTimer
-from PySide6.QtGui import QIcon, QAction, QCursor
+from PySide6.QtCore import Signal, QAbstractTableModel, Qt, QModelIndex, QEvent, QRect, QTimer, QRegularExpression
+from PySide6.QtGui import QIcon, QAction, QCursor, QRegularExpressionValidator
 from PySide6.QtWidgets import QWidget, QDialog, QMessageBox, QStyledItemDelegate, QCheckBox, QStyleOptionButton, QStyle, \
-    QApplication, QMenu
+    QApplication, QMenu, QLineEdit, QAbstractItemDelegate, QAbstractItemView, QComboBox
 from can import BitTiming, BitTimingFd
 from pydantic import BaseModel, field_validator, field_serializer
 from enum import Enum, IntEnum
@@ -330,8 +330,84 @@ class IgTableDelegate(QStyledItemDelegate):
             value = index.data(Qt.ItemDataRole.EditRole)
             if isinstance(value, bool):
                 return None  # 这一步很关键！防止双击弹出空白框
+        elif index.column() == IgTableCol.id:
+            editor = QLineEdit(parent)
+            regex = QRegularExpression(r"[0-9A-Fa-f]{1,2}")
+            validator = QRegularExpressionValidator(regex, editor)
+            editor.setValidator(validator)
 
+            # 样式优化：去掉边框，居中显示，让它看起来像是在原地修改
+            editor.setFrame(False)
+            editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            editor.textChanged.connect(lambda text: self.check_input(editor, text))
+
+        elif index.column() == IgTableCol.type:
+            editor = QComboBox(parent)
+            editor.setEditable(True)
+            editor.addItems(list(MessageType))
+            return editor
         return super().createEditor(parent, option, index)
+
+    def check_input(self, editor: QLineEdit, text: str):
+        """检查输入长度"""
+        pass
+        # if len(text) == 2:
+        #     # 1. 提交当前数据 (写入 Model)
+        #     self.commitData.emit(editor)
+
+
+class HexByteDelegate(QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        editor = QLineEdit(parent)
+        try:
+
+            # 1. 限制输入：只能输入 1-2 位 Hex 字符 (0-9, a-f, A-F)
+            regex = QRegularExpression(r"[0-9A-Fa-f]{1,2}")
+            validator = QRegularExpressionValidator(regex, editor)
+            editor.setValidator(validator)
+
+            # 样式优化：去掉边框，居中显示，让它看起来像是在原地修改
+            editor.setFrame(False)
+            editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            # 2. 自动大写 (可选，提升体验)
+            # 也可以在 Validator 里不做限制，这里仅仅是视觉大写
+
+            # 3. 核心功能：监听输入实现自动跳转
+            # 当文本改变时调用 self.check_input
+            editor.textChanged.connect(lambda text: self.check_input(editor, text))
+        except:
+            return editor
+        return editor
+
+    def setEditorData(self, editor, index):
+        """当进入编辑模式时，编辑器显示什么内容"""
+        # 获取 Model 中的原始数据 (str)
+        value = index.data(Qt.ItemDataRole.EditRole)
+        if isinstance(editor, QLineEdit):
+            editor.blockSignals(True)
+            editor.setText(value)
+            editor.blockSignals(False)
+
+    def setModelData(self, editor, model, index):
+        """编辑结束，保存数据到 Model"""
+        if isinstance(editor, QLineEdit):
+            text = editor.text()
+            if text:
+                # Model 的 setData 已经处理了 Hex 字符串转 int 的逻辑
+                # 这里直接传字符串 "FF", "A" 等
+                model.setData(index, text, Qt.ItemDataRole.EditRole)
+
+    def check_input(self, editor: QLineEdit, text: str):
+        """检查输入长度，如果满2位则自动跳转"""
+        if len(text) == 2:
+            # 1. 提交当前数据 (写入 Model)
+            self.commitData.emit(editor)
+
+            # 2. 关闭当前编辑器，并告诉 View 导航到下一个项目
+            # EditNextItem 相当于用户按下了 "Tab" 键
+            self.closeEditor.emit(editor, QAbstractItemDelegate.EndEditHint.EditNextItem)
 
 
 class IgMessageDateTableModel(QAbstractTableModel):
@@ -339,9 +415,132 @@ class IgMessageDateTableModel(QAbstractTableModel):
         super().__init__()
         self.db_manager = db_manager
         self.ig_messages = ig_messages
+        # 当前需要显示哪一条消息的数据，默认为 -1 (不显示)
+        self._current_msg_index = -1
+        self._columns = 8  # 固定8列
+
+    def set_current_msg_index(self, index: int):
+        """
+        切换当前显示的消息索引。
+        通常连接到主表格的 selectionModel().currentRowChanged 信号。
+        """
+        self.beginResetModel()
+        if 0 <= index < len(self.ig_messages):
+            self._current_msg_index = index
+        else:
+            self._current_msg_index = -1
+        self.endResetModel()
+
+    def _get_current_msg(self) -> Optional[CanIgMessages]:
+        if self._current_msg_index != -1:
+            return self.ig_messages[self._current_msg_index]
+        return None
+
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        msg = self._get_current_msg()
+        if not msg:
+            return 0
+
+        # 计算行数： (数据长度 + 7) // 8
+        # 例如长度为 8 -> 1行
+        # 长度为 12 -> 2行
+        length = len(msg.data)
+        if length == 0:
+            return 0
+        return (length + self._columns - 1) // self._columns
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return self._columns
+
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
+                # 列头显示 00 01 ... 07
+                return f"{section:02X}"
+            else:
+                # 行头显示偏移量 0x00 0x08 0x10 ...
+                return f"0x{section * 8:02X}"
+        return None
+
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None
+
+        msg = self._get_current_msg()
+        if not msg:
+            return None
+
+        byte_offset = index.row() * self._columns + index.column()
+
+        if byte_offset >= len(msg.data):
+            return None
+
+        byte_val = msg.data[byte_offset]
+
+        # --- 修改开始 ---
+        # 1. 显示时：返回 "FF" 字符串
+        if role == Qt.ItemDataRole.DisplayRole:
+            return f"{byte_val:02X}"
+
+        # 2. 编辑时：返回原始 int 数值 (0-255)
+        # Delegate 的 setEditorData 会拿到这个 int 并转成 Hex 给用户看
+        if role == Qt.ItemDataRole.EditRole:
+            return f"{byte_val:02X}"
+        # --- 修改结束 ---
+
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            return Qt.AlignmentFlag.AlignCenter
+
+        if role == Qt.ItemDataRole.ToolTipRole:
+            return f"Dec: {byte_val}"
+
+        return None
+
+    def flags(self, index: QModelIndex):
+        if not index.isValid():
+            return Qt.ItemFlag.NoItemFlags
+
+        # 只有在有效数据范围内才允许选中/编辑
+        msg = self._get_current_msg()
+        if msg:
+            byte_offset = index.row() * self._columns + index.column()
+            if byte_offset < len(msg.data):
+                return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable
+
+        return Qt.ItemFlag.NoItemFlags
+
+    def setData(self, index: QModelIndex, value, role: int = Qt.ItemDataRole.EditRole) -> bool:
+        """实现数据编辑，支持输入 Hex 字符串修改 byte"""
+        if not index.isValid() or role != Qt.ItemDataRole.EditRole:
+            return False
+
+        msg = self._get_current_msg()
+        if not msg:
+            return False
+
+        byte_offset = index.row() * self._columns + index.column()
+        if byte_offset >= len(msg.data):
+            return False
+
+        try:
+            # 假设用户输入的是 Hex 字符串 (如 "FF", "0a")
+            new_byte = int(value, 16)
+
+            # 修改 bytes (bytes 是不可变的，需要转 bytearray 或重建)
+            # 这里为了简单，转为 mutable 的 bytearray 修改后再转回 bytes
+            data_mutable = bytearray(msg.data)
+            data_mutable[byte_offset] = new_byte
+            msg.data = bytes(data_mutable)
+            self.dataChanged.emit(index, index, [role])
+            return True
+        except ValueError:
+            return False
 
 
 class IgTableModel(QAbstractTableModel):
+    # 参数: (行号)
+    sig_length_changed = Signal(int)
+
     def __init__(self, db_manager: DBManager, ig_messages: list[CanIgMessages], ig_messages_timer: List[QTimer]):
         super().__init__()
         self.db_manager = db_manager
@@ -393,6 +592,8 @@ class IgTableModel(QAbstractTableModel):
 
         # 显示数据
         if role in (Qt.DisplayRole, Qt.EditRole):
+            if col == IgTableCol.id:
+                return f"{msg_tuple[col]:02X}"
             return msg_tuple[col]
         return None
 
@@ -420,6 +621,9 @@ class IgTableModel(QAbstractTableModel):
                         self.ig_messages_timer[row].stop()
         elif col == IgTableCol.type:
             setattr(self.ig_messages[row], field_name, value)
+        elif col == IgTableCol.id:
+            msg_id = int(value, 16)
+            setattr(self.ig_messages[row], field_name, msg_id)
         elif col == IgTableCol.trigger:
             setattr(self.ig_messages[row], field_name, value)
             self.ig_messages_timer[row].setInterval(value)
@@ -427,13 +631,25 @@ class IgTableModel(QAbstractTableModel):
                 self.ig_messages_timer[row].stop()
                 setattr(self.ig_messages[row], 'send', False)
         elif col == IgTableCol.data_length:
+            msg_type = getattr(self.ig_messages[row], 'type', MessageType.CAN)
+            if msg_type in (MessageType.CAN, MessageType.CAN_Remote, MessageType.Extended_CAN, MessageType.Extended_CAN_Remote):
+                if value > 8:
+                    value = 8
+            elif msg_type in (MessageType.CANFD, MessageType.Extended_CANFD):
+                if value > 64:
+                    value = 64
+            else:
+                if value > 8:
+                    value = 8
             setattr(self.ig_messages[row], field_name, value)
+
             data = getattr(self.ig_messages[row], 'data', bytes([0] * value))
             if len(data) < value:
                 data = data + bytes([0] * (value - len(data)))
             else:
                 data = data[:value]
             setattr(self.ig_messages[row], 'data', data)
+            self.sig_length_changed.emit(row)
         else:
             setattr(self.ig_messages[row], field_name, value)
         return True
@@ -481,6 +697,12 @@ class CANIGPanel(Ui_IG, QWidget):
         self.interface_manager = interface_manager
         self.messages_model = IgTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages, ig_messages_timer=self.ig_messages_timer)
         self.messages_date_model = IgMessageDateTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages)
+        self.tableView_data.setItemDelegate(HexByteDelegate(self.tableView_data))
+        self.tableView_data.setEditTriggers(
+            QAbstractItemView.EditTrigger.DoubleClicked |
+            QAbstractItemView.EditTrigger.AnyKeyPressed |
+            QAbstractItemView.EditTrigger.EditKeyPressed
+        )
         self._ui_init()
         self._init_data_context_menu()
         self._signal_init()
@@ -523,6 +745,8 @@ class CANIGPanel(Ui_IG, QWidget):
         self.tableView_messages.setItemDelegate(IgTableDelegate(self.tableView_messages))
 
         self.tableView_data.setModel(self.messages_date_model)
+        for i in range(8):
+            self.tableView_data.setColumnWidth(i, 50)
 
         self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
 
@@ -533,7 +757,31 @@ class CANIGPanel(Ui_IG, QWidget):
         self.pushButton_NMConnectCANBus.clicked.connect(self.change_bus_connect_state)
         self.pushButton_NMCANbusConfig.clicked.connect(self.open_can_bus_config_panel)
 
+        # 当主表的选择发生变化时，通知数据表切换显示的 Index
+        self.tableView_messages.selectionModel().currentRowChanged.connect(self.on_main_row_changed)
+        # 监听主表的数据变化
+        self.messages_model.sig_length_changed.connect(self.on_data_len_changed)
+
         self.pushButton_NMRefreshCANChannel.clicked.emit()
+
+    def on_data_len_changed(self, row):
+        current_index = self.tableView_messages.currentIndex()
+        if not current_index.isValid():
+            return
+
+        current_row = current_index.row()
+
+        if current_row == row:
+            self.messages_date_model.set_current_msg_index(current_row)
+
+    def on_main_row_changed(self, current_index, previous_index):
+        if current_index.isValid():
+            # 获取主表当前选中的行号
+            row = current_index.row()
+            # 通知数据表模型切换观察对象
+            self.messages_date_model.set_current_msg_index(row)
+        else:
+            self.messages_date_model.set_current_msg_index(-1)
 
     def open_can_bus_config_panel(self):
         config_panel = IgBusConfigPanel(self)
@@ -649,10 +897,41 @@ class CANIGPanel(Ui_IG, QWidget):
             check: bool = False,
             '''
             ig_messages = self.ig_messages[index]
+
+            if ig_messages.type == MessageType.CAN:
+                is_fd = False
+                is_extended_id = False
+                is_remote_frame = False
+            elif ig_messages.type == MessageType.CAN_Remote:
+                is_fd = False
+                is_extended_id = False
+                is_remote_frame = True
+            elif ig_messages.type == MessageType.CANFD:
+                is_fd = True
+                is_extended_id = False
+                is_remote_frame = False
+            elif ig_messages.type == MessageType.Extended_CAN:
+                is_fd = False
+                is_extended_id = True
+                is_remote_frame = False
+            elif ig_messages.type == MessageType.Extended_CAN_Remote:
+                is_fd = False
+                is_extended_id = True
+                is_remote_frame = True
+            elif ig_messages.type == MessageType.Extended_CANFD:
+                is_fd = True
+                is_extended_id = True
+                is_remote_frame = False
+            else:
+                is_fd = False
+                is_extended_id = False
+                is_remote_frame = False
             msg = can.Message(
                 arbitration_id=ig_messages.id,
                 data=ig_messages.data,
-                is_extended_id=False,
+                is_extended_id=is_extended_id,
+                is_fd=is_fd,
+                is_remote_frame=is_remote_frame,
                 dlc=ig_messages.data_length,
                 check=True  # 检查数据长度等参数是否合法
             )

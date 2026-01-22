@@ -239,12 +239,16 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         logger.info("Flash程线程已启动")
 
     def update_flash_variables(self):
-        gFlashVars.files_vars.clear()
+        gFlashVars.udsoncan_files_vars.clear()
+        gFlashVars.udsonip_files_vars.clear()
         if not self.flash_config:
             return
-        for f in self.flash_config.files:
+        for f in self.flash_config.udsonip_config.files:
             if f.name:
-                gFlashVars.files_vars[f.name] = FlashFileVars()
+                gFlashVars.udsonip_files_vars[f.name] = FlashFileVars()
+        for f in self.flash_config.udsoncan_config.files:
+            if f.name:
+                gFlashVars.udsoncan_files_vars[f.name] = FlashFileVars()
 
     def on_scripts_write(self, script_name: str, message: str):
         html_content = (
@@ -407,7 +411,11 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.flash_choose_file_controls.clear()
         self.flash_file_paths.clear()
-        for file_cfg in self.flash_config.files:
+        if self.current_uds_config.is_can_uds:
+            config = self.flash_config.udsoncan_config
+        else:
+            config = self.flash_config.udsonip_config
+        for file_cfg in config.files:
             # 使用上面定义的包装类
             self.flash_choose_file_controls[file_cfg.name] = FlashChooseFileControl(self)
             if file_cfg.default_path:
@@ -578,6 +586,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.comboBox_HardwareChannel.currentIndexChanged.connect(self.set_interface_channel)
         self.comboBox_HardwareType.currentIndexChanged.connect(self.on_hardware_type_change)
         self.comboBox_HardwareType.currentIndexChanged.emit(-1)
+        self.comboBox_HardwareType.currentIndexChanged.connect(self.setup_flash_control)
         self.comboBox_ChooseConfig.currentIndexChanged.connect(self._on_uds_config_chaneged)
 
         # 自定义信号（传递给DoIP客户端）

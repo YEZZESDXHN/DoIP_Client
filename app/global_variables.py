@@ -22,7 +22,8 @@ class FlashFileVars:
 
 @dataclass
 class FlashFilesVars:
-    files_vars: dict[str, FlashFileVars] = field(default_factory=dict)
+    udsoncan_files_vars: dict[str, FlashFileVars] = field(default_factory=dict)
+    udsonip_files_vars: dict[str, FlashFileVars] = field(default_factory=dict)
 
 
 gFlashVars = FlashFilesVars()

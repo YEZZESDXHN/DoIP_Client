@@ -53,9 +53,13 @@ class QFlashExecutor(QObject):
         """
         工厂方法：根据当前的 checksum_type 返回对应的算法实例
         """
-        strategy_class = ALGORITHM_REGISTRY.get(self.flash_config.transmission_parameters.checksum_type)
+        if self.uds_client.is_can_uds:
+            flash_config = self.flash_config.udsoncan_config
+        else:
+            flash_config = self.flash_config.udsonip_config
+        strategy_class = ALGORITHM_REGISTRY.get(flash_config.transmission_parameters.checksum_type)
         if not strategy_class:
-            raise NotImplementedError(f"算法 {self.flash_config.transmission_parameters.checksum_type} 尚未实现")
+            raise NotImplementedError(f"算法 {flash_config.transmission_parameters.checksum_type} 尚未实现")
         return strategy_class()
 
     def compute_checksum(self, cal_data: bytes) -> bytes:
@@ -67,12 +71,16 @@ class QFlashExecutor(QObject):
 
     def calculate_flash_step_num(self) -> int:
         step_num = 0
-        for step in self.flash_config.steps:
+        if self.uds_client.is_can_uds:
+            flash_config = self.flash_config.udsoncan_config
+        else:
+            flash_config = self.flash_config.udsonip_config
+        for step in flash_config.steps:
             _count = 1
             if not step.is_call and step.data[0] == 0x36:
                 external_data_len = len(self.get_external_data(step.external_data))
                 _count = int(
-                    external_data_len / (self.flash_config.transmission_parameters.max_number_of_block_length - 2)) + 1
+                    external_data_len / (flash_config.transmission_parameters.max_number_of_block_length - 2)) + 1
             else:
                 pass
             step_num = step_num + _count
@@ -82,10 +90,19 @@ class QFlashExecutor(QObject):
         flash_progress = 0
         self.write_signal.emit("Flash", f"开始加载文件")
         self.stop_flash_flag = False
+        if self.uds_client.is_can_uds:
+            files_vars = self.flash_vars.udsoncan_files_vars
+        else:
+            files_vars = self.flash_vars.udsonip_files_vars
+
+        if self.uds_client.is_can_uds:
+            flash_config = self.flash_config.udsoncan_config
+        else:
+            flash_config = self.flash_config.udsonip_config
 
         self.flash_file_parsers.clear()
         try:
-            for file in self.flash_config.files:
+            for file in flash_config.files:
                 if self.stop_flash_flag:
                     self.flash_finish.emit(FlashFinishType.stop)
                     return
@@ -94,9 +111,9 @@ class QFlashExecutor(QObject):
                 else:
                     self.flash_file_parsers[file.name] = FirmwareFileParser()
                     self.flash_file_parsers[file.name].load(self.flash_file_paths[file.name])
-                    if file.name not in self.flash_vars.files_vars:
+                    if file.name not in files_vars:
                         return
-                    self.flash_vars.files_vars[file.name].flash_block_vars.clear()
+                    files_vars[file.name].flash_block_vars.clear()
                     for addr, block_data in self.flash_file_parsers[file.name].get_segments():
                         base_vars = FlashBaseVars()
                         if not file.address:
@@ -106,7 +123,7 @@ class QFlashExecutor(QObject):
                         base_vars.data = bytes(block_data)
                         base_vars.checksum = self.compute_checksum(block_data)
 
-                        self.flash_vars.files_vars[file.name].flash_block_vars.append(base_vars)
+                        files_vars[file.name].flash_block_vars.append(base_vars)
 
         except Exception as e:
             self.write_signal.emit("Flash", f"文件加载失败，{e}")
@@ -124,7 +141,7 @@ class QFlashExecutor(QObject):
         self.flash_progress.emit(flash_progress)
 
         self.write_signal.emit("Flash", f"开始执行刷写步骤")
-        for step in self.flash_config.steps:
+        for step in flash_config.steps:
             if self.stop_flash_flag:
                 self.flash_finish.emit(FlashFinishType.stop)
                 return
@@ -214,7 +231,14 @@ class QFlashExecutor(QObject):
 
     def get_external_data(self, external_data: list[str], byteorder: Literal["little", "big"] = 'big') -> bytes:
         data = b''
-
+        if self.uds_client.is_can_uds:
+            files_vars = self.flash_vars.udsoncan_files_vars
+        else:
+            files_vars = self.flash_vars.udsonip_files_vars
+        if self.uds_client.is_can_uds:
+            flash_config = self.flash_config.udsoncan_config
+        else:
+            flash_config = self.flash_config.udsonip_config
         try:
             for ext in external_data:
                 if '[' in ext:
@@ -230,19 +254,19 @@ class QFlashExecutor(QObject):
                         file_name = ext_name.rsplit('_', 1)[0]  # 获取name
                         ext_suffix = ext_name.rsplit('_', 1)[1]  # 获取后缀crc
                         index = int(match.group(2))  # 获取下标
-                        if file_name not in self.flash_vars.files_vars and \
-                                len(self.flash_vars.files_vars[file_name].flash_block_vars) < index + 1:
+                        if file_name not in files_vars and \
+                                len(files_vars[file_name].flash_block_vars) < index + 1:
                             return b''
-                        ext_datas = self.flash_vars.files_vars[file_name].flash_block_vars[index]
+                        ext_datas = files_vars[file_name].flash_block_vars[index]
                         if not hasattr(ext_datas, ext_suffix):
                             return b''
                         ext_data = getattr(ext_datas, ext_suffix)
                         if isinstance(ext_data, int):
                             length = 4
                             if ext_suffix == 'size':
-                                length = self.flash_config.transmission_parameters.memory_size_parameter_length
+                                length = flash_config.transmission_parameters.memory_size_parameter_length
                             elif ext_suffix == 'addr':
-                                length = self.flash_config.transmission_parameters.memory_address_parameter_length
+                                length = flash_config.transmission_parameters.memory_address_parameter_length
                             ext_data = ext_data.to_bytes(
                                 length=length,
                                 byteorder=byteorder,
@@ -261,6 +285,10 @@ class QFlashExecutor(QObject):
         return data
 
     def construct_send_data_list(self, step: Step) -> list[bytes]:
+        if self.uds_client.is_can_uds:
+            flash_config = self.flash_config.udsoncan_config
+        else:
+            flash_config = self.flash_config.udsonip_config
         send_data_list = []
         external_data = self.get_external_data(step.external_data)
         if step.data[0] == 0x27 and step.data[1] % 2 == 0 and self.uds_client.security_key:
@@ -270,7 +298,7 @@ class QFlashExecutor(QObject):
             # 待发送的完整数据 = 原始指令段 + 外部补充数据
             total_send_data = step.data + external_data
             # 获取DOIP传输的单包最大长度限制
-            max_block_len = self.flash_config.transmission_parameters.max_number_of_block_length
+            max_block_len = flash_config.transmission_parameters.max_number_of_block_length
             # 核心：每一包都有【0x36(1字节)+序号(1字节)】，所以数据区要预留2字节头部
             max_data_len_per_pkg = max_block_len - 2
 

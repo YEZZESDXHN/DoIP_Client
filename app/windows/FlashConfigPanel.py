@@ -73,13 +73,19 @@ class TransmissionParameters(BaseModel):
     memory_size_parameter_length: int = 4
 
 
-# @dataclass
-class FlashConfig(BaseModel):
+class _FlashConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     transmission_parameters: TransmissionParameters = Field(default_factory=TransmissionParameters)
     files: list[FileConfig] = Field(default_factory=list)
     steps: list[Step] = Field(default_factory=list)
+
+# @dataclass
+class FlashConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    udsoncan_config: _FlashConfig = Field(default_factory=_FlashConfig)
+    udsonip_config: _FlashConfig = Field(default_factory=_FlashConfig)
 
     def to_json(self) -> str:
         return self.model_dump_json()
@@ -348,9 +354,11 @@ class FilesTableModel(QAbstractTableModel):
 
     def _get_unique_name(self, base_name: str, exclude_row: int) -> str:
         existing = {f.name for i, f in enumerate(self.files_list) if i != exclude_row}
-        if base_name not in existing: return base_name
+        if base_name not in existing:
+            return base_name
         counter = 1
-        while f"{base_name}_{counter}" in existing: counter += 1
+        while f"{base_name}_{counter}" in existing:
+            counter += 1
         return f"{base_name}_{counter}"
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
@@ -619,8 +627,8 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # self.config = flash_config if flash_config else FlashConfig()
         self.init_ui()
         # 2. 初始化 Model
-        self.file_model = FilesTableModel(self.config.files)
-        self.step_model = StepsTableModel(self.config.steps)
+        self.file_model = FilesTableModel(self.config.udsoncan_config.files)
+        self.step_model = StepsTableModel(self.config.udsoncan_config.steps)
 
         # 3. 初始化 Views
         # 直接传入占位符 widget，内部自动处理布局
@@ -634,6 +642,7 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # 4. 信号连接
         self.pushButton_AddFile.clicked.connect(self.file_model.insert_file)
         self.pushButton_RemoveFile.clicked.connect(self._remove_current_file)
+        self.comboBox_ConfigType.currentIndexChanged.connect(self.update_config_type)
 
         # 上下文菜单
         self.step_view.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -653,7 +662,10 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         for checksum in ChecksumType:
             # addItem 接受字符串
             self.comboBox_Checksum.addItem(checksum)
-        transmission_parameters = self.config.transmission_parameters
+        transmission_parameters = self.config.udsoncan_config.transmission_parameters
+        self._load_transmission_parameters(transmission_parameters)
+
+    def _load_transmission_parameters(self, transmission_parameters):
         index = self.comboBox_Checksum.findText(transmission_parameters.checksum_type.value)
         if index >= 0:
             self.comboBox_Checksum.setCurrentIndex(index)
@@ -697,7 +709,13 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # 假设这里有一些系统预设变量：
         current_vars = []
         # 2. 动态追加文件相关的变量
-        for f in self.config.files:
+        config_type = self.comboBox_ConfigType.currentText()
+        if config_type == 'UDSOnCAN':
+            files = self.config.udsoncan_config.files
+        else:
+            files = self.config.udsonip_config.files
+
+        for f in files:
             if f.name:
                 safe_name = f.name.strip()
                 ext_list = []
@@ -710,6 +728,42 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # 3. 仅更新 UI 上下文 (StepModel)
         # StepModel 拿到这个列表后，负责更新高亮和下拉提示
         self.step_model.update_context(current_vars)
+
+    def update_config_type(self, index):
+        config_type = self.comboBox_ConfigType.currentText()
+        if config_type == 'UDSOnCAN':
+            old_transmission_parameters = self.config.udsonip_config.transmission_parameters
+            self._set_transmission_parameters(old_transmission_parameters)
+
+            now_transmission_parameters = self.config.udsoncan_config.transmission_parameters
+            self._load_transmission_parameters(now_transmission_parameters)
+
+            self.file_model.beginResetModel()
+            self.file_model.files_list = self.config.udsoncan_config.files
+            self.file_model.endResetModel()
+
+            self.step_model.beginResetModel()
+            self.step_model.steps_list = self.config.udsoncan_config.steps
+            self.step_model.endResetModel()
+
+            self.file_model.variablesChanged.emit()
+        else:
+            old_transmission_parameters = self.config.udsoncan_config.transmission_parameters
+            self._set_transmission_parameters(old_transmission_parameters)
+
+            now_transmission_parameters = self.config.udsonip_config.transmission_parameters
+            self._load_transmission_parameters(now_transmission_parameters)
+
+            self.file_model.beginResetModel()
+            self.file_model.files_list = self.config.udsonip_config.files
+            self.file_model.endResetModel()
+
+            self.step_model.beginResetModel()
+            self.step_model.steps_list = self.config.udsonip_config.steps
+            self.step_model.endResetModel()
+
+            self.file_model.variablesChanged.emit()
+
 
     def _setup_view(self, parent_widget, model, view=None):
         """通用视图设置"""
@@ -769,20 +823,34 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
         # 也可以在这里把 self.config 同步回 gFlashVars (如果确实需要的话)
 
         # 示例：更新全局变量字典 (副作用只发生在最后一步)
-        gFlashVars.files_vars.clear()
-        for var in self.file_model.files_list:
-            gFlashVars.files_vars[var.name] = FlashFileVars()
+        gFlashVars.udsoncan_files_vars.clear()
+        gFlashVars.udsonip_files_vars.clear()
+        for var in self.config.udsoncan_config.files:
+            gFlashVars.udsoncan_files_vars[var.name] = FlashFileVars()
+        for var in self.config.udsonip_config.files:
+            gFlashVars.udsonip_files_vars[var.name] = FlashFileVars()
 
-        self.config.transmission_parameters.memory_address_parameter_length = int(self.comboBox_MemoryAddressParameterLength.currentText())
-        self.config.transmission_parameters.memory_size_parameter_length = int(self.comboBox_MemorySizeParameterLength.currentText())
-        try:
-            self.config.transmission_parameters.max_number_of_block_length = int(self.comboBox_MaxNumberOfBlockLength.currentText(), 16)
-        except:
-            self.config.transmission_parameters.max_number_of_block_length = None
-        self.config.transmission_parameters.data_format_identifier = int(self.lineEdit_dataFormatIdentifier.text(), 16)
-        self.config.transmission_parameters.checksum_type = ChecksumType(self.comboBox_Checksum.currentText())
+        config_type = self.comboBox_ConfigType.currentText()
+        if config_type == 'UDSOnCAN':
+            transmission_parameters = self.config.udsoncan_config.transmission_parameters
+        else:
+            transmission_parameters = self.config.udsonip_config.transmission_parameters
+        self._set_transmission_parameters(transmission_parameters)
 
         super().accept()
+
+    def _set_transmission_parameters(self, transmission_parameters):
+        transmission_parameters.memory_address_parameter_length = int(
+            self.comboBox_MemoryAddressParameterLength.currentText())
+        transmission_parameters.memory_size_parameter_length = int(
+            self.comboBox_MemorySizeParameterLength.currentText())
+        try:
+            transmission_parameters.max_number_of_block_length = int(
+                self.comboBox_MaxNumberOfBlockLength.currentText(), 16)
+        except:
+            transmission_parameters.max_number_of_block_length = None
+        transmission_parameters.data_format_identifier = int(self.lineEdit_dataFormatIdentifier.text(), 16)
+        transmission_parameters.checksum_type = ChecksumType(self.comboBox_Checksum.currentText())
 
 
 class FlashChooseFileControl(QWidget, Ui_Form_FlashChooseFileControl):

@@ -8,10 +8,17 @@
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from PySide6.QtCore import (QCoreApplication, QMetaObject, QSize, Qt)
-from PySide6.QtWidgets import (QComboBox, QDialogButtonBox, QGridLayout, QGroupBox, QHBoxLayout,
-                               QLabel, QLineEdit, QPushButton, QSizePolicy,
-                               QSplitter, QVBoxLayout)
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
+    QMetaObject, QObject, QPoint, QRect,
+    QSize, QTime, QUrl, Qt)
+from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
+    QFont, QFontDatabase, QGradient, QIcon,
+    QImage, QKeySequence, QLinearGradient, QPainter,
+    QPalette, QPixmap, QRadialGradient, QTransform)
+from PySide6.QtWidgets import (QAbstractButton, QApplication, QComboBox, QDialog,
+    QDialogButtonBox, QGridLayout, QGroupBox, QHBoxLayout,
+    QLabel, QLineEdit, QPushButton, QSizePolicy,
+    QSplitter, QVBoxLayout, QWidget)
 
 class Ui_FlashConfig(object):
     def setupUi(self, FlashConfig):
@@ -20,6 +27,34 @@ class Ui_FlashConfig(object):
         FlashConfig.resize(646, 702)
         self.verticalLayout_3 = QVBoxLayout(FlashConfig)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
+        self.horizontalLayout_10 = QHBoxLayout()
+        self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
+        self.label_6 = QLabel(FlashConfig)
+        self.label_6.setObjectName(u"label_6")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
+        self.label_6.setSizePolicy(sizePolicy)
+        self.label_6.setMinimumSize(QSize(150, 0))
+
+        self.horizontalLayout_10.addWidget(self.label_6)
+
+        self.comboBox_ConfigType = QComboBox(FlashConfig)
+        self.comboBox_ConfigType.addItem("")
+        self.comboBox_ConfigType.addItem("")
+        self.comboBox_ConfigType.setObjectName(u"comboBox_ConfigType")
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.comboBox_ConfigType.sizePolicy().hasHeightForWidth())
+        self.comboBox_ConfigType.setSizePolicy(sizePolicy1)
+
+        self.horizontalLayout_10.addWidget(self.comboBox_ConfigType)
+
+
+        self.verticalLayout_3.addLayout(self.horizontalLayout_10)
+
         self.groupBox = QGroupBox(FlashConfig)
         self.groupBox.setObjectName(u"groupBox")
         self.horizontalLayout_8 = QHBoxLayout(self.groupBox)
@@ -30,9 +65,6 @@ class Ui_FlashConfig(object):
         self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
         self.label_3 = QLabel(self.groupBox)
         self.label_3.setObjectName(u"label_3")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
         self.label_3.setSizePolicy(sizePolicy)
         self.label_3.setMinimumSize(QSize(150, 0))
@@ -75,9 +107,6 @@ class Ui_FlashConfig(object):
         self.comboBox_MemorySizeParameterLength.addItem("")
         self.comboBox_MemorySizeParameterLength.addItem("")
         self.comboBox_MemorySizeParameterLength.setObjectName(u"comboBox_MemorySizeParameterLength")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sizePolicy1.setHorizontalStretch(0)
-        sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.comboBox_MemorySizeParameterLength.sizePolicy().hasHeightForWidth())
         self.comboBox_MemorySizeParameterLength.setSizePolicy(sizePolicy1)
 
@@ -248,6 +277,7 @@ class Ui_FlashConfig(object):
         self.buttonBox.accepted.connect(FlashConfig.accept)
         self.buttonBox.rejected.connect(FlashConfig.reject)
 
+        self.comboBox_ConfigType.setCurrentIndex(0)
         self.comboBox_MemorySizeParameterLength.setCurrentIndex(4)
         self.comboBox_MaxNumberOfBlockLength.setCurrentIndex(0)
         self.comboBox_MemoryAddressParameterLength.setCurrentIndex(4)
@@ -259,6 +289,10 @@ class Ui_FlashConfig(object):
 
     def retranslateUi(self, FlashConfig):
         FlashConfig.setWindowTitle(QCoreApplication.translate("FlashConfig", u"Dialog", None))
+        self.label_6.setText(QCoreApplication.translate("FlashConfig", u"\u914d\u7f6e\u7c7b\u578b", None))
+        self.comboBox_ConfigType.setItemText(0, QCoreApplication.translate("FlashConfig", u"UDSOnCAN", None))
+        self.comboBox_ConfigType.setItemText(1, QCoreApplication.translate("FlashConfig", u"UDSOnIP", None))
+
         self.groupBox.setTitle(QCoreApplication.translate("FlashConfig", u"\u901a\u7528\u4f20\u8f93\u914d\u7f6e", None))
         self.label_3.setText(QCoreApplication.translate("FlashConfig", u"dataFormatIdentifier", None))
         self.lineEdit_dataFormatIdentifier.setText(QCoreApplication.translate("FlashConfig", u"0", None))

@@ -300,8 +300,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>949</width>
-               <height>319</height>
+               <width>961</width>
+               <height>370</height>
               </rect>
              </property>
             </widget>
@@ -432,7 +432,7 @@
      <x>0</x>
      <y>0</y>
      <width>1387</width>
-     <height>33</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_about">
@@ -444,6 +444,14 @@
     <property name="title">
      <string>设置</string>
     </property>
+    <widget class="QMenu" name="menu">
+     <property name="title">
+      <string>主题</string>
+     </property>
+     <addaction name="action_Default"/>
+     <addaction name="action_Fusion"/>
+    </widget>
+    <addaction name="menu"/>
    </widget>
    <widget class="QMenu" name="menu_tool">
     <property name="title">
@@ -858,8 +866,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>80</width>
-          <height>377</height>
+          <width>77</width>
+          <height>425</height>
          </rect>
         </property>
        </widget>
@@ -905,8 +913,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>80</width>
-          <height>377</height>
+          <width>77</width>
+          <height>425</height>
          </rect>
         </property>
        </widget>
@@ -982,6 +990,25 @@
   <action name="actionUDSCase">
    <property name="text">
     <string>UDS测试流程</string>
+   </property>
+  </action>
+  <action name="action_Default">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>系统默认</string>
+   </property>
+  </action>
+  <action name="action_Fusion">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Fusion</string>
    </property>
   </action>
  </widget>

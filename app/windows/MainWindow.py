@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Optional, List
 
 from PySide6.QtCore import Signal, QTimer, QThread, Slot, Qt
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QMainWindow, QWidget, QAbstractItemView, QVBoxLayout, QSpacerItem, \
-    QSizePolicy, QHBoxLayout, QFileDialog, QDialog
+    QSizePolicy, QHBoxLayout, QFileDialog, QDialog, QApplication
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
@@ -356,7 +356,21 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.comboBox_HardwareType.addItem('Windows Ethernet')
         self.comboBox_HardwareType.addItems(list(CANInterfaceName))
 
+        self.theme_group = QActionGroup(self)
+        self.theme_group.setExclusive(True)
+        # 将主题 Action 加入组
+        self.theme_group.addAction(self.action_Fusion)
+        self.theme_group.addAction(self.action_Default)
+
         self.setup_ig_panel()
+
+    def set_theme_to_default(self):
+        app = QApplication.instance()
+        app.setStyle("WindowsVista")
+
+    def set_theme_to_fusion(self):
+        app = QApplication.instance()
+        app.setStyle("Fusion")
 
     def on_hardware_type_change(self, index: int):
         current_text = self.comboBox_HardwareType.currentText()
@@ -387,7 +401,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             layout = QVBoxLayout(self.tab_CANIG)
             layout.setSpacing(15)  # 控件之间的间距
 
-        self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, db_manager=self.db_manager, parent=self)
+        self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, db_manager=self.db_manager, config=self.current_uds_config.config_name, parent=self)
         layout.addWidget(self.can_ig_panel)
 
     def setup_flash_control(self):
@@ -598,6 +612,9 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.action_database.triggered.connect(self.open_sql_ui)
 
+        self.action_Default.triggered.connect(self.set_theme_to_default)
+        self.action_Fusion.triggered.connect(self.set_theme_to_fusion)
+
         self.treeView_DoIPTraceService.status_bar_message.connect(self.status_bar_show_message)
         self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
 
@@ -719,6 +736,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.current_uds_config = self.db_manager.query_uds_config(config_name)
         self.db_manager.set_active_config(config_name)
         self.db_manager.init_services_database()
+        self.can_ig_panel.set_config(config_name)
 
         self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_uds_config.config_name))
         self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()
@@ -961,6 +979,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                     self.db_manager.delete_services_config(self.current_uds_config.config_name)
                     self.db_manager.delete_steps_by_case_ids(self.db_manager.get_current_config_uds_cases())
                     self.db_manager.delete_config_uds_cases(self.current_uds_config.config_name)
+                    self.db_manager.delete_can_ig_by_config(self.current_uds_config.config_name)
                 doip_config_names = self.db_manager.get_all_config_names()
                 if len(doip_config_names) > 0:
                     try:

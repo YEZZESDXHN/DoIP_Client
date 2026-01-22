@@ -16,6 +16,7 @@ from app.core.interface_manager import CANInterfaceName, InterfaceManager
 from app.resources.resources import IconEngine
 from app.ui.IGPanelUI import Ui_IG
 from app.ui.IgBusConfigPanel_ui import Ui_IgBusConfig
+from app.user_data import MessageType, CanIgMessages
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
@@ -30,63 +31,6 @@ CAN_IG_DEFAULT_BIT_TIMING_FD = BitTimingFd.from_sample_point(
     data_sample_point=80.0,
 
 )
-
-
-class MessageType(str, Enum):
-    CAN = "CAN"
-    CAN_Remote = "CAN_Remote"
-    CANFD = "CANFD"
-    Extended_CAN = "Extended_CAN"
-    Extended_CAN_Remote = "Extended_CAN_Remote"
-    Extended_CANFD = "Extended_CANFD"
-
-
-class CanIgMessages(BaseModel):
-    send: bool = False
-    trigger: int = 0
-    name: str = ''
-    id: int = 0
-    type: MessageType = MessageType.CAN
-    data_length: int = 8
-    brs: bool = False
-    data: bytes = b'\x00\x00\x00\x00\x00\x00\x00\x00'
-
-    def __setattr__(self, name, value):
-        # 1. 先执行默认的属性赋值逻辑
-        super().__setattr__(name, value)
-        # 2. 若存在 to_tuple 缓存，自动清空
-        cache_attr_name = 'to_tuple'
-        if hasattr(self, cache_attr_name):
-            delattr(self, cache_attr_name)
-
-    @cached_property
-    def to_tuple(self) -> tuple:
-        tuple_values = []
-        for key in self.model_fields.keys():
-            value = getattr(self, key)
-            tuple_values.append(value)
-        return tuple(tuple_values)
-
-    def get_attr_names(self) -> tuple[str, ...]:
-        """返回属性名字元组"""
-        return tuple(self.model_fields.keys())
-
-    @field_serializer('data')
-    def serialize_data(self, data: bytes, _info):
-        return data.hex().upper()
-
-    @field_validator('data', mode='before')
-    def validate_data(cls, v):
-        # Pydantic 在校验类型前会先运行这个函数
-        # v 就是从 JSON 里拿到的那个字符串，比如 "FF00"
-        if isinstance(v, str):
-            try:
-                # 将 Hex 字符串转回二进制
-                return bytes.fromhex(v)
-            except ValueError:
-                # 如果字符串不是合法的 Hex，可以选择报错或返回空
-                raise ValueError("数据格式错误: 必须是有效的 Hex 字符串")
-        return v
 
 
 class CANControllerConfig(BaseModel):
@@ -541,6 +485,7 @@ class IgMessageDateTableModel(QAbstractTableModel):
             data_mutable[byte_offset] = new_byte
             msg.data = bytes(data_mutable)
             self.dataChanged.emit(index, index, [role])
+            self.db_manager.save_can_ig(msg)
             return True
         except ValueError:
             return False
@@ -555,22 +500,30 @@ class IgTableModel(QAbstractTableModel):
         self.db_manager = db_manager
         self.ig_messages = ig_messages
         self.ig_messages_timer = ig_messages_timer
-        self._headers = CanIgMessages().get_attr_names()[:-1]
+        self._headers = CanIgMessages().get_attr_names()[2:-1]
 
     def clear(self):
         self.beginResetModel()
         self.ig_messages.clear()
         self.endResetModel()
 
-    def add_message(self):
+    def add_message(self, config):
         row = self.rowCount()
+        msg = CanIgMessages()
+        msg.config = config
         self.beginInsertRows(QModelIndex(), row, row)
-        self.ig_messages.append(CanIgMessages())
+        sql_id = self.db_manager.save_can_ig(msg)
+        msg.sql_id = sql_id
+        self.ig_messages.append(msg)
         self.endInsertRows()
+
+
 
     def delete_message(self, row):
         if 0 <= row < self.rowCount():
             self.beginRemoveRows(QModelIndex(), row, row)
+            del_num = self.db_manager.delete_can_ig_by_sql_id(self.ig_messages[row].sql_id)
+            print(del_num)
             self.ig_messages.pop(row)
             self.ig_messages_timer[row].stop()
             self.ig_messages_timer[row].deleteLater()
@@ -597,7 +550,7 @@ class IgTableModel(QAbstractTableModel):
 
         row = index.row()
         col = index.column()
-        msg_tuple = self.ig_messages[row].to_tuple
+        msg_tuple = self.ig_messages[row].to_tuple[2:-1]
 
         # 显示数据
         if role in (Qt.DisplayRole, Qt.EditRole):
@@ -661,6 +614,7 @@ class IgTableModel(QAbstractTableModel):
             self.sig_length_changed.emit(row)
         else:
             setattr(self.ig_messages[row], field_name, value)
+        self.db_manager.save_can_ig(self.ig_messages[row])
         return True
 
     def flags(self, index: QModelIndex):
@@ -681,13 +635,16 @@ class IgTableModel(QAbstractTableModel):
 
 class CANIGPanel(Ui_IG, QWidget):
     signal_scan_can_devices = Signal(str)
+    signal_config_update = Signal()
 
-    def __init__(self, interface_manager: InterfaceManager, db_manager: DBManager, parent=None):
+    def __init__(self, interface_manager: InterfaceManager, db_manager: DBManager, config, parent=None):
         super().__init__(parent)
         self.setupUi(self)
 
         self.can_controller_config: CANControllerConfig = CANControllerConfig()
-        self.ig_messages: List[CanIgMessages] = []
+        self.db_manager = db_manager
+        self.config = config
+        self.ig_messages: List[CanIgMessages] = self.db_manager.get_can_ig_list_by_config(self.config)
         self.ig_messages_timer: List[QTimer] = []
         self.ig_messages_timer.clear()
         for msg in self.ig_messages:
@@ -702,7 +659,7 @@ class CANIGPanel(Ui_IG, QWidget):
         self.can_interface_channels = None
         self.bus_connect_state: bool = False
 
-        self.db_manager = db_manager
+
         self.interface_manager = interface_manager
         self.messages_model = IgTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages, ig_messages_timer=self.ig_messages_timer)
         self.messages_date_model = IgMessageDateTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages)
@@ -715,6 +672,16 @@ class CANIGPanel(Ui_IG, QWidget):
         self._ui_init()
         self._init_data_context_menu()
         self._signal_init()
+
+    def set_config(self, config):
+        self.config = config
+        self.signal_config_update.emit()
+
+    def load_ig_messages(self):
+        self.ig_messages = self.db_manager.get_can_ig_list_by_config(self.config)
+        self.messages_model.beginResetModel()
+        self.messages_model.ig_messages = self.ig_messages
+        self.messages_model.endResetModel()
 
     def _init_data_context_menu(self):
         """初始化数据区域右键菜单：复制、清空"""
@@ -743,7 +710,7 @@ class CANIGPanel(Ui_IG, QWidget):
         self.messages_model.delete_message(row)
 
     def add_message(self):
-        self.messages_model.add_message()
+        self.messages_model.add_message(self.config)
         timer = QTimer()
         timer.timeout.connect(self.send_message)
         self.ig_messages_timer.append(timer)
@@ -772,6 +739,7 @@ class CANIGPanel(Ui_IG, QWidget):
         self.messages_model.sig_length_changed.connect(self.on_data_len_changed)
 
         self.pushButton_NMRefreshCANChannel.clicked.emit()
+        self.signal_config_update.connect(self.load_ig_messages)
 
     def on_data_len_changed(self, row):
         current_index = self.tableView_messages.currentIndex()

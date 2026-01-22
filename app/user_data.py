@@ -12,7 +12,7 @@ from typing import Any, Optional, Type, get_args, get_origin
 
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
 @dataclass
@@ -685,6 +685,74 @@ class UdsConfig(BaseModel):
     @classmethod
     def from_json(cls, json_str: str):
         return cls.model_validate_json(json_str)
+
+
+class MessageType(str, Enum):
+    CAN = "CAN"
+    CAN_Remote = "CAN_Remote"
+    CANFD = "CANFD"
+    Extended_CAN = "Extended_CAN"
+    Extended_CAN_Remote = "Extended_CAN_Remote"
+    Extended_CANFD = "Extended_CANFD"
+
+
+class CanIgMessages(BaseModel):
+    sql_id: int = 0
+    config: str = ''
+    send: bool = False
+    trigger: int = 0
+    name: str = ''
+    id: int = 0
+    type: MessageType = MessageType.CAN
+    data_length: int = 8
+    brs: bool = False
+    data: bytes = b'\x00\x00\x00\x00\x00\x00\x00\x00'
+
+    def __setattr__(self, name, value):
+        # 1. 先执行默认的属性赋值逻辑
+        super().__setattr__(name, value)
+        # 2. 若存在 to_tuple 缓存，自动清空
+        cache_attr_name = 'to_tuple'
+        if hasattr(self, cache_attr_name):
+            delattr(self, cache_attr_name)
+
+    @cached_property
+    def to_tuple(self) -> tuple:
+        tuple_values = []
+        for key in self.model_fields.keys():
+            value = getattr(self, key)
+            tuple_values.append(value)
+        return tuple(tuple_values)
+
+    def get_attr_names(self) -> tuple[str, ...]:
+        """返回属性名字元组"""
+        return tuple(self.model_fields.keys())
+
+    @field_serializer('data')
+    def serialize_data(self, data: bytes, _info):
+        return data.hex().upper()
+
+    @field_validator('data', mode='before')
+    def validate_data(cls, v):
+        # Pydantic 在校验类型前会先运行这个函数
+        # v 就是从 JSON 里拿到的那个字符串，比如 "FF00"
+        if isinstance(v, str):
+            try:
+                # 将 Hex 字符串转回二进制
+                return bytes.fromhex(v)
+            except ValueError:
+                # 如果字符串不是合法的 Hex，可以选择报错或返回空
+                raise ValueError("数据格式错误: 必须是有效的 Hex 字符串")
+        return v
+
+    def to_json(self) -> str:
+        return self.model_dump_json()
+
+    @classmethod
+    def from_json(cls, json_str: str):
+        return cls.model_validate_json(json_str)
+
+
 
 
 if __name__ == '__main__':

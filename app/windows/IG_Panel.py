@@ -16,7 +16,7 @@ from app.core.interface_manager import CANInterfaceName, InterfaceManager
 from app.resources.resources import IconEngine
 from app.ui.IGPanelUI import Ui_IG
 from app.ui.IgBusConfigPanel_ui import Ui_IgBusConfig
-from app.user_data import MessageType, CanIgMessages
+from app.user_data import MessageType, CanIgMessages, APP_NAME
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
@@ -734,6 +734,7 @@ class CANIGPanel(Ui_IG, QWidget):
         self.pushButton_NMCANbusConfig.clicked.connect(self.open_can_bus_config_panel)
 
         self.comboBox_NMHardwareChannel.currentIndexChanged.connect(self.set_current_can_interface)
+        self.comboBox_NMHardwareType.currentIndexChanged.connect(self.scan_can_devices)
 
         # 当主表的选择发生变化时，通知数据表切换显示的 Index
         self.tableView_messages.selectionModel().currentRowChanged.connect(self.on_main_row_changed)
@@ -819,14 +820,14 @@ class CANIGPanel(Ui_IG, QWidget):
 
             # 初始化 Bus 对象
             # **target_config 会将字典解包为关键字参数传入
-            self.can_bus = can.Bus(**self.current_can_interface, timing=timing)
+            self.can_bus = can.Bus(**self.current_can_interface, timing=timing, app_name=APP_NAME)
             self.bus_connect_state = True
             self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("link", 'green'))
             self.change_ui_state_disabled(True)
             logger.debug(f"[+] 连接成功！总线状态: {self.can_bus.state}")
         except Exception as e:
             try:
-                self.can_bus = can.Bus(**self.current_can_interface)
+                self.can_bus = can.Bus(**self.current_can_interface, app_name=APP_NAME)
                 self.bus_connect_state = True
                 self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("link", 'green'))
                 self.change_ui_state_disabled(True)
@@ -848,15 +849,19 @@ class CANIGPanel(Ui_IG, QWidget):
                 for ch in self.can_interface_channels:
                     channels.append(f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
 
-            else:
-                if can_interface_name == CANInterfaceName.tosun:
-                    for ch in self.can_interface_channels:
-                        channels.append(
-                            f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
+            elif can_interface_name == CANInterfaceName.tosun:
+                for ch in self.can_interface_channels:
+                    channels.append(
+                        f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
         self.comboBox_NMHardwareChannel.addItems(channels)
         self.comboBox_NMHardwareChannel.blockSignals(False)
 
     def update_channels(self, interface_channels):
+        if not interface_channels:
+            return
+        can_interface_name = self.comboBox_NMHardwareType.currentText()
+        if interface_channels[0]['interface'] != can_interface_name:
+            return
         try:
             self.update_can_interface(interface_channels)
 

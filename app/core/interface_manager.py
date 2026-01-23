@@ -29,7 +29,7 @@ can.util.VALID_INTERFACES = can.interfaces.VALID_INTERFACES
 
 class CANInterfaceName(str, Enum):
     vector = "vector"
-    # tosun = "tosun"
+    tosun = "tosun"
     #
     # kvaser = "kvaser"
     # socketcan = "socketcan"

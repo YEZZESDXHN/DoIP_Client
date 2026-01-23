@@ -15,6 +15,8 @@ from doipclient.messages import RoutingActivationRequest
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
+APP_NAME = 'UDS_Client'
+
 @dataclass
 class DiagCase:
     id: Optional[int] = None

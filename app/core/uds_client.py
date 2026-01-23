@@ -24,7 +24,7 @@ import importlib.util
 from udsoncan.connections import PythonIsoTpConnection
 
 from app.core.interface_manager import DEFAULT_BIT_TIMING, DEFAULT_BIT_TIMING_FD
-from app.user_data import DoIPMessageStruct, MessageDir, DoIPConfig, UdsOnCANConfig
+from app.user_data import DoIPMessageStruct, MessageDir, DoIPConfig, UdsOnCANConfig, APP_NAME
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
@@ -291,13 +291,13 @@ class QUDSClient(QObject):
 
             # 初始化 Bus 对象
             # **target_config 会将字典解包为关键字参数传入
-            can_bus = can.Bus(**can_channel, timing=timing)
+            can_bus = can.Bus(**can_channel, timing=timing, app_name=APP_NAME)
 
             logger.debug(f"[+] 连接成功！总线状态: {can_bus.state}")
             return can_bus
         except Exception as e:
             try:
-                can_bus = can.Bus(**can_channel)
+                can_bus = can.Bus(**can_channel, app_name=APP_NAME)
                 logger.error(f"[+] {str(e)}，总线状态: {can_bus.state}")
                 return can_bus
             except Exception as e:

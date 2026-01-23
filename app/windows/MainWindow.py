@@ -69,6 +69,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.init_database(self.db_path)
         self.uds_services: UdsService = UdsService()
         self._init_current_uds_config()
+        self.current_uds_config.is_can_uds = False
 
         self.add_external_lib()
 

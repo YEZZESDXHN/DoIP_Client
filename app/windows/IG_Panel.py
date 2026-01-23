@@ -733,6 +733,8 @@ class CANIGPanel(Ui_IG, QWidget):
         self.pushButton_NMConnectCANBus.clicked.connect(self.change_bus_connect_state)
         self.pushButton_NMCANbusConfig.clicked.connect(self.open_can_bus_config_panel)
 
+        self.comboBox_NMHardwareChannel.currentIndexChanged.connect(self.set_current_can_interface)
+
         # 当主表的选择发生变化时，通知数据表切换显示的 Index
         self.tableView_messages.selectionModel().currentRowChanged.connect(self.on_main_row_changed)
         # 监听主表的数据变化
@@ -740,6 +742,9 @@ class CANIGPanel(Ui_IG, QWidget):
 
         self.pushButton_NMRefreshCANChannel.clicked.emit()
         self.signal_config_update.connect(self.load_ig_messages)
+
+    def set_current_can_interface(self, index):
+        self.current_can_interface = self.can_interface_channels[index]
 
     def on_data_len_changed(self, row):
         current_index = self.tableView_messages.currentIndex()
@@ -833,6 +838,7 @@ class CANIGPanel(Ui_IG, QWidget):
     def update_can_interface(self, interface_channels):
         if self.bus_connect_state:
             return
+        self.comboBox_NMHardwareChannel.blockSignals(True)
         self.comboBox_NMHardwareChannel.clear()
         self.can_interface_channels = interface_channels
         channels = []
@@ -848,6 +854,7 @@ class CANIGPanel(Ui_IG, QWidget):
                         channels.append(
                             f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
         self.comboBox_NMHardwareChannel.addItems(channels)
+        self.comboBox_NMHardwareChannel.blockSignals(False)
 
     def update_channels(self, interface_channels):
         try:

@@ -14,8 +14,8 @@ from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-
 APP_NAME = 'UDS_Client'
+
 
 @dataclass
 class DiagCase:
@@ -90,6 +90,7 @@ class DiagCase:
         """从json更新数据类"""
         data_dict = json.loads(json_str)
         self.update_from_dict(data_dict)
+
 
 @dataclass
 class _DiagnosticSessionControl:
@@ -251,7 +252,8 @@ class UdsService:
                                 list_item['payload'] = bytes_decode
                             cls = args[0](**list_item)
                             current_obj.append(cls)
-                elif dataclasses.is_dataclass(field_type) and isinstance(value, dict) and dataclasses.is_dataclass(current_obj):
+                elif dataclasses.is_dataclass(field_type) and isinstance(value, dict) and dataclasses.is_dataclass(
+                        current_obj):
                     self.update_from_dict(value)
 
             except Exception as e:
@@ -299,6 +301,7 @@ class DiagnosisStepTestResultEnum(Enum):
     Pass = "Pass"
     Fail = "Failed"
     Running = "Running"
+
 
 @dataclass
 class DiagnosisStepData:
@@ -419,6 +422,7 @@ class DiagnosisStepData:
             print(f"警告：属性{attr_name}赋值失败（{str(e)}）")
             return False
         return True
+
     def update_from_dict(self, data_dict: dict):
         """从dict更新数据类"""
         for key, value in data_dict.items():
@@ -486,6 +490,7 @@ class DoIPMessageStruct:
     uds_data: bytes = b''  # uds数据部分，如responses数据：62 f1 95 11 22 33,uds_data为：11 22 33
     Destination_IP: str = ''
     Source_IP: str = ''
+
     def update_data_by_data_bytes(self):
         """将Data_bytes转为hex并更新到Data"""
         try:

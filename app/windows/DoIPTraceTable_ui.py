@@ -33,6 +33,7 @@ DEFAULT_DISPLAY_HEADERS = (
     False
 )
 
+
 class DoIPTraceTableModel(QAbstractTableModel):
     """DoIP追踪表格模型，优化数据管理和批量更新"""
 

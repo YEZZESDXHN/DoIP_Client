@@ -106,8 +106,5 @@ class QExternalScriptsExecutor(QObject):
         finish_type = ExternalScriptFinishType.success
         self.run_finish.emit(finish_type)
 
-
     def stop_run_external_scripts(self):
         self.stop_flag = True
-
-

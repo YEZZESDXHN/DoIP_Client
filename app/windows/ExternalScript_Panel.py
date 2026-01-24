@@ -297,9 +297,12 @@ class ExternalScriptPanel(Ui_ExternalScript_Panel, QWidget):
         self.setupUi(self)
         self.config_name = config_name
         self.db_manager = db_manager
-        self.external_scripts: List[ExternalScriptConfig] = self.db_manager.get_external_script_list_by_config(self.config_name)
-        self.external_script_table_mode = ExternalScriptTableModel(external_scripts=self.external_scripts, db_manager=self.db_manager)
-        self.tableView_ExternalScript = self._setup_view(self.scrollAreaWidgetContents, self.external_script_table_mode, ExternalScriptTableView())
+        self.external_scripts: List[ExternalScriptConfig] = self.db_manager.get_external_script_list_by_config(
+            self.config_name)
+        self.external_script_table_mode = ExternalScriptTableModel(external_scripts=self.external_scripts,
+                                                                   db_manager=self.db_manager)
+        self.tableView_ExternalScript = self._setup_view(self.scrollAreaWidgetContents, self.external_script_table_mode,
+                                                         ExternalScriptTableView())
         self.tableView_ExternalScript.setModel(self.external_script_table_mode)
         self.tableView_ExternalScript.setItemDelegate(ExternalScriptTableDelegate(self.tableView_ExternalScript))
         self.signal_config_update.connect(self.load_external_scripts)
@@ -414,5 +417,3 @@ class ExternalScriptPanel(Ui_ExternalScript_Panel, QWidget):
 
     def add_script(self):
         self.external_script_table_mode.add_script(self.config_name)
-
-

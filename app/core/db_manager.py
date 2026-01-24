@@ -301,7 +301,6 @@ class DBManager:
             # 返回删除的行数
             return cursor.rowcount
 
-
     def init_flash_config_table(self):
         with sqlite3.connect(self.db_path) as conn:
             # 只有两列：name (主键), json_data
@@ -1006,7 +1005,6 @@ class DBManager:
             conn.commit()
             logger.info(f"Saved: {config_name}")
 
-
     def delete_services_config(self, config_name: str) -> bool:
         delete_sql = f"DELETE FROM {SERVICES_TABLE_NAME} WHERE config_name = ?;"
         try:
@@ -1136,7 +1134,8 @@ class DBManager:
         """
         with sqlite3.connect(self.db_path) as conn:
             try:
-                cursor = conn.execute(f"SELECT json_data FROM {UDS_CONFIG_TABLE_NAME} WHERE config_name = ?", (config_name,))
+                cursor = conn.execute(f"SELECT json_data FROM {UDS_CONFIG_TABLE_NAME} WHERE config_name = ?",
+                                      (config_name,))
             except Exception as e:
                 logger.exception(str(e))
             row = cursor.fetchone()

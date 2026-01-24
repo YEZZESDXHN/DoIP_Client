@@ -91,7 +91,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self._init_external_scripts_thread()
         self._init_flash_thread()
 
-
         # 初始化UI、客户端、信号、IP列表
         self._init_ui()
 
@@ -116,7 +115,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         if can_interface_name in list(CANInterfaceName):
             if can_interface_name == CANInterfaceName.vector:
                 for ch in self.interface_channels:
-                    channels.append(f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
+                    channels.append(
+                        f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
 
             else:
                 if can_interface_name == CANInterfaceName.tosun:
@@ -407,7 +407,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             layout = QVBoxLayout(self.tab_CANIG)
             layout.setSpacing(15)  # 控件之间的间距
 
-        self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, db_manager=self.db_manager, config=self.current_uds_config.config_name, parent=self)
+        self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, db_manager=self.db_manager,
+                                       config=self.current_uds_config.config_name, parent=self)
         layout.addWidget(self.can_ig_panel)
 
     def setup_external_script_panel(self):
@@ -416,7 +417,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             layout = QVBoxLayout(self.tab_ExternalScript)
             layout.setSpacing(15)  # 控件之间的间距
 
-        self.external_script_panel = ExternalScriptPanel(db_manager=self.db_manager, config_name=self.current_uds_config.config_name, parent=self)
+        self.external_script_panel = ExternalScriptPanel(db_manager=self.db_manager,
+                                                         config_name=self.current_uds_config.config_name, parent=self)
         layout.addWidget(self.external_script_panel)
 
     def setup_flash_control(self):
@@ -534,7 +536,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # diag_process_table_view.setModel(diag_process_table_model)
         logger.debug(f"父控件：{parent_widget.objectName()}")
 
-
         # 获取或创建布局
         layout = parent_widget.layout()
         if layout is None:
@@ -551,7 +552,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         return diag_process_table_view
 
-
     def _add_custom_table_view(self, parent_widget):
         """
         在指定控件上添加控件custom_table
@@ -562,7 +562,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             return
         table_view_uds_trace = DoIPTraceTableView(parent=parent_widget)
         logger.debug(f"父控件：{parent_widget.objectName()}")
-
 
         # 获取或创建布局
         layout = parent_widget.layout()
@@ -609,7 +608,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # self.pushButton_ExternalScriptRun.clicked.connect(self.external_scripts_executor.run_external_script)
         # self.pushButton_ExternalScriptStop.clicked.connect(self.external_scripts_executor.stop_external_script)
         self.external_script_panel.pushButton_start.clicked.connect(self.external_scripts_executor.run_external_scripts)
-        self.external_script_panel.pushButton_stop.clicked.connect(self.external_scripts_executor.stop_run_external_scripts)
+        self.external_script_panel.pushButton_stop.clicked.connect(
+            self.external_scripts_executor.stop_run_external_scripts)
         self.external_scripts_executor.run_start.connect(self.external_script_panel.on_run_script)
         self.external_scripts_executor.run_finish.connect(self.external_script_panel.on_run_finish)
         self.external_scripts_executor.run_state.connect(self.external_script_panel.update_script_run_state)
@@ -721,7 +721,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     def _on_error_received(self, msg):
         self.handle_log_message("ERROR", msg)
 
-
     def handle_log_message(self, level, message):
         """
         统一日志处理：无时间戳，仅显示 [等级] 和 消息
@@ -742,7 +741,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             f'</span>'
         )
         self.plainTextEdit_DataDisplay.appendHtml(html_content)
-
 
     @Slot()
     def uds_response_finished(self):
@@ -837,7 +835,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_CreateConfig.setDisabled(set_disabled)
         self.checkBox_AotuReconnect.setDisabled(set_disabled)
 
-
     def change_uds_connect_state(self):
         """切换DoIP连接状态（连接/断开）"""
         self._change_ui_state(True)
@@ -883,7 +880,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     @Slot()
     def open_create_config_panel(self):
         """打开新建uds配置面板"""
-        config_panel = DoIPConfigPanel(parent=self, is_create_new_config=True, configs_name=self.db_manager.get_all_config_names())
+        config_panel = DoIPConfigPanel(parent=self, is_create_new_config=True,
+                                       configs_name=self.db_manager.get_all_config_names())
         config_panel.setWindowTitle('新建配置')
         new_config = UdsConfig()
 
@@ -944,7 +942,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             self.setup_flash_control()
             self.flash_executor.flash_config = self.flash_config
 
-
     @Slot()
     def open_edit_config_panel(self):
         """打开DoIP配置编辑面板"""
@@ -968,7 +965,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
             # ********************CAN Bus config**********************
             config_panel.comboBox_CANControllerMode.setCurrentText(self.current_uds_config.can.controller_mode)
-            config_panel.comboBox_CANControllerMode.currentIndexChanged.emit(config_panel.comboBox_CANControllerMode.currentIndex())
+            config_panel.comboBox_CANControllerMode.currentIndexChanged.emit(
+                config_panel.comboBox_CANControllerMode.currentIndex())
 
             config_panel.lineEdit_CANControllerClockFrequency.setText(str(self.current_uds_config.can.f_clock))
             config_panel.lineEdit_NormalBitrate.setText(str(self.current_uds_config.can.nom_bitrate))
@@ -985,7 +983,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             # ********************DoIP config**********************
             # 设置配置面板初始值（格式化十六进制，去掉0x前缀）
             config_panel.lineEdit_DUT_IP.setText(self.current_uds_config.doip.dut_ipv4_address)
-            config_panel.lineEdit_TesterLogicalAddress.setText(f"{self.current_uds_config.doip.tester_logical_address:X}")
+            config_panel.lineEdit_TesterLogicalAddress.setText(
+                f"{self.current_uds_config.doip.tester_logical_address:X}")
             config_panel.lineEdit_DUTLogicalAddress.setText(f"{self.current_uds_config.doip.dut_logical_address:X}")
             config_panel.lineEdit_OEMSpecific.setText(str(self.current_uds_config.doip.oem_specific))
             if self.current_uds_config.doip.is_routing_activation_use:
@@ -1073,8 +1072,6 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             self.custom_status_bar.pushButton_ConnectState.setIcon(IconEngine.get_icon(icon_name, 'red'))
             self._change_ui_state(False)
             logger.info(f"DoIP连接状态已更新为：未已连接")
-
-
 
     @Slot(int)
     def on_set_flash_progress_range(self, progress_range: int):

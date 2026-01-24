@@ -22,7 +22,6 @@ logger = logging.getLogger('UDSTool.' + __name__)
 
 CAN_IG_DEFAULT_BIT_TIMING = BitTiming.from_sample_point(f_clock=16_000_000, bitrate=500_000)
 
-
 CAN_IG_DEFAULT_BIT_TIMING_FD = BitTimingFd.from_sample_point(
     f_clock=80_000_000,
     nom_bitrate=500_000,
@@ -517,8 +516,6 @@ class IgTableModel(QAbstractTableModel):
         self.ig_messages.append(msg)
         self.endInsertRows()
 
-
-
     def delete_message(self, row):
         if 0 <= row < self.rowCount():
             self.beginRemoveRows(QModelIndex(), row, row)
@@ -594,7 +591,8 @@ class IgTableModel(QAbstractTableModel):
                 setattr(self.ig_messages[row], 'send', False)
         elif col == IgTableCol.data_length:
             msg_type = getattr(self.ig_messages[row], 'type', MessageType.CAN)
-            if msg_type in (MessageType.CAN, MessageType.CAN_Remote, MessageType.Extended_CAN, MessageType.Extended_CAN_Remote):
+            if msg_type in (
+            MessageType.CAN, MessageType.CAN_Remote, MessageType.Extended_CAN, MessageType.Extended_CAN_Remote):
                 if value > 8:
                     value = 8
             elif msg_type in (MessageType.CANFD, MessageType.Extended_CANFD):
@@ -659,9 +657,9 @@ class CANIGPanel(Ui_IG, QWidget):
         self.can_interface_channels = None
         self.bus_connect_state: bool = False
 
-
         self.interface_manager = interface_manager
-        self.messages_model = IgTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages, ig_messages_timer=self.ig_messages_timer)
+        self.messages_model = IgTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages,
+                                           ig_messages_timer=self.ig_messages_timer)
         self.messages_date_model = IgMessageDateTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages)
         self.tableView_data.setItemDelegate(HexByteDelegate(self.tableView_data))
         self.tableView_data.setEditTriggers(
@@ -778,7 +776,7 @@ class CANIGPanel(Ui_IG, QWidget):
         config_panel.lineEdit_CANControllerClockFrequency.setText(str(self.can_controller_config.f_clock))
         config_panel.lineEdit_DataSamplePoint.setText(str(self.can_controller_config.data_sample_point))
         config_panel.lineEdit_NormalSamplePoint.setText(str(self.can_controller_config.nom_sample_point))
-        
+
         if config_panel.exec() == QDialog.Accepted:
             self.can_controller_config = config_panel.can_controller_config
 
@@ -847,7 +845,8 @@ class CANIGPanel(Ui_IG, QWidget):
         if can_interface_name in list(CANInterfaceName):
             if can_interface_name == CANInterfaceName.vector:
                 for ch in self.can_interface_channels:
-                    channels.append(f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
+                    channels.append(
+                        f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
 
             elif can_interface_name == CANInterfaceName.tosun:
                 for ch in self.can_interface_channels:
@@ -934,5 +933,3 @@ class CANIGPanel(Ui_IG, QWidget):
                 check=True  # 检查数据长度等参数是否合法
             )
             self.can_bus.send(msg)
-
-

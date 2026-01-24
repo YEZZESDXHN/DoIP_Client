@@ -80,6 +80,7 @@ class _FlashConfig(BaseModel):
     files: list[FileConfig] = Field(default_factory=list)
     steps: list[Step] = Field(default_factory=list)
 
+
 # @dataclass
 class FlashConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -336,7 +337,7 @@ class FilesTableModel(QAbstractTableModel):
 
     def insert_file(self):
         row = self.rowCount()
-        base_name = f"File_{row+1}"
+        base_name = f"File_{row + 1}"
         unique_name = self._get_unique_name(base_name, -1)
 
         self.beginInsertRows(QModelIndex(), row, row)
@@ -452,7 +453,6 @@ class StepsTableModel(QAbstractTableModel):
             return Qt.AlignCenter
         return None
 
-
     def is_step_call(self, text: str) -> bool:
         if not text:
             return False  # 使用默认颜色
@@ -460,7 +460,6 @@ class StepsTableModel(QAbstractTableModel):
             return True
         else:
             return False
-
 
     def _get_color_for_value(self, is_step_call, text: str) -> QColor:
         """
@@ -674,7 +673,8 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
 
         self.lineEdit_dataFormatIdentifier.setText(str(transmission_parameters.data_format_identifier))
 
-        index = self.comboBox_MemoryAddressParameterLength.findText(str(transmission_parameters.memory_address_parameter_length))
+        index = self.comboBox_MemoryAddressParameterLength.findText(
+            str(transmission_parameters.memory_address_parameter_length))
         if index >= 0:
             self.comboBox_MemoryAddressParameterLength.setCurrentIndex(index)
         else:
@@ -763,7 +763,6 @@ class FlashConfigPanel(Ui_FlashConfig, QDialog):
             self.step_model.endResetModel()
 
             self.file_model.variablesChanged.emit()
-
 
     def _setup_view(self, parent_widget, model, view=None):
         """通用视图设置"""

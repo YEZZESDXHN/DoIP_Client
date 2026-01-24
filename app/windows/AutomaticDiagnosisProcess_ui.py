@@ -41,6 +41,7 @@ class ColumnEditDelegate(QStyledItemDelegate):
         else:
             return super(ColumnEditDelegate, self).setModelData(editor, model, index)
 
+
 class DiagProcessTableModel(QAbstractTableModel):
     def __init__(self, db_manager: DBManager):
         super().__init__()
@@ -125,7 +126,6 @@ class DiagProcessTableModel(QAbstractTableModel):
 
         return False
 
-
     def flags(self, index: QModelIndex):
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
@@ -172,6 +172,7 @@ class DiagProcessTableModel(QAbstractTableModel):
         self.db_manager.upsert_case_step(step_data)
         self.endInsertRows()
 
+
 class DiagProcessTableView(QTableView):
     """DoIP追踪表格，优化布局和交互"""
 
@@ -193,7 +194,8 @@ class DiagProcessTableView(QTableView):
     def _init_ui(self):
         """初始化表格UI属性，确保铺满布局"""
         # 表格配置
-        self.setEditTriggers(QAbstractItemView.EditTrigger.CurrentChanged | QAbstractItemView.EditTrigger.SelectedClicked | QAbstractItemView.EditTrigger.AnyKeyPressed)
+        self.setEditTriggers(
+            QAbstractItemView.EditTrigger.CurrentChanged | QAbstractItemView.EditTrigger.SelectedClicked | QAbstractItemView.EditTrigger.AnyKeyPressed)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setAlternatingRowColors(True)  # 隔行变色
 
@@ -213,8 +215,6 @@ class DiagProcessTableView(QTableView):
         self.setDropIndicatorShown(True)  # 显示拖放指示器
 
         self.setItemDelegate(ColumnEditDelegate(self))
-
-
 
     def _bind_scroll_listener(self):
         """绑定滚动条监听，控制自动滚动"""
@@ -249,8 +249,6 @@ class DiagProcessTableView(QTableView):
         # 显示菜单（转换为全局坐标）
         menu.exec(self.mapToGlobal(pos))
 
-
-
     def _clear_data(self):
         """清空数据"""
         pass
@@ -268,6 +266,7 @@ class DiagProcessTableView(QTableView):
 
     def add_existing_step(self, step_data: DiagnosisStepData):
         self.model.add_existing_step(step_data)
+
     def clear_test_step(self):
         pass
 
@@ -294,6 +293,7 @@ class DiagProcessTableView(QTableView):
             event.acceptProposedAction()
         else:
             event.ignore()
+
     def dropEvent(self, event):
         """TableView接收拖拽数据，解析字典"""
         mime_data = event.mimeData()
@@ -313,7 +313,6 @@ class DiagProcessTableView(QTableView):
 
         diagnosis_step_data = DiagnosisStepData()
         diagnosis_step_data.update_from_json(json_str)
-
 
         self.add_existing_step(diagnosis_step_data)
 
@@ -573,6 +572,7 @@ class DiagProcessCaseModel(QAbstractItemModel):
 
 class DiagProcessCaseTreeView(QTreeView):
     clicked_case_id = Signal(int)
+
     def __init__(self, db_manager: DBManager, parent=None):
         super().__init__(parent)
         self.db_manager = db_manager
@@ -636,7 +636,6 @@ class DiagProcessCaseTreeView(QTreeView):
             self.add_case_act.setEnabled(True)
             self.add_group_act.setEnabled(True)
 
-
         # 显示菜单
         self.context_menu.exec(self.mapToGlobal(pos))
 
@@ -666,4 +665,3 @@ class DiagProcessCaseTreeView(QTreeView):
     def get_node_level(self, index: QModelIndex) -> int:
         """获取节点层级（对外暴露）"""
         return self.model._get_node_level(index)
-

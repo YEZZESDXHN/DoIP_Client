@@ -114,6 +114,7 @@ class QFlashExecutor(QObject):
                     self.flash_file_parsers[file.name].load(self.flash_file_paths[file.name])
                     if file.name not in files_vars:
                         return
+
                     files_vars[file.name].flash_block_vars.clear()
                     for addr, block_data in self.flash_file_parsers[file.name].get_segments():
                         base_vars = FlashBaseVars()
@@ -150,7 +151,7 @@ class QFlashExecutor(QObject):
                 if step.is_call:
                     try:
                         self.write_signal.emit("Flash", f"执行函数{step.step_name}")
-                        FLASH_CALL[step.step_name](int(step.external_data[0])/1000)
+                        FLASH_CALL[step.step_name](int(step.external_data[0]) / 1000)
                         flash_progress += 1
                         self.flash_progress.emit(flash_progress)
                     except Exception as e:
@@ -192,7 +193,8 @@ class QFlashExecutor(QObject):
                                         if step.exp_resp_data:
                                             exp_data_len = len(step.exp_resp_data)
                                             if len(resp.original_payload) < exp_data_len:
-                                                self.write_signal.emit("Flash", f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
+                                                self.write_signal.emit("Flash",
+                                                                       f"执行失败: Exp data:{step.exp_resp_data.hex(' ')},Resp data: {resp.original_payload}")
                                                 self.flash_finish.emit(FlashFinishType.fail)
                                                 return
                                             else:
@@ -207,7 +209,8 @@ class QFlashExecutor(QObject):
                                         self.flash_finish.emit(FlashFinishType.fail)
                                         return
                                 else:
-                                    self.write_signal.emit("Flash", f"{step.step_name} 执行失败，code_name: {resp.code_name}")
+                                    self.write_signal.emit("Flash",
+                                                           f"{step.step_name} 执行失败，code_name: {resp.code_name}")
                                     try:
                                         self.write_signal.emit("Flash", f"data:{resp.original_payload.hex(' ')}")
                                     except:
@@ -339,7 +342,6 @@ class QFlashExecutor(QObject):
         return send_data_list
 
 
-
 if __name__ == '__main__':
     print('start')
     step_36 = Step()
@@ -369,6 +371,7 @@ if __name__ == '__main__':
         """
         return bytes(i % 16 for i in range(length))
 
+
     test_data_0_FlashBaseVars.data = gen_hex_bytes(15)
 
     test_data_0_FileVars.flash_block_vars.append(test_data_0_FlashBaseVars)
@@ -379,4 +382,3 @@ if __name__ == '__main__':
     # print(test_data_0_FlashBaseVars.data.hex(' '))
     for _data in send_list:
         print(_data.hex(' '))
-

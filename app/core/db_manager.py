@@ -2,7 +2,7 @@ import logging
 import sqlite3
 from typing import Optional, List
 
-from app.user_data import DEFAULT_SERVICES, DiagCase, DiagnosisStepData, UdsConfig, CanIgMessages
+from app.user_data import DEFAULT_SERVICES, DiagCase, DiagnosisStepData, UdsConfig, CanIgMessages, ExternalScriptConfig
 from app.windows.FlashConfigPanel import FlashConfig
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -14,6 +14,7 @@ CASE_TABLE_NAME = 'uds_cases'
 CASE_STEP_TABLE_NAME = 'uds_case_step'
 FLASH_CONFIG_TABLE_NAME = 'flash_config'
 CAN_IG_TABLE_NAME = 'can_ig_table'
+EXTERNAL_SCRIPT_TABLE_NAME = 'external_script'
 
 
 class DBManager:
@@ -26,6 +27,143 @@ class DBManager:
         self.init_case_step_database()
         self.init_flash_config_table()
         self.init_can_ig_table()
+        self.init_external_script_table()
+
+    def init_external_script_table(self):
+        with sqlite3.connect(self.db_path) as conn:
+            # 只有两列：id (主键), json_data
+            conn.execute(f"""
+                            CREATE TABLE IF NOT EXISTS {EXTERNAL_SCRIPT_TABLE_NAME} (
+                                sql_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                config TEXT NOT NULL DEFAULT '',  -- 新增config字段，默认空字符串
+                                json_data TEXT NOT NULL
+                            )
+                        """)
+            conn.commit()
+
+    def save_external_script(self, external_script: ExternalScriptConfig) -> int:
+        """
+        保存/更新配置：
+        - 新增：先插数据生成自增ID → 回填ID → 重新序列化 → 更新JSON（确保sql_id同步）
+        - 更新：直接序列化（已有ID）→ 同步更新
+        最终数据库主键 + json_data里的sql_id 完全一致
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            config_val = external_script.config
+
+            if external_script.sql_id > 0:
+                # 场景1：更新 → sql_id已存在，直接序列化（JSON里有正确ID）
+                json_str = external_script.to_json()
+                cursor.execute(f"""
+                    UPDATE {EXTERNAL_SCRIPT_TABLE_NAME} 
+                    SET config = ?, json_data = ? 
+                    WHERE sql_id = ?
+                """, (config_val, json_str, external_script.sql_id))
+
+                if cursor.rowcount == 0:
+                    raise ValueError(f"更新失败：无sql_id={external_script.sql_id}的记录")
+                final_sql_id = external_script.sql_id
+
+            else:
+                # 场景2：新增 → 核心修复：先插空数据，再回填ID更新JSON
+                # 步骤1：插入临时数据（config + 初始JSON，此时sql_id=0）
+                temp_json = external_script.to_json()
+                cursor.execute(f"""
+                    INSERT INTO {EXTERNAL_SCRIPT_TABLE_NAME} (config, json_data) 
+                    VALUES (?, ?)
+                """, (config_val, temp_json))
+
+                # 步骤2：获取数据库自增的sql_id，回填到对象
+                final_sql_id = cursor.lastrowid
+                external_script.sql_id = final_sql_id  # 此时对象的sql_id变为自增ID
+
+                # 步骤3：重新序列化（此时JSON里的sql_id是自增ID）
+                final_json = external_script.to_json()
+
+                # 步骤4：更新数据库的json_data，确保JSON里的sql_id同步
+                cursor.execute(f"""
+                    UPDATE {EXTERNAL_SCRIPT_TABLE_NAME} 
+                    SET json_data = ? 
+                    WHERE sql_id = ?
+                """, (final_json, final_sql_id))
+
+        return final_sql_id
+
+    def get_external_script(self, sql_id: int) -> ExternalScriptConfig:
+        """根据sql_id读取单条记录"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"""
+                SELECT config, json_data FROM {EXTERNAL_SCRIPT_TABLE_NAME} WHERE sql_id = ?
+            """, (sql_id,))
+            result = cursor.fetchone()
+
+            if not result:
+                raise ValueError(f"无sql_id={sql_id}的记录")
+
+            config_val, json_str = result
+            external_script = ExternalScriptConfig.from_json(json_str)
+            return external_script
+
+    def get_external_script_list_by_config(self, config: str) -> List[ExternalScriptConfig]:
+        """
+        根据config字段查询CanIgMessages列表
+        :param config: 要查询的配置名称（精确匹配）
+        :return: 匹配的CanIgMessages对象列表，无匹配则返回空列表
+        """
+        external_script_list = []
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            # 精确匹配config字段
+            cursor.execute(f"""
+                SELECT sql_id, config, json_data FROM {EXTERNAL_SCRIPT_TABLE_NAME} 
+                WHERE config = ?
+                ORDER BY sql_id ASC
+            """, (config,))
+
+            # 遍历所有查询结果
+            results = cursor.fetchall()
+            for row in results:
+                sql_id, config_val, json_str = row
+                # 还原对象并补全sql_id和config属性
+                external_script = ExternalScriptConfig.from_json(json_str)
+                external_script_list.append(external_script)
+
+        return external_script_list
+
+    def delete_external_script_by_sql_id(self, sql_id: int) -> bool:
+        """
+        根据sql_id删除单条记录
+        :param sql_id: 要删除的记录ID
+        :return: 删除成功返回True，记录不存在返回False
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"""
+                DELETE FROM {EXTERNAL_SCRIPT_TABLE_NAME} 
+                WHERE sql_id = ?
+            """, (sql_id,))
+
+            # rowcount：受影响的行数，0表示无记录，1表示删除成功
+            return cursor.rowcount > 0
+
+    def delete_external_script_by_config(self, config: str) -> int:
+        """
+        根据config批量删除记录
+        :param config: 要删除的配置名称（精确匹配）
+        :return: 成功删除的记录数
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"""
+                DELETE FROM {EXTERNAL_SCRIPT_TABLE_NAME} 
+                WHERE config = ?
+            """, (config,))
+
+            # 返回删除的行数
+            return cursor.rowcount
 
     def init_can_ig_table(self):
         with sqlite3.connect(self.db_path) as conn:

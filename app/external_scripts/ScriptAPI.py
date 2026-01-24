@@ -17,7 +17,7 @@ from app.core.uds_client import QUDSClient
 
 
 class ScriptAPI:
-    def __init__(self, uds_client: QUDSClient, write_signal: Signal(str), script_name):
+    def __init__(self, uds_client: QUDSClient, write_signal: Signal(str), script_name=''):
         self._uds_client: QUDSClient = uds_client
         self._utils = SimpleNamespace()
         self._utils.hex_str_to_bytes = utils.hex_str_to_bytes

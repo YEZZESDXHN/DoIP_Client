@@ -21,8 +21,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDockWidget,
     QLabel, QLineEdit, QMainWindow, QMenu,
     QMenuBar, QPlainTextEdit, QProgressBar, QPushButton,
     QScrollArea, QSizePolicy, QSpacerItem, QSplitter,
-    QStatusBar, QTabWidget, QToolButton, QVBoxLayout,
-    QWidget)
+    QStatusBar, QTabWidget, QVBoxLayout, QWidget)
 
 class Ui_UDSToolMainWindow(object):
     def setupUi(self, UDSToolMainWindow):
@@ -131,18 +130,6 @@ class Ui_UDSToolMainWindow(object):
         self.tabWidget.addTab(self.tab_AutomatedDiagProcess, "")
         self.tab_ExternalScript = QWidget()
         self.tab_ExternalScript.setObjectName(u"tab_ExternalScript")
-        self.pushButton_ExternalScriptRun = QPushButton(self.tab_ExternalScript)
-        self.pushButton_ExternalScriptRun.setObjectName(u"pushButton_ExternalScriptRun")
-        self.pushButton_ExternalScriptRun.setGeometry(QRect(70, 70, 95, 28))
-        self.pushButton_ExternalScriptStop = QPushButton(self.tab_ExternalScript)
-        self.pushButton_ExternalScriptStop.setObjectName(u"pushButton_ExternalScriptStop")
-        self.pushButton_ExternalScriptStop.setGeometry(QRect(70, 120, 95, 28))
-        self.toolButton_LoadExternalScript = QToolButton(self.tab_ExternalScript)
-        self.toolButton_LoadExternalScript.setObjectName(u"toolButton_LoadExternalScript")
-        self.toolButton_LoadExternalScript.setGeometry(QRect(500, 10, 24, 24))
-        self.lineEdit_ExternalScriptPath = QLineEdit(self.tab_ExternalScript)
-        self.lineEdit_ExternalScriptPath.setObjectName(u"lineEdit_ExternalScriptPath")
-        self.lineEdit_ExternalScriptPath.setGeometry(QRect(80, 10, 311, 24))
         self.tabWidget.addTab(self.tab_ExternalScript, "")
         self.tab_Flash = QWidget()
         self.tab_Flash.setObjectName(u"tab_Flash")
@@ -529,9 +516,6 @@ class Ui_UDSToolMainWindow(object):
         self.groupBox_AutomatedDiagProcessTable.setTitle("")
         self.groupBox_AutomatedDiagTrace.setTitle("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_AutomatedDiagProcess), QCoreApplication.translate("UDSToolMainWindow", u"\u81ea\u52a8\u8bca\u65ad\u6d41\u7a0b", None))
-        self.pushButton_ExternalScriptRun.setText(QCoreApplication.translate("UDSToolMainWindow", u"Run", None))
-        self.pushButton_ExternalScriptStop.setText(QCoreApplication.translate("UDSToolMainWindow", u"Stop", None))
-        self.toolButton_LoadExternalScript.setText(QCoreApplication.translate("UDSToolMainWindow", u"...", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_ExternalScript), QCoreApplication.translate("UDSToolMainWindow", u"\u5916\u90e8\u811a\u672c", None))
         self.pushButton_FlashConfig.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u914d\u7f6e\u5237\u5199\u6d41\u7a0b", None))
         self.checkBox_FlashMessageDisplay.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u5199\u6570\u636e\u663e\u793a", None))

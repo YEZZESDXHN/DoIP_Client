@@ -11,6 +11,7 @@ from app.core.ChecksumStrategy import ALGORITHM_REGISTRY, ChecksumStrategy
 from app.core.FirmwareFileParser import FirmwareFileParser
 from app.core.uds_client import QUDSClient
 from app.global_variables import gFlashVars, FlashBaseVars
+from app.windows.ExternalScript_Panel import ExternalScriptFinishType
 from app.windows.FlashConfigPanel import FlashConfig, Step
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -35,7 +36,7 @@ class QFlashExecutor(QObject):
     write_signal = Signal(str, str)
     flash_progress = Signal(int)
     flash_range = Signal(int)
-    flash_finish = Signal(FlashFinishType)
+    flash_finish = Signal(ExternalScriptFinishType)
 
     def __init__(self, uds_client: QUDSClient, flash_config: FlashConfig, flash_file_paths: dict):
         super().__init__()

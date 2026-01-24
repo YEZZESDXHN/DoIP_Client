@@ -755,6 +755,31 @@ class CanIgMessages(BaseModel):
         return cls.model_validate_json(json_str)
 
 
+class ExternalScriptRunState(str, Enum):
+    Idle = ''
+    RunningPassed = 'RunningPassed'
+    RunningFailed = 'RunningFailed'
+    FinishedPassed = 'FinishedPassed'
+    FinishedFailed = 'FinishedFailed'
+    RunStopping = 'Stopping'
+    RunStopped = 'Stopped'
+
+
+class ExternalScriptConfig(BaseModel):
+    enable: bool = True
+    name: str = ''
+    path: str = ''
+    state: str = ExternalScriptRunState.Idle
+
+    sql_id: int = 0
+    config: str = ''
+
+    def to_json(self) -> str:
+        return self.model_dump_json()
+
+    @classmethod
+    def from_json(cls, json_str: str):
+        return cls.model_validate_json(json_str)
 
 
 if __name__ == '__main__':

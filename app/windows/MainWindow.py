@@ -25,6 +25,7 @@ from app.user_data import UdsService, UdsConfig, UdsOnCANConfig, DoIPConfig
 from app.windows.AutomaticDiagnosisProcess_ui import DiagProcessCaseTreeView, DiagProcessTableView
 from app.windows.DoIPConfigPanel_ui import DoIPConfigPanel
 from app.windows.DoIPTraceTable_ui import DoIPTraceTableView
+from app.windows.ExternalScript_Panel import ExternalScriptPanel
 from app.windows.FlashConfigPanel import FlashConfig, FlashChooseFileControl, FlashConfigPanel
 from app.windows.IG_Panel import CANIGPanel
 from app.windows.UdsServicesTreeView_ui import UdsServicesTreeView
@@ -44,6 +45,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.external_script_panel: Optional[ExternalScriptPanel] = None
         self.setupUi(self)
         self.setWindowIcon(IconEngine.get_icon('car_connected'))
         self.setWindowTitle("UDS Client")
@@ -212,7 +214,9 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     def _init_external_scripts_thread(self):
         """创建外部脚本执行线程线程"""
         self.external_scripts_thread = QThread()
-        self.external_scripts_executor = QExternalScriptsExecutor(self.uds_client)
+        self.external_scripts_executor = QExternalScriptsExecutor(uds_client=self.uds_client,
+                                                                  db_manager=self.db_manager,
+                                                                  config_name=self.current_uds_config.config_name)
 
         self.external_scripts_executor.moveToThread(self.external_scripts_thread)
 
@@ -364,6 +368,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.theme_group.addAction(self.action_Default)
 
         self.setup_ig_panel()
+        self.setup_external_script_panel()
 
     def set_theme_to_default(self):
         app = QApplication.instance()
@@ -404,6 +409,15 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, db_manager=self.db_manager, config=self.current_uds_config.config_name, parent=self)
         layout.addWidget(self.can_ig_panel)
+
+    def setup_external_script_panel(self):
+        layout = self.tab_ExternalScript.layout()
+        if not layout:
+            layout = QVBoxLayout(self.tab_ExternalScript)
+            layout.setSpacing(15)  # 控件之间的间距
+
+        self.external_script_panel = ExternalScriptPanel(db_manager=self.db_manager, config_name=self.current_uds_config.config_name, parent=self)
+        layout.addWidget(self.external_script_panel)
 
     def setup_flash_control(self):
         layout = self.scrollArea_FlashFiles.layout()
@@ -590,10 +604,15 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_StopFlash.clicked.connect(self.stop_flash)
         self.pushButton_ClearDoIPTrace.clicked.connect(self.tableView_DoIPTrace._clear_data)
 
-        self.toolButton_LoadExternalScript.clicked.connect(self.choose_external_script)
-        # self.toolButton_LoadExternalScript.clicked.connect(self.external_scripts_executor.load_external_script)
-        self.pushButton_ExternalScriptRun.clicked.connect(self.external_scripts_executor.run_external_script)
-        self.pushButton_ExternalScriptStop.clicked.connect(self.external_scripts_executor.stop_external_script)
+        # self.toolButton_LoadExternalScript.clicked.connect(self.choose_external_script)
+        # # self.toolButton_LoadExternalScript.clicked.connect(self.external_scripts_executor.load_external_script)
+        # self.pushButton_ExternalScriptRun.clicked.connect(self.external_scripts_executor.run_external_script)
+        # self.pushButton_ExternalScriptStop.clicked.connect(self.external_scripts_executor.stop_external_script)
+        self.external_script_panel.pushButton_start.clicked.connect(self.external_scripts_executor.run_external_scripts)
+        self.external_script_panel.pushButton_stop.clicked.connect(self.external_scripts_executor.stop_run_external_scripts)
+        self.external_scripts_executor.run_start.connect(self.external_script_panel.on_run_script)
+        self.external_scripts_executor.run_finish.connect(self.external_script_panel.on_run_finish)
+        self.external_scripts_executor.run_state.connect(self.external_script_panel.update_script_run_state)
 
         # 复选框和下拉框信号
         self.checkBox_AotuReconnect.stateChanged.connect(self.set_auto_reconnect_tcp)
@@ -643,32 +662,32 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
             line_edit.setText(file_path)
             self.flash_file_paths[file_name] = file_path
 
-    def choose_external_script(self):
-        abs_path, _ = QFileDialog.getOpenFileName(
-            self,  # 父窗口
-            "选择外部Python脚本",  # 标题
-            "",  # 默认打开路径 (空字符串表示当前目录)
-            "Python Files (*.py)"  # 文件过滤器，例如 "DLL Files (*.dll);;All Files (*)"
-        )
-
-        if abs_path:
-            try:
-                # 2. 计算相对路径
-                # os.getcwd() 获取当前程序运行的工作目录
-                # os.path.relpath(目标路径, 基准路径) 计算相对路径
-                rel_path = os.path.relpath(abs_path, os.getcwd())
-
-                # 3. 将相对路径填入输入框
-                self.external_script_path = rel_path
-
-
-            except ValueError:
-                # Windows 特例：如果文件和程序在不同的盘符（例如 C: 和 D:），
-                # 无法计算相对路径，此时会报错，我们保留绝对路径作为后备方案。
-                self.external_script_path = abs_path
-            self.lineEdit_ExternalScriptPath.setText(self.external_script_path)
-            self.external_scripts_executor.external_script_path = self.external_script_path
-            self.external_scripts_executor.load_external_script()
+    # def choose_external_script(self):
+    #     abs_path, _ = QFileDialog.getOpenFileName(
+    #         self,  # 父窗口
+    #         "选择外部Python脚本",  # 标题
+    #         "",  # 默认打开路径 (空字符串表示当前目录)
+    #         "Python Files (*.py)"  # 文件过滤器，例如 "DLL Files (*.dll);;All Files (*)"
+    #     )
+    #
+    #     if abs_path:
+    #         try:
+    #             # 2. 计算相对路径
+    #             # os.getcwd() 获取当前程序运行的工作目录
+    #             # os.path.relpath(目标路径, 基准路径) 计算相对路径
+    #             rel_path = os.path.relpath(abs_path, os.getcwd())
+    #
+    #             # 3. 将相对路径填入输入框
+    #             self.external_script_path = rel_path
+    #
+    #
+    #         except ValueError:
+    #             # Windows 特例：如果文件和程序在不同的盘符（例如 C: 和 D:），
+    #             # 无法计算相对路径，此时会报错，我们保留绝对路径作为后备方案。
+    #             self.external_script_path = abs_path
+    #         self.lineEdit_ExternalScriptPath.setText(self.external_script_path)
+    #         self.external_scripts_executor.external_script_path = self.external_script_path
+    #         self.external_scripts_executor.load_external_script()
 
     def _connect_uds_client_signals(self):
         """连接DoIP客户端的信号到槽函数"""
@@ -738,6 +757,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.db_manager.set_active_config(config_name)
         self.db_manager.init_services_database()
         self.can_ig_panel.set_config(config_name)
+        self.external_script_panel.set_config(config_name)
 
         self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_uds_config.config_name))
         self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()

@@ -161,7 +161,8 @@ class ExternalScriptTableModel(QAbstractTableModel):
         if col == ExternalScriptTableCol.state:
             if isinstance(value, str):
                 item.path = value
-
+        item.state = ExternalScriptRunState.Idle
+        self.db_manager.save_external_script(item)
         self.dataChanged.emit(index, index, [role])
         return True
 

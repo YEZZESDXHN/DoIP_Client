@@ -424,31 +424,36 @@ class StepsTableModel(QAbstractTableModel):
         row, col = index.row(), index.column()
         step = self.steps_list[row]
 
-        # [优化] 数据获取逻辑
-        text_val = ""
-        if col == StepCol.NAME:
-            text_val = step.step_name
-        elif col == StepCol.REQ_DATA:
-            text_val = step.data.hex().upper()
-        elif col == StepCol.EXP_RESP_DATA:
-            text_val = step.exp_resp_data.hex().upper()
-        elif col >= StepCol.PARAMS_START:
-            ext_idx = col - StepCol.PARAMS_START
-            if ext_idx < len(step.external_data):
-                text_val = step.external_data[ext_idx]
+        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
+            # [优化] 数据获取逻辑
+            text_val = ""
+            if col == StepCol.NAME:
+                text_val = step.step_name
+            elif col == StepCol.REQ_DATA:
+                text_val = step.data.hex().upper()
+            elif col == StepCol.EXP_RESP_DATA:
+                text_val = step.exp_resp_data.hex().upper()
+            elif col >= StepCol.PARAMS_START:
+                ext_idx = col - StepCol.PARAMS_START
+                if ext_idx < len(step.external_data):
+                    text_val = step.external_data[ext_idx]
 
-        if role == Qt.ItemDataRole.ForegroundRole and col == StepCol.NAME and text_val:
+            return text_val
+
+        if role == Qt.ItemDataRole.ForegroundRole and col == StepCol.NAME:
+            text_val = step.step_name
             if self.is_step_call(text_val):
                 return QColor("#0055AA")  # 蓝色
             else:
                 return QColor("#000000")  # 蓝色
 
         # 样式处理逻辑保持不变，但建议将 CellType 判断逻辑提取为单独的方法
-        if role == Qt.ItemDataRole.ForegroundRole and col >= StepCol.PARAMS_START and text_val:
-            return self._get_color_for_value(step.is_call, text_val)  # 封装颜色逻辑
+        if role == Qt.ItemDataRole.ForegroundRole and col >= StepCol.PARAMS_START:
+            ext_idx = col - StepCol.PARAMS_START
+            if ext_idx < len(step.external_data):
+                text_val = step.external_data[ext_idx]
+                return self._get_color_for_value(step.is_call, text_val)  # 封装颜色逻辑
 
-        if role in (Qt.DisplayRole, Qt.EditRole):
-            return text_val
         if role == Qt.TextAlignmentRole and col > 0:
             return Qt.AlignCenter
         return None

@@ -609,10 +609,10 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # self.pushButton_ExternalScriptStop.clicked.connect(self.external_scripts_executor.stop_external_script)
         self.external_script_panel.pushButton_start.clicked.connect(self.external_scripts_executor.run_external_scripts)
         self.external_script_panel.pushButton_stop.clicked.connect(
-            self.external_scripts_executor.stop_run_external_scripts)
-        self.external_scripts_executor.run_start.connect(self.external_script_panel.on_run_script)
-        self.external_scripts_executor.run_finish.connect(self.external_script_panel.on_run_finish)
-        self.external_scripts_executor.run_state.connect(self.external_script_panel.update_script_run_state)
+            self.stop_run_external_scripts)
+        self.external_scripts_executor.scripts_run_start.connect(self.external_script_panel.on_run_script)
+        self.external_scripts_executor.scripts_run_finish.connect(self.external_script_panel.on_run_finish)
+        self.external_scripts_executor.script_run_state.connect(self.external_script_panel.update_script_run_state)
 
         # 复选框和下拉框信号
         self.checkBox_AotuReconnect.stateChanged.connect(self.set_auto_reconnect_tcp)
@@ -639,6 +639,9 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
 
         self.pushButton_FlashConfig.clicked.connect(self.open_flash_config_panel)
+
+    def stop_run_external_scripts(self):
+        self.external_scripts_executor.stop_run_external_scripts()
 
     def choose_flash_file(self, file_name, line_edit):
         abs_path, _ = QFileDialog.getOpenFileName(

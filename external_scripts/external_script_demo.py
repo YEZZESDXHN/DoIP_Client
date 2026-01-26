@@ -21,4 +21,3 @@ def main(api: "ScriptAPI"):
 
 def on_load(ctx: "ScriptAPI"):
     print("on_load")
-    print(ctx)

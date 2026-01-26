@@ -18,9 +18,9 @@ logger = logging.getLogger('UDSTool.' + __name__)
 
 class QExternalScriptsExecutor(QObject):
     write_signal = Signal(str, str)
-    run_finish = Signal(ExternalScriptFinishType)
-    run_state = Signal(ExternalScriptRunState, int)
-    run_start = Signal()
+    scripts_run_finish = Signal(ExternalScriptFinishType)
+    script_run_state = Signal(ExternalScriptRunState, int)
+    scripts_run_start = Signal()
 
     def __init__(self, uds_client: QUDSClient, db_manager: DBManager, config_name):
         super().__init__()
@@ -31,6 +31,7 @@ class QExternalScriptsExecutor(QObject):
         self.external_scripts: List[ExternalScriptConfig] = []
         self.script_api = ScriptAPI(uds_client=self.uds_client, write_signal=self.write_signal)
         self.stop_flag = False
+        self.run_script_index = 0
 
     def load_external_script(self, file_path) -> bool:
         if not os.path.exists(file_path):
@@ -89,22 +90,26 @@ class QExternalScriptsExecutor(QObject):
         self.external_module = None
 
     def run_external_scripts(self):
-        self.run_start.emit()
+        self.stop_flag = False
+        self.scripts_run_start.emit()
         self.external_scripts = self.db_manager.get_external_script_list_by_config(self.config_name)
         for index, script in enumerate(self.external_scripts):
             if not script.enable:
                 continue
             if self.stop_flag:
                 # self.run_state.emit(ExternalScriptRunState.RunningFailed, index)
-                self.run_finish.emit(ExternalScriptFinishType.fail)
+                self.scripts_run_finish.emit(ExternalScriptFinishType.fail)
                 return
             script_path = script.path
             if self.load_external_script(script_path):
-                self.run_state.emit(ExternalScriptRunState.RunningPassed, index)
+                self.run_script_index = index
+                self.script_run_state.emit(ExternalScriptRunState.RunningPassed, index)
                 self.run_external_script()
+                self.script_run_state.emit(ExternalScriptRunState.FinishedPassed, index)
             # sleep(0.2)
         finish_type = ExternalScriptFinishType.success
-        self.run_finish.emit(finish_type)
+        self.scripts_run_finish.emit(finish_type)
 
     def stop_run_external_scripts(self):
         self.stop_flag = True
+        self.script_run_state.emit(ExternalScriptRunState.RunStopping, self.run_script_index)

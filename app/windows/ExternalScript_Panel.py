@@ -4,7 +4,7 @@ from enum import IntEnum, Enum
 from typing import List, Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, QEvent, Signal, QTimer, Slot
-from PySide6.QtGui import QMouseEvent, QContextMenuEvent, QAction, QCursor
+from PySide6.QtGui import QMouseEvent, QContextMenuEvent, QAction, QCursor, QColor
 from PySide6.QtWidgets import QWidget, QTableView, QAbstractItemView, QMenu, QFileDialog, QStyledItemDelegate, \
     QStyleOptionButton, QStyle, QApplication, QHeaderView, QVBoxLayout
 
@@ -65,7 +65,7 @@ class ExternalScriptTableDelegate(QStyledItemDelegate):
         elif index.column() == ExternalScriptTableCol.state:
             value = index.data(Qt.ItemDataRole.EditRole)
             if isinstance(value, str):
-                pass
+                super().paint(painter, option, index)
         # 2. 其他类型，使用默认绘制
         else:
             super().paint(painter, option, index)
@@ -137,6 +137,18 @@ class ExternalScriptTableModel(QAbstractTableModel):
                 return item.path
             if col == ExternalScriptTableCol.state:
                 return item.state
+
+        if role == Qt.ItemDataRole.BackgroundRole:
+            if col == ExternalScriptTableCol.state:
+                if item.state in (ExternalScriptRunState.RunningPassed, ExternalScriptRunState.FinishedPassed):
+                    return QColor("#CCFFCC")
+                elif item.state in (ExternalScriptRunState.RunningFailed,
+                                    ExternalScriptRunState.FinishedFailed,
+                                    ExternalScriptRunState.RunStopped):
+                    return QColor("#FFCCCC")
+                elif item.state == ExternalScriptRunState.RunStopping:
+                    return QColor("yellow")
+
         return None
 
     def setData(self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole) -> bool:
@@ -341,6 +353,8 @@ class ExternalScriptPanel(Ui_ExternalScript_Panel, QWidget):
 
     def update_script_run_state(self, state: ExternalScriptRunState, row_index: int):
         self.external_script_table_mode.update_script_state(row_index, state)
+        if state == ExternalScriptRunState.RunStopping:
+            self.pushButton_stop.setDisabled(True)
 
     @Slot()
     def on_run_script(self):

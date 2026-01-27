@@ -81,14 +81,41 @@ class UDSTestPlugin:
         # 定义 CSS 样式
         style = """
         <style>
-            .uds-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; margin-top: 10px; }
-            .uds-table th { background-color: #e0e0e0; text-align: left; padding: 8px; border: 1px solid #ccc; }
-            .uds-table td { padding: 8px; border: 1px solid #ccc; vertical-align: top; }
-            .uds-row-step { background-color: #f9f9f9; }
+            .uds-table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                font-family: Arial, sans-serif; 
+                font-size: 13px; 
+                margin-top: 10px; 
+                color: #333; /* 设置默认文字颜色为深灰色 */
+            }
+            .uds-table th { 
+                background-color: #d0d0d0; /* 表头背景变深 (#e0e0e0 -> #d0d0d0) */
+                text-align: left; 
+                padding: 8px; 
+                border: 1px solid #999; /* 边框变深 (#ccc -> #999) */
+                font-weight: bold;
+            }
+            .uds-table td { 
+                padding: 8px; 
+                border: 1px solid #999; /* 边框变深 (#ccc -> #999) */
+                vertical-align: top; 
+            }
+            .uds-row-step { 
+                background-color: #f0f0f0; /* 普通行背景变深 (#f9f9f9 -> #f0f0f0) */
+            }
+            /* Pass/Fail 的颜色已经很深了，保持不变 */
             .uds-result-pass { background-color: #28a745; color: white; text-align: center; font-weight: bold; }
             .uds-result-fail { background-color: #dc3545; color: white; text-align: center; font-weight: bold; }
-            /* data-block 样式优化：增加自动换行，如果是预格式化文本则保留空格 */
-            .uds-data-block { background-color: #eee; padding: 5px; margin-top: 5px; border-left: 3px solid #666; font-family: monospace; word-break: break-all; }
+            
+            .uds-data-block { 
+                background-color: #e0e0e0; /* 数据块背景变深 (#eee -> #e0e0e0) */
+                padding: 5px; 
+                margin-top: 5px; 
+                border-left: 3px solid #333; /* 左侧边框变深 (#666 -> #333) */
+                font-family: monospace; 
+                word-break: break-all; 
+            }
             .uds-data-pre { white-space: pre-wrap; margin: 0; } 
         </style>
         """

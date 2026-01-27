@@ -1,6 +1,8 @@
+from datetime import datetime
 from time import sleep
 from types import SimpleNamespace
-from typing import Optional
+from typing import Optional, List, Union
+import html
 
 from PySide6.QtCore import Signal
 # from typing import TYPE_CHECKING
@@ -10,6 +12,8 @@ from udsoncan import Response
 from app import utils
 from app.core.FirmwareFileParser import FirmwareFileParser
 from app.core.uds_client import QUDSClient
+
+
 
 
 # if TYPE_CHECKING:
@@ -26,13 +30,38 @@ class ScriptAPI:
         self.firmware_file_parser = FirmwareFileParser()
         self.version = "1.0.0"
 
+        self.report_steps = []
+        self._is_success = True
+
+    def _reset_report_state(self):
+        """重置 API 状态，供 Runner/Plugin 调用"""
+        self.report_steps.clear()
+        self._is_success = True
+
+    def _add_step_record(self, step_type: str, title: str, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None, result=""):
+        """内部方法：记录步骤"""
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        self.report_steps.append({
+            "timestamp": timestamp,
+            "type": step_type,
+            "title": title,
+            "data": data,
+            "result": result
+        })
+
+    def test_step(self, title: str, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
+        self._add_step_record("Step", title, data, "")
+
+    def test_step_pass(self, title, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
+        self._add_step_record("Check", title, data, "Pass")
+
+    def test_step_fail(self, title, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
+        self._add_step_record("Check", title, data, "Fail")
+        self._is_success = False
+
     def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
         # 执行核心请求
         response = self._uds_client._execute_uds_request(payload, log_prefix="api:")
-
-        # 扩展功能：在此处添加报告打印逻辑
-        # if response:
-        #     self._generate_api_report(response)
 
         return response
 

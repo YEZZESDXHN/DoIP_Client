@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QWidget, QTableView, QAbstractItemView, QMenu, QFi
 from app.core.db_manager import DBManager
 from app.resources.resources import IconEngine
 from app.ui.ExternalScriptPanel import Ui_ExternalScript_Panel
-from app.user_data import ExternalScriptConfig, ExternalScriptRunState
+from app.user_data import ExternalScriptConfig, ExternalScriptRunState, ExternalScriptsRunState
 
 
 class ExternalScriptTableCol(IntEnum):
@@ -140,14 +140,15 @@ class ExternalScriptTableModel(QAbstractTableModel):
 
         if role == Qt.ItemDataRole.BackgroundRole:
             if col == ExternalScriptTableCol.state:
-                if item.state in (ExternalScriptRunState.RunningPassed, ExternalScriptRunState.FinishedPassed):
+                if item.state in (ExternalScriptRunState.OK, ExternalScriptRunState.Running):
                     return QColor("#CCFFCC")
-                elif item.state in (ExternalScriptRunState.RunningFailed,
-                                    ExternalScriptRunState.FinishedFailed,
-                                    ExternalScriptRunState.RunStopped):
+                elif item.state in (ExternalScriptRunState.TESTS_FAILED,
+                                    ExternalScriptRunState.NO_TESTS_COLLECTED,
+                                    ExternalScriptRunState.INTERNAL_ERROR,
+                                    ExternalScriptRunState.ScriptLoadingFailed):
                     return QColor("#FFCCCC")
-                elif item.state == ExternalScriptRunState.RunStopping:
-                    return QColor("yellow")
+                # elif item.state == ExternalScriptRunState.RunStopping:
+                #     return QColor("yellow")
 
         return None
 
@@ -297,11 +298,6 @@ class ExternalScriptTableView(QTableView):
             self.update(index)
 
 
-class ExternalScriptFinishType(Enum):
-    success = "Pass"
-    fail = "Fail"
-
-
 class ExternalScriptPanel(Ui_ExternalScript_Panel, QWidget):
     signal_config_update = Signal()
 
@@ -331,19 +327,26 @@ class ExternalScriptPanel(Ui_ExternalScript_Panel, QWidget):
         self.run_timer.timeout.connect(self.update_run_time)  # 定时刷新时间
         self.run_start_dt = None
 
+        self.scripts_run_state = ExternalScriptsRunState.running
+
     def update_run_time(self):
         if self.run_start_dt:
             duration = (datetime.now() - self.run_start_dt).total_seconds()
             time_str = f"{int(duration // 60):02d}:{duration % 60:.2f}"
-            self.label_State.setText(f"正在运行脚本 |  {time_str}")
+            self.label_State.setText(f"{self.scripts_run_state} |  {time_str}")
 
-    def on_run_finish(self, finish_type: ExternalScriptFinishType):
+    def update_scripts_run_state(self, state):
+        self.scripts_run_state = state
+        if state == ExternalScriptsRunState.stopping:
+            self.pushButton_stop.setDisabled(True)
+
+    def on_run_finish(self, state: ExternalScriptsRunState):
         self.run_timer.stop()
         duration = (datetime.now() - self.run_start_dt).total_seconds()
         time_str = f"{int(duration // 60):02d}:{duration % 60:.2f}"
-        self.label_State.setText(f"{finish_type.value} | {time_str}")
+        self.label_State.setText(f"{state.value} | {time_str}")
 
-        if finish_type == ExternalScriptFinishType.success:
+        if state == ExternalScriptsRunState.passed:
             self.set_run_state_label_color("green")
         else:
             self.set_run_state_label_color("red")
@@ -353,14 +356,15 @@ class ExternalScriptPanel(Ui_ExternalScript_Panel, QWidget):
 
     def update_script_run_state(self, state: ExternalScriptRunState, row_index: int):
         self.external_script_table_mode.update_script_state(row_index, state)
-        if state == ExternalScriptRunState.RunStopping:
-            self.pushButton_stop.setDisabled(True)
+        # if state == ExternalScriptRunState.RunStopping:
+        #     self.pushButton_stop.setDisabled(True)
 
     @Slot()
     def on_run_script(self):
         self.run_start_dt = datetime.now()
         self.run_timer.start()
-        self.set_run_state_label_color("orange")  # 刷写中-橙色
+        self.scripts_run_state = ExternalScriptsRunState.running
+        self.set_run_state_label_color("orange")
 
         self.pushButton_stop.setDisabled(False)
         self.pushButton_start.setDisabled(True)

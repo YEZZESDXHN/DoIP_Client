@@ -760,14 +760,32 @@ class CanIgMessages(BaseModel):
         return cls.model_validate_json(json_str)
 
 
+class ExternalScriptsRunState(str, Enum):
+    passed = "Passed"
+    failed = "Failed"
+    running = "Running"
+    stopped = "Stopped"
+    stopping = "Stopping"
+
+
 class ExternalScriptRunState(str, Enum):
     Idle = ''
-    RunningPassed = 'RunningPassed'
-    RunningFailed = 'RunningFailed'
-    FinishedPassed = 'FinishedPassed'
-    FinishedFailed = 'FinishedFailed'
-    RunStopping = 'Stopping'
-    RunStopped = 'Stopped'
+    #: Tests passed.
+    OK = 'OK'
+    #: Tests failed.
+    TESTS_FAILED = 'TESTS_FAILED'
+    #: pytest was interrupted.
+    INTERRUPTED = 'INTERRUPTED'
+    #: An internal error got in the way.
+    INTERNAL_ERROR = 'INTERNAL_ERROR'
+    #: pytest was misused.
+    USAGE_ERROR = 'USAGE_ERROR'
+    #: pytest couldn't find tests.
+    NO_TESTS_COLLECTED = 'NO_TESTS_COLLECTED'
+
+    Running = 'Running'
+
+    ScriptLoadingFailed = 'ScriptLoadingFailed'
 
 
 class ExternalScriptConfig(BaseModel):

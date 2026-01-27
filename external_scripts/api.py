@@ -1,4 +1,4 @@
-from typing import Optional, Type, Tuple, List
+from typing import Optional, Type, Tuple, List, Union
 
 
 class ResponseCode:
@@ -252,6 +252,15 @@ class ScriptAPI:
     version: str
 
     def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
+        pass
+
+    def test_step(self, title: str, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
+        pass
+
+    def test_step_pass(self, title, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
+        pass
+
+    def test_step_fail(self, title, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
         pass
 
     @property

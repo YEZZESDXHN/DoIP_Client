@@ -5,3 +5,5 @@ test.py
 *.log.*
 GenericUDS.cdd
 *.db
+*.html
+reports

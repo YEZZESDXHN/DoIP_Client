@@ -611,7 +611,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.external_script_panel.pushButton_stop.clicked.connect(
             self.stop_run_external_scripts)
         self.external_scripts_executor.scripts_run_start.connect(self.external_script_panel.on_run_script)
-        self.external_scripts_executor.scripts_run_finish.connect(self.external_script_panel.on_run_finish)
+        self.external_scripts_executor.scripts_run_finish_state.connect(self.external_script_panel.on_run_finish)
+        self.external_scripts_executor.scripts_run_state.connect(self.external_script_panel.update_scripts_run_state)
         self.external_scripts_executor.script_run_state.connect(self.external_script_panel.update_script_run_state)
 
         # 复选框和下拉框信号

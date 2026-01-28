@@ -61,6 +61,8 @@ jobs:
             --include-package=Crypto `
             --include-package=crcmod `
             --include-package=can `
+            --include-package=_pytest `
+            --include-package=pytest_html `
             --lto=yes `
             --output-dir="${{ github.workspace }}/dist" `
             --output-filename=${{ env.APP_NAME }}.exe `

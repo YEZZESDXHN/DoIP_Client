@@ -254,12 +254,16 @@ class ScriptAPI:
     def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
         pass
 
+    # 新增测速报告相关函数
+    # 测速步骤
     def test_step(self, title: str, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
         pass
 
+    # 测速步骤Pass
     def test_step_pass(self, title, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
         pass
 
+    # 测速步骤Fail,即使脚本中没有使用assert，执行了此函数也会导致测试结果Fail
     def test_step_fail(self, title, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
         pass
 

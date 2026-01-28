@@ -63,6 +63,10 @@ jobs:
             --include-package=can `
             --include-package=_pytest `
             --include-package=pytest_html `
+            --include-package-data=pytest_html `
+            --include-distribution-metadata=pytest `
+            --include-distribution-metadata=pytest-html `
+            --include-distribution-metadata=pytest-metadata `
             --lto=yes `
             --output-dir="${{ github.workspace }}/dist" `
             --output-filename=${{ env.APP_NAME }}.exe `

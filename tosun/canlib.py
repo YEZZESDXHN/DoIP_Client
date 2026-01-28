@@ -140,7 +140,7 @@ class TSMasterApiBus(BusABC):
             log.debug(f"{channel}通道设置成功")
         if fd:
             if isinstance(timing, BitTimingFd):
-                if 0 != TSMasterApi.tsapp_configure_baudrate_canfd(0, timing.nom_brp // 1000, timing.data_brp // 1000,
+                if 0 != TSMasterApi.tsapp_configure_baudrate_canfd(0, timing.nom_bitrate // 1000, timing.data_bitrate // 1000,
                                                                    1, 0, m120):
                     raise ValueError("CAN FD参数设置失败")
                 else:

@@ -23,7 +23,7 @@ import importlib.util
 
 from udsoncan.connections import PythonIsoTpConnection
 
-from app.core.interface_manager import DEFAULT_BIT_TIMING, DEFAULT_BIT_TIMING_FD
+from app.core.interface_manager import DEFAULT_BIT_TIMING, DEFAULT_BIT_TIMING_FD, CANInterfaceName
 from app.user_data import DoIPMessageStruct, MessageDir, DoIPConfig, UdsOnCANConfig, APP_NAME
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -292,17 +292,28 @@ class QUDSClient(QObject):
             # 初始化 Bus 对象
             # **target_config 会将字典解包为关键字参数传入
             can_bus = can.Bus(**can_channel, timing=timing, app_name=APP_NAME)
+            if isinstance(timing, BitTimingFd):
+                self.info_signal.emit(f"CAN接口初始化成功(CANFD)，nom_bitrate：{timing.nom_bitrate},"
+                                      f"nom_sample_point:{timing.nom_sample_point},"
+                                      f"data_bitrate:{timing.data_bitrate},"
+                                      f"data_sample_point:{timing.data_sample_point}")
+            elif isinstance(timing, BitTiming):
+                self.info_signal.emit(f"CAN接口初始化成功(CAN)，bitrate:{timing.bitrate},sample_point:{timing.sample_point}")
 
             logger.debug(f"[+] 连接成功！总线状态: {can_bus.state}")
             return can_bus
         except Exception as e:
-            try:
-                can_bus = can.Bus(**can_channel, app_name=APP_NAME)
-                logger.error(f"[+] {str(e)}，总线状态: {can_bus.state}")
-                return can_bus
-            except Exception as e:
-                logger.exception(f"[-] 连接失败: {str(e)}")
-                return None
+            if can_channel['interface'] == CANInterfaceName.vector:
+                try:
+                    can_bus = can.Bus(**can_channel, app_name=APP_NAME)
+                    self.info_signal.emit(f"{str(e)}")
+                    return can_bus
+                except Exception as e:
+                    logger.exception(f"[-] 连接失败: {str(e)}")
+                    self.error_signal.emit(f"{str(e)}")
+                    return None
+            else:
+                self.error_signal.emit(f"{str(e)}")
 
     def connect_uds(self):
         if self.is_can_uds:

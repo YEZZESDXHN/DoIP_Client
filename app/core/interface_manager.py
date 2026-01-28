@@ -163,11 +163,6 @@ class CanInterfaceManager(QObject):
         :param interfaces: 字符串列表，例如 ['vector', 'pcan']。
                                   如果为 None，则扫描所有支持的接口。
         """
-        if interfaces:
-            print(f"[*] 正在仅扫描以下接口: {interfaces} ...")
-        else:
-            print("[*] 正在扫描所有支持的接口...")
-
         # 传入 interfaces 参数进行过滤
         self.available_configs = can.detect_available_configs(interfaces=interfaces)
         self.signal_interface_channels.emit(self.available_configs)

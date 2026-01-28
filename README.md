@@ -17,10 +17,11 @@ DoIP_Client 支持一下功能：
 - [x] 支持Vector设置,其他python-can支持的设备理论也可很轻松的集成
 - [x] 支持单通道CAN IG模块，可用于唤醒ECU
 - [x] 生成测试报告（只实现了运行外部脚本部分）。
+- [x] 支持TSMaster，基于TC1016测试，但部分逻辑还需要优化，部分电脑无法识别，原因未知
 - [ ] 导入导出配置文件。
 - [ ] 加载符合vector规范的.dll实现27解锁服务（默认打包release程序为64位，如dll为32位会加载失败）。
-- [ ] 可视化方式编写自动化诊断流程（保存到数据库部分采购为只保存json）。
-- [ ] TSMaster暂不支，获取到设备后连接失败，部分电脑甚至无法获取设备列表，原因未知
+- [ ] 可视化方式编写自动化诊断流程（保存到数据库部计划重构为只保存json）。
+
 
 更多体验及细节持续优化。
 
@@ -134,10 +135,67 @@ class Utils:
     def hex_str_to_bytes(self, hex_str: str) -> bytes:
         pass
 
+class FirmwareFileParser:
+    """
+    用于解析 S19, HEX, BIN 文件的通用类。
+    底层基于 bincopy 库，提供统一的读写和数据访问接口。
+    """
+    def load(self, filepath: str, start_address: int = 0) -> None:
+        """
+        加载固件文件，自动根据扩展名识别格式。
+
+        Args:
+            filepath: 文件路径
+            start_address: 仅针对 .bin 文件有效，指定二进制文件的起始加载地址
+        """
+        pass
+
+    def get_segments(self) -> List[Tuple[int, bytes]]:
+        """
+        获取固件的所有数据段。
+
+        Returns:
+            List[Tuple[address, data]]: 返回一个列表，包含 (起始地址, 数据bytes)
+            这是处理非连续内存（Sparse Memory）的最佳方式。
+        """
+        pass
+
+    def get_merged_data(self, fill: int = 0xFF) -> Tuple[int, bytes]:
+        """
+        获取合并后的完整二进制数据（自动填充空洞）。
+
+        Args:
+            fill: 地址不连续时的填充字节（整数，例如 0xFF）
+
+        Returns:
+            (start_address, data): 整个固件块的起始地址和完整数据
+        """
+        pass
+
+    def get_size(self) -> int:
+        """获取固件数据的实际字节大小（不包含空洞）"""
+        pass
+
+    def get_range(self) -> Tuple[int, int]:
+        """获取固件的地址范围 (min_addr, max_addr)"""
+        pass
+
+    def export(self, output_path: str, fmt: str = 'bin', **kwargs) -> None:
+        """
+        将当前加载的固件转换为其他格式并保存。
+
+        Kwargs:
+            fill (int): 填充字节，默认 0xFF
+            execution_addr (int): S19 文件的 S7/S8/S9 入口地址。如果不指定，默认尝试使用 0。
+        """
+        pass
+
 # api接口
 class ScriptAPI:
+    # uds客户端实现，核心方法一提取到uds_send_and_wait_response
     _uds_client: UDSClient
     _utils: Utils
+    firmware_file_parser FirmwareFileParse
     version: str
 
     # 新增测速报告相关函数
@@ -174,6 +232,9 @@ class ScriptAPI:
     def write(self, text: str):
         pass
 ```
+
+
+外部测试脚本Demo
 
 ```
 external_script_demo.py

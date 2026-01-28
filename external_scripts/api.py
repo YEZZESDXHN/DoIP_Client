@@ -246,6 +246,7 @@ class FirmwareFileParser:
 
 
 class ScriptAPI:
+    # uds客户端实现，核心方法一提取到uds_send_and_wait_response
     _uds_client: UDSClient
     _utils: Utils
     firmware_file_parser: FirmwareFileParser

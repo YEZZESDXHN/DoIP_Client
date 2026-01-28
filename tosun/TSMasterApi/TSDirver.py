@@ -9,10 +9,12 @@ import os
 import winreg
 import platform
 dll_path = ''
+dll_path_default_32 = ".\\CAN_Driver\\tosun\\x32\\TSMaster.dll"
+dll_path_default_64 = ".\\CAN_Driver\\tosun\\x64\\TSMaster.dll"
 try:
     TSMaster_location = r"Software\TOSUN\TSMaster"
 
-    _curr_path = os.path.dirname(__file__)
+    # _curr_path = os.path.dirname(__file__)
 
     key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, TSMaster_location)
 
@@ -47,18 +49,18 @@ if dll_path != '':
     except Exception as r:
         try:
             if _arch == '32bit':
-                dll_path = _curr_path + "\\windows\\bin\\TSMaster.dll"
+                dll_path = dll_path_default_32
             else:
-                dll_path = _curr_path + "\\windows\\bin64\\TSMaster.dll"
+                dll_path = dll_path_default_64
             dll = WinDLL(dll_path)
         except Exception as r:
             print(r"Could not load the TOSUN DLL from '%s'. Error: %s" % (dll_path, r))
 else:
     try:
         if _arch == '32bit':
-            dll_path = _curr_path + "\\windows\\bin\\TSMaster.dll"
+            dll_path = dll_path_default_32
         else:
-            dll_path = _curr_path + "\\windows\\bin64\\TSMaster.dll"
+            dll_path = dll_path_default_64
         dll = WinDLL(dll_path)
     except Exception as r:
         print(r"Could not load the TOSUN DLL from '%s'. Error: %s" % (dll_path, r))

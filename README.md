@@ -195,8 +195,14 @@ class ScriptAPI:
     # uds客户端实现，核心方法一提取到uds_send_and_wait_response
     _uds_client: UDSClient
     _utils: Utils
-    firmware_file_parser FirmwareFileParse
     version: str
+
+    @staticmethod
+    def create_firmware_parser() -> FirmwareFileParser:
+        """
+        生成刷写文件解析器，FirmwareFileParser
+        """
+        pass
 
     # 新增测速报告相关函数
     # 测速步骤

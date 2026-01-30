@@ -27,11 +27,18 @@ class ScriptAPI:
         self._utils.hex_str_to_bytes = utils.hex_str_to_bytes
         self.write_signal: Signal(str) = write_signal
         self.script_name = script_name
-        self.firmware_file_parser = FirmwareFileParser()
         self.version = "1.0.0"
 
         self.report_steps = []
         self._is_success = True
+
+    @staticmethod
+    def create_firmware_parser() -> FirmwareFileParser:
+        """
+        工厂方法：每次调用都会返回一个新的、干净的 FirmwareFileParser 实例。
+        用于支持多文件并行处理，防止数据污染。
+        """
+        return FirmwareFileParser()
 
     def _reset_report_state(self):
         """重置 API 状态，供 Runner/Plugin 调用"""

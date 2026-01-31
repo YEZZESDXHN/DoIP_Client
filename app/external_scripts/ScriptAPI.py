@@ -47,7 +47,10 @@ class ScriptAPI:
 
     def _add_step_record(self, step_type: str, title: str, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None, result=""):
         """内部方法：记录步骤"""
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        if step_type == 'Info':
+            timestamp = ''
+        else:
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         self.report_steps.append({
             "timestamp": timestamp,
             "type": step_type,
@@ -59,6 +62,9 @@ class ScriptAPI:
     def test_step(self, title: str, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
         self._add_step_record("Step", title, data, "")
 
+    def test_step_info(self, title: str, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
+        self._add_step_record("Info", title, data, "")
+
     def test_step_pass(self, title, data: Optional[Union[str, bytes, List, bytearray, int, float]] = None):
         self._add_step_record("Check", title, data, "Pass")
 
@@ -66,10 +72,13 @@ class ScriptAPI:
         self._add_step_record("Check", title, data, "Fail")
         self._is_success = False
 
-    def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
+    def uds_send_and_wait_response(self, payload: bytes, print_data: bool = True, print_data_len: int = 16) -> Optional[Response]:
         # 执行核心请求
+        if print_data:
+            self.test_step_info('Send', payload[:print_data_len])
         response = self._uds_client._execute_uds_request(payload, log_prefix="api:")
-
+        if print_data:
+            self.test_step_info('Response', response.original_payload[:print_data_len])
         return response
 
     @property

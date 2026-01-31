@@ -251,8 +251,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>961</width>
-               <height>370</height>
+               <width>98</width>
+               <height>28</height>
               </rect>
              </property>
             </widget>
@@ -409,6 +409,8 @@
      <string>工具</string>
     </property>
     <addaction name="action_database"/>
+    <addaction name="action"/>
+    <addaction name="action_2"/>
    </widget>
    <widget class="QMenu" name="menu_view">
     <property name="title">
@@ -960,6 +962,16 @@
    </property>
    <property name="text">
     <string>Fusion</string>
+   </property>
+  </action>
+  <action name="action">
+   <property name="text">
+    <string>导入配置</string>
+   </property>
+  </action>
+  <action name="action_2">
+   <property name="text">
+    <string>导出配置</string>
    </property>
   </action>
  </widget>

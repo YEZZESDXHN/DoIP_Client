@@ -30,7 +30,7 @@ class UDSTestPlugin:
     def __init__(self, api_instance):
         self._api = api_instance
 
-    @pytest.fixture(scope="session")
+    @pytest.fixture(scope="session", autouse=False)
     def api(self):
         """
         定义名为 'api' 的 fixture。
@@ -215,7 +215,7 @@ class QExternalScriptsExecutor(QObject):
     def __init__(self, uds_client, db_manager, config_name):
         super().__init__()
         self.config_name = config_name
-        self.db_manager = db_manager
+        self.db_manager: DBManager = db_manager
         self.uds_client = uds_client
         self.external_scripts: List[ExternalScriptConfig] = []
 
@@ -282,6 +282,17 @@ class QExternalScriptsExecutor(QObject):
             # return ret_code
             # 4. 执行 Pytest
             # ret_code: 0=Pass, 1=Fail, 2=Interrupted, 5=No Tests found
+            try:
+                # 清空目标脚本的模块缓存
+                if script_basename in sys.modules:
+                    del sys.modules[script_basename]
+
+                # 清空pytest相关的临时测试模块
+                for module_name in list(sys.modules.keys()):
+                    if module_name.startswith("pytest_") or module_name == self.current_script_path.replace(os.sep,"."):
+                        del sys.modules[module_name]
+            except Exception as e:
+                logger.warning(f"清空模块缓存时出现警告: {e}", exc_info=True)  # 非致命错误，仅警告
             with open(os.devnull, 'w') as fnull:
                 # 将标准输出(stdout)和错误输出(stderr)都重定向到 null
                 with redirect_stdout(fnull), redirect_stderr(fnull):
@@ -314,7 +325,7 @@ class QExternalScriptsExecutor(QObject):
         self.scripts_run_start.emit()
 
         # 获取脚本列表
-        self.external_scripts = self.db_manager.get_external_script_list_by_config(self.config_name)
+        self.external_scripts = self.db_manager.external_script_db.get_external_script_list_by_config(self.config_name)
 
         is_all_success = True
 

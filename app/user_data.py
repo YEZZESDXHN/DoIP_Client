@@ -1,7 +1,6 @@
 # from __future__ import annotations
 import base64
 import binascii
-import dataclasses
 import enum
 import json
 import pprint
@@ -33,88 +32,86 @@ class DiagCase(BaseModel):
         return cls.model_validate_json(json_str)
 
 
-@dataclass
-class _DiagnosticSessionControl:
+# @dataclass
+class _DiagnosticSessionControl(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _ECUReset:
+# @dataclass
+class _ECUReset(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _ReadDataByIdentifier:
+# @dataclass
+class _ReadDataByIdentifier(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _InputOutputControlByIdentifier:
+# @dataclass
+class _InputOutputControlByIdentifier(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _ReadDTCInformation:
+# @dataclass
+class _ReadDTCInformation(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _RequestDownload:
+# @dataclass
+class _RequestDownload(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _RequestUpload:
+# @dataclass
+class _RequestUpload(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _TransferData:
+# @dataclass
+class _TransferData(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _RequestTransferExit:
+# @dataclass
+class _RequestTransferExit(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _SecurityAccess:
+# @dataclass
+class _SecurityAccess(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _TesterPresent:
+# @dataclass
+class _TesterPresent(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _Routine:
+# @dataclass
+class _Routine(BaseModel):
     name: str = ''
     payload: bytes = b''
 
 
-@dataclass
-class _RoutineControl:
+# @dataclass
+class _RoutineControl(BaseModel):
     startRoutine: list[_Routine] = field(default_factory=list)
     stopRoutine: list[_Routine] = field(default_factory=list)
     requestRoutineResults: list[_Routine] = field(default_factory=list)
 
-    def _get_field_type(self, field_name: str) -> Optional[Type]:
+    def get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""
-        if not is_dataclass(self):
-            return None
         cls = type(self)
         return cls.__annotations__.get(field_name)
 
@@ -153,22 +150,22 @@ class UdsService(BaseModel):
 
 DEFAULT_SERVICES = UdsService()
 DEFAULT_SERVICES.DiagnosticSessionControl = [
-    _DiagnosticSessionControl("defaultSession", bytes.fromhex('1001')),
-    _DiagnosticSessionControl("programmingSession", bytes.fromhex('1002')),
-    _DiagnosticSessionControl("extendedDiagnosticSession", bytes.fromhex('1003')),
+    _DiagnosticSessionControl(name="defaultSession", payload=bytes.fromhex('1001')),
+    _DiagnosticSessionControl(name="programmingSession", payload=bytes.fromhex('1002')),
+    _DiagnosticSessionControl(name="extendedDiagnosticSession", payload=bytes.fromhex('1003')),
 ]
 DEFAULT_SERVICES.ECUReset = [
-    _ECUReset("hardReset", bytes.fromhex('1101')),
-    _ECUReset("keyOffOnReset", bytes.fromhex('1102')),
-    _ECUReset("softReset", bytes.fromhex('1103')),
+    _ECUReset(name="hardReset", payload=bytes.fromhex('1101')),
+    _ECUReset(name="keyOffOnReset", payload=bytes.fromhex('1102')),
+    _ECUReset(name="softReset", payload=bytes.fromhex('1103')),
 ]
 DEFAULT_SERVICES.SecurityAccess = [
-    _SecurityAccess("RequestSeed L1", bytes.fromhex('2701')),
-    _SecurityAccess("SendKey L1", bytes.fromhex('2702')),
-    _SecurityAccess("RequestSeed L3", bytes.fromhex('2703')),
-    _SecurityAccess("SendKey L1", bytes.fromhex('2703')),
-    _SecurityAccess("RequestSeed L5", bytes.fromhex('2705')),
-    _SecurityAccess("SendKey L1", bytes.fromhex('2705')),
+    _SecurityAccess(name="RequestSeed L1", payload=bytes.fromhex('2701')),
+    _SecurityAccess(name="SendKey L1", payload=bytes.fromhex('2702')),
+    _SecurityAccess(name="RequestSeed L3", payload=bytes.fromhex('2703')),
+    _SecurityAccess(name="SendKey L1", payload=bytes.fromhex('2703')),
+    _SecurityAccess(name="RequestSeed L5", payload=bytes.fromhex('2705')),
+    _SecurityAccess(name="SendKey L1", payload=bytes.fromhex('2705')),
 ]
 
 

@@ -69,13 +69,13 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.db_path = 'Database/database.db'
         self.init_database(self.db_path)
-        self.uds_services: UdsService = UdsService()
+        self.uds_services: Optional[UdsService] = None
         self._init_current_uds_config()
         self.current_uds_config.is_can_uds = False
 
         self.add_external_lib()
 
-        self.flash_config: Optional[FlashConfig] = self.db_manager.load_flash_config(
+        self.flash_config: Optional[FlashConfig] = self.db_manager.flash_config_db.get_flash_config(
             self.current_uds_config.config_name)
         if not self.flash_config:
             self.flash_config = FlashConfig()
@@ -150,21 +150,21 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     def _init_current_uds_config(self):
         try:
-            current_config_name = self.db_manager.get_active_config_name()
-            self.current_uds_config = self.db_manager.query_uds_config(current_config_name)
+            current_config_name = self.db_manager.current_uds_config_db.get_active_config_name()
+            self.current_uds_config = self.db_manager.uds_config_db.get_uds_config(current_config_name)
             if not self.current_uds_config:
-                doip_config_names = self.db_manager.get_all_config_names()
-                if len(doip_config_names) > 0:
+                uds_config_names = self.db_manager.uds_config_db.get_all_config_names()
+                if len(uds_config_names) > 0:
                     try:
                         self.comboBox_ChooseConfig.clear()
-                        self.db_manager.set_active_config(doip_config_names[0])
-                        for config in doip_config_names:
+                        self.db_manager.current_uds_config_db.set_active_config(uds_config_names[0])
+                        for config in uds_config_names:
                             self.comboBox_ChooseConfig.addItem(config)
                         self.comboBox_ChooseConfig.setCurrentText(self.current_uds_config.config_name)
                         # self.current_uds_config = self.db_manager.query_uds_config(current_config_name)
 
                     except Exception as e:
-                        self.db_manager.set_active_config('')
+                        self.db_manager.current_uds_config_db.set_active_config('')
                         logger.exception(str(e))
                 else:
                     self.comboBox_ChooseConfig.clear()
@@ -299,7 +299,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.tableView_DoIPTrace_Automated_Process.trace_model = self.tableView_DoIPTrace.trace_model
         self.tableView_DoIPTrace_Automated_Process.setModel(self.tableView_DoIPTrace.trace_model)
 
-        self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_uds_config.config_name))
+        self.uds_services = self.db_manager.service_config_db.get_service_config(self.current_uds_config.config_name)
         # 添加TreeView控件
         self.treeView_DoIPTraceService = self._add_custom_tree_view(self.scrollArea_DiagTree)
         self.treeView_DoIPTraceService.setDragEnabled(True)  # 允许拖拽
@@ -317,9 +317,9 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.treeView_uds_case = self._add_uds_case_tree_view(self.scrollArea_UdsCaseTree)
 
-        doip_config_names = self.db_manager.get_all_config_names()
-        if self.current_uds_config.config_name in doip_config_names:
-            for config in doip_config_names:
+        uds_config_names = self.db_manager.uds_config_db.get_all_config_names()
+        if self.current_uds_config.config_name in uds_config_names:
+            for config in uds_config_names:
                 self.comboBox_ChooseConfig.addItem(config)
             self.comboBox_ChooseConfig.setCurrentText(self.current_uds_config.config_name)
 
@@ -473,7 +473,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     @Slot()
     def _save_services_to_db(self):
-        self.db_manager.add_services_config(self.current_uds_config.config_name, self.uds_services.to_json())
+        self.db_manager.service_config_db.save_service_config(self.current_uds_config.config_name, self.uds_services)
 
     def _add_uds_case_tree_view(self, parent_widget):
         if not parent_widget:
@@ -755,20 +755,20 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         if index == -1:
             return
         config_name = self.comboBox_ChooseConfig.currentText()
-        self.current_uds_config = self.db_manager.query_uds_config(config_name)
-        self.db_manager.set_active_config(config_name)
-        self.db_manager.init_services_database()
+        self.current_uds_config = self.db_manager.uds_config_db.get_uds_config(config_name)
+        self.db_manager.current_uds_config_db.set_active_config(config_name)
+        # self.db_manager.init_services_database()
         self.can_ig_panel.set_config(config_name)
         self.external_script_panel.set_config(config_name)
 
-        self.uds_services.update_from_json(self.db_manager.get_services_json(self.current_uds_config.config_name))
+        self.uds_services = self.db_manager.service_config_db.get_service_config(self.current_uds_config.config_name)
         self.treeView_DoIPTraceService.load_uds_service_to_tree_nodes()
         self.treeView_uds_case.refresh()
         self.diag_process_table_view.clear()
         self.update_flash_config()
 
     def update_flash_config(self):
-        self.flash_config = self.db_manager.load_flash_config(self.current_uds_config.config_name)
+        self.flash_config = self.db_manager.flash_config_db.get_flash_config(self.current_uds_config.config_name)
         self.update_flash_variables()
         self.setup_flash_control()
         self.flash_executor.flash_config = self.flash_config
@@ -878,6 +878,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         """
         打开sql可视化窗口
         """
+
         self.sql_table_panel = SQLTablePanel(self.db_path)
         self.sql_table_panel.show()
 
@@ -885,7 +886,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
     def open_create_config_panel(self):
         """打开新建uds配置面板"""
         config_panel = DoIPConfigPanel(parent=self, is_create_new_config=True,
-                                       configs_name=self.db_manager.get_all_config_names())
+                                       configs_name=self.db_manager.uds_config_db.get_all_config_names())
         config_panel.setWindowTitle('新建配置')
         new_config = UdsConfig()
 
@@ -931,7 +932,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         if config_panel.exec() == QDialog.Accepted:
             new_config = config_panel.config
             try:
-                self.db_manager.save_uds_config(new_config)
+                self.db_manager.uds_config_db.upsert_uds_config(new_config)
             except Exception as e:
                 logger.exception(f"保存配置{new_config.config_name}失败，{e}")
             self.comboBox_ChooseConfig.addItem(new_config.config_name)
@@ -942,14 +943,14 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         flash_panel = FlashConfigPanel(parent=self, flash_config=self.flash_config)
         if flash_panel.exec() == QDialog.Accepted:
             self.flash_config = flash_panel.config
-            self.db_manager.save_flash_config(self.current_uds_config.config_name, self.flash_config)
+            self.db_manager.flash_config_db.save_flash_config(self.current_uds_config.config_name, self.flash_config)
             self.setup_flash_control()
             self.flash_executor.flash_config = self.flash_config
 
     @Slot()
     def open_edit_config_panel(self):
         """打开DoIP配置编辑面板"""
-        config_panel = DoIPConfigPanel(parent=self, configs_name=self.db_manager.get_all_config_names())
+        config_panel = DoIPConfigPanel(parent=self, configs_name=self.db_manager.uds_config_db.get_all_config_names())
         config_panel.setWindowTitle('修改配置')
 
         config_panel.lineEdit_ConfigName.setText(self.current_uds_config.config_name)
@@ -998,25 +999,26 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         if config_panel.exec() == QDialog.Accepted:
             if config_panel.config is None and config_panel.is_delete_config:  # 删除配置
-                self.db_manager.delete_doip_config(self.current_uds_config.config_name)
-                if config_panel.is_delete_data:
-                    self.db_manager.delete_services_config(self.current_uds_config.config_name)
-                    self.db_manager.delete_steps_by_case_ids(self.db_manager.get_current_config_uds_cases())
-                    self.db_manager.delete_config_uds_cases(self.current_uds_config.config_name)
-                    self.db_manager.delete_can_ig_by_config(self.current_uds_config.config_name)
-                doip_config_names = self.db_manager.get_all_config_names()
+                # self.db_manager.uds_config_db.delete_uds_config(self.current_uds_config.config_name)
+                # if config_panel.is_delete_data:
+                #     self.db_manager.delete_services_config(self.current_uds_config.config_name)
+                #     self.db_manager.delete_steps_by_case_ids(self.db_manager.get_current_config_uds_cases())
+                #     self.db_manager.delete_config_uds_cases(self.current_uds_config.config_name)
+                #     self.db_manager.delete_can_ig_by_config(self.current_uds_config.config_name)
+                self.db_manager.delete_config(self.current_uds_config.config_name)
+                doip_config_names = self.db_manager.uds_config_db.get_all_config_names()
                 if len(doip_config_names) > 0:
                     try:
                         self.comboBox_ChooseConfig.blockSignals(True)
                         self.comboBox_ChooseConfig.clear()
-                        self.db_manager.set_active_config(doip_config_names[0])
+                        self.db_manager.current_uds_config_db.set_active_config(doip_config_names[0])
                         for config in doip_config_names:
                             self.comboBox_ChooseConfig.addItem(config)
                         current_index = self.comboBox_ChooseConfig.currentIndex()
                         self._on_uds_config_chaneged(current_index)
                         self.comboBox_ChooseConfig.blockSignals(False)
                     except Exception as e:
-                        self.db_manager.set_active_config('')
+                        self.db_manager.current_uds_config_db.set_active_config('')
                         logger.exception(str(e))
                 else:
                     self.comboBox_ChooseConfig.clear()
@@ -1044,7 +1046,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
                     # ********************CAN TP config**********************
 
-                    self.db_manager.save_uds_config(self.current_uds_config)
+                    self.db_manager.uds_config_db.upsert_uds_config(self.current_uds_config)
                 else:
                     # ********************DoIP config**********************
                     self.current_uds_config.doip.tester_logical_address = config_panel.config.doip.tester_logical_address
@@ -1053,7 +1055,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
                     self.current_uds_config.doip.is_routing_activation_use = config_panel.config.doip.is_routing_activation_use
                     self.current_uds_config.doip.oem_specific = config_panel.config.doip.oem_specific
 
-                    self.db_manager.save_uds_config(self.current_uds_config)
+                    self.db_manager.uds_config_db.upsert_uds_config(self.current_uds_config)
                     logger.info(
                         f"DoIP配置已更新 - 测试机逻辑地址: 0x{config_panel.config.doip.tester_logical_address:X}, "
                         f"ECU逻辑地址: 0x{config_panel.config.doip.dut_logical_address:X}, ECU IP: {config_panel.config.doip.dut_ipv4_address}"

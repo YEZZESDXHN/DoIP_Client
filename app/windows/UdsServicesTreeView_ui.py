@@ -78,6 +78,7 @@ class UdsServicesModel(QStandardItemModel):
         new_item = QStandardItem(node_name.strip())
         new_item.setData(custom_bytes, self.payload_role)  # 存储bytes
         new_item.setData(1, self.node_type_role)  # 终端节点
+        new_item.setIcon(IconEngine.get_icon("send"))
         path = f"{parent_path}[{len(obj)}]"
         new_item.setData(path, self.path_role)
         parent_item.appendRow(new_item)
@@ -138,7 +139,7 @@ class UdsServicesModel(QStandardItemModel):
         for part in parts[:-1]:
             if dataclasses.is_dataclass(obj):
                 obj = getattr(obj, part)
-        _type: Type = obj._get_field_type(parts[-1])
+        _type: Type = obj.get_field_type(parts[-1])
         args = get_args(_type)
         return args[0]
 

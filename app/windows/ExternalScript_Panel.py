@@ -175,7 +175,7 @@ class ExternalScriptTableModel(QAbstractTableModel):
             if isinstance(value, str):
                 item.path = value
         item.state = ExternalScriptRunState.Idle
-        self.db_manager.save_external_script(item)
+        self.db_manager.external_script_db.save_external_script(item)
         self.dataChanged.emit(index, index, [role])
         return True
 
@@ -188,7 +188,7 @@ class ExternalScriptTableModel(QAbstractTableModel):
         script = ExternalScriptConfig()
         script.config = config
         self.beginInsertRows(QModelIndex(), row, row)
-        sql_id = self.db_manager.save_external_script(script)
+        sql_id = self.db_manager.external_script_db.save_external_script(script)
         script.sql_id = sql_id
         self.external_scripts.append(script)
         self.endInsertRows()
@@ -196,7 +196,7 @@ class ExternalScriptTableModel(QAbstractTableModel):
     def delete_script(self, row):
         if 0 <= row < self.rowCount():
             self.beginRemoveRows(QModelIndex(), row, row)
-            del_num = self.db_manager.delete_external_script_by_sql_id(self.external_scripts[row].sql_id)
+            del_num = self.db_manager.external_script_db.delete_external_script_by_sql_id(self.external_scripts[row].sql_id)
             self.external_scripts.pop(row)
             self.endRemoveRows()
 
@@ -306,7 +306,7 @@ class ExternalScriptPanel(Ui_ExternalScript_Panel, QWidget):
         self.setupUi(self)
         self.config_name = config_name
         self.db_manager = db_manager
-        self.external_scripts: List[ExternalScriptConfig] = self.db_manager.get_external_script_list_by_config(
+        self.external_scripts: List[ExternalScriptConfig] = self.db_manager.external_script_db.get_external_script_list_by_config(
             self.config_name)
         self.external_script_table_mode = ExternalScriptTableModel(external_scripts=self.external_scripts,
                                                                    db_manager=self.db_manager)
@@ -426,7 +426,7 @@ class ExternalScriptPanel(Ui_ExternalScript_Panel, QWidget):
         self.signal_config_update.emit()
 
     def load_external_scripts(self):
-        self.external_scripts = self.db_manager.get_external_script_list_by_config(self.config_name)
+        self.external_scripts = self.db_manager.external_script_db.get_external_script_list_by_config(self.config_name)
         self.external_script_table_mode.beginResetModel()
         self.external_script_table_mode.external_scripts = self.external_scripts
         self.external_script_table_mode.endResetModel()

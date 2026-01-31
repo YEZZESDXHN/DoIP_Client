@@ -17,79 +17,20 @@ from pydantic import BaseModel, Field, field_serializer, field_validator
 APP_NAME = 'UDS_Client'
 
 
-@dataclass
-class DiagCase:
-    id: Optional[int] = None
+class DiagCase(BaseModel):
+    id: int = 0
     case_name: str = ''
     config_name: str = ''
     type: int = 0  # 0:case,1:group
     level: int = 0
     parent_id: int = -1  # -1:顶级节点
 
-    @classmethod
-    def from_dict(cls, data: dict) -> "DiagCase":
-        """从字典转回 DiagCase 对象（兼容 DataFrame 行转对象）"""
-        return cls(
-            id=data.get("id", 0),
-            case_name=data.get("case_name", ""),
-            config_name=data.get("config_name", ""),
-            type=data.get("type", 0),
-            level=data.get("level", 0),
-            parent_id=data.get("parent_id")
-        )
-
-    def get_attr_names(self) -> tuple:
-        """返回属性名字元组"""
-        # fields(self) 按定义顺序返回所有数据属性，提取 name 组成元组
-        return tuple(_field.name for _field in fields(self))
-
-    def to_tuple(self) -> tuple:
-        """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
-        tuple_values = []
-        for _field in fields(self):
-            value = getattr(self, _field.name)
-            tuple_values.append(value)
-        return tuple(tuple_values)
-
     def to_json(self) -> str:
-        """数据类转json字符串"""
-        data_dict = asdict(self)
-        data_json = json.dumps(data_dict)
-        return data_json
+        return self.model_dump_json()
 
-    def to_dict(self) -> dict:
-        """数据类转dict"""
-        data_dict = asdict(self)
-        return data_dict
-
-    def _get_field_type(self, field_name: str) -> Optional[Type]:
-        """辅助方法：获取属性的类型"""
-        if not is_dataclass(self):
-            return None
-        cls = type(self)
-        return cls.__annotations__.get(field_name)
-
-    def update_from_dict(self, data_dict: dict):
-        """从dict更新数据类"""
-        for key, value in data_dict.items():
-            if not hasattr(self, key):
-                continue
-            field_type = self._get_field_type(key)
-
-            try:
-
-                if field_type in (Optional[int], float, str) and value is not None:
-                    setattr(self, key, value)
-
-            except Exception as e:
-                # 类型转换失败时打印提示，保留原值（也可改为raise抛出异常）
-                print(f"警告：属性{key}赋值失败（{e}）,待赋值：{value}")
-                continue
-
-    def update_from_json(self, json_str: str):
-        """从json更新数据类"""
-        data_dict = json.loads(json_str)
-        self.update_from_dict(data_dict)
+    @classmethod
+    def from_json(cls, json_str: str):
+        return cls.model_validate_json(json_str)
 
 
 @dataclass
@@ -178,8 +119,8 @@ class _RoutineControl:
         return cls.__annotations__.get(field_name)
 
 
-@dataclass
-class UdsService:
+# @dataclass
+class UdsService(BaseModel):
     """服务数据类"""
     DiagnosticSessionControl: list[_DiagnosticSessionControl] = field(default_factory=list)
     ECUReset: list[_ECUReset] = field(default_factory=list)
@@ -194,75 +135,20 @@ class UdsService:
     TesterPresent: list[_TesterPresent] = field(default_factory=list)
     RoutineControl: _RoutineControl = field(default_factory=_RoutineControl)
 
-    def _get_field_type(self, field_name: str) -> Optional[Type]:
+    def get_field_type(self, field_name: str) -> Optional[Type]:
         """辅助方法：获取属性的类型"""
-        if not is_dataclass(self):
-            return None
         cls = type(self)
         return cls.__annotations__.get(field_name)
 
-    @staticmethod
-    def _json_default_converter(obj):
-        """数据类转换json时，不支持的类型转换规则"""
-        if isinstance(obj, bytes):
-            # 1. Base64 编码 (bytes -> bytes)
-            encoded_bytes = base64.b64encode(obj)
-            # 2. 转换为 UTF-8 字符串 (bytes -> str)
-            return encoded_bytes.decode('utf-8')
-
-        if isinstance(obj, DiagnosisStepTypeEnum):
-            return obj.value
-
-        # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
     def to_json(self) -> str:
-        """数据类转json字符串"""
-        data_dict = asdict(self)
-        data_json = json.dumps(data_dict, default=self._json_default_converter)
-        return data_json
+        return self.model_dump_json()
+
+    @classmethod
+    def from_json(cls, json_str: str):
+        return cls.model_validate_json(json_str)
 
     def to_dict(self) -> dict:
-        """数据类转dict"""
-        data_dict = asdict(self)
-        return data_dict
-
-    def update_from_dict(self, data_dict: dict):
-        """从dict更新数据类"""
-        for key, value in data_dict.items():
-            if not hasattr(self, key):
-                continue
-            field_type = self._get_field_type(key)
-            current_obj = getattr(self, key, None)
-
-            try:
-                if get_origin(field_type) is list and isinstance(value, list) and isinstance(current_obj, list):
-                    current_obj.clear()
-                    args = get_args(field_type)
-                    for list_item in value:
-                        if isinstance(list_item, dict) and 'payload' in list_item:
-                            if isinstance(list_item['payload'], bytes):
-                                pass
-                            elif isinstance(list_item['payload'], str):
-                                try:
-                                    # 尝试Base64解码（失败则说明不是Base64字符串，跳过）
-                                    bytes_decode = base64.b64decode(list_item['payload'].encode('utf-8'))
-                                except (binascii.Error, ValueError):
-                                    bytes_decode = b''
-                                list_item['payload'] = bytes_decode
-                            cls = args[0](**list_item)
-                            current_obj.append(cls)
-                elif dataclasses.is_dataclass(field_type) and isinstance(value, dict) and dataclasses.is_dataclass(
-                        current_obj):
-                    self.update_from_dict(value)
-
-            except Exception as e:
-                print(f'更新失败：{str(e)}')
-
-    def update_from_json(self, json_str: str):
-        """从json更新数据类"""
-        data_dict = json.loads(json_str)
-        self.update_from_dict(data_dict)
+        return self.model_dump()
 
 
 DEFAULT_SERVICES = UdsService()
@@ -303,10 +189,10 @@ class DiagnosisStepTestResultEnum(Enum):
     Running = "Running"
 
 
-@dataclass
-class DiagnosisStepData:
+# @dataclass
+class DiagnosisStepData(BaseModel):
     """诊断自动化测试步骤的数据类"""
-    id: Optional[int] = None
+    id: int = 0
     enable: bool = True
     step_type: DiagnosisStepTypeEnum = DiagnosisStepTypeEnum.NormalStep
     service: str = ''
@@ -321,10 +207,9 @@ class DiagnosisStepData:
     case_id: int = 0
     step_sequence: int = 0
 
-    def get_attr_names(self) -> tuple:
+    def get_attr_names(self) -> tuple[str, ...]:
         """返回属性名字元组"""
-        # fields(self) 按定义顺序返回所有数据属性，提取 name 组成元组
-        return tuple(_field.name for _field in fields(self))
+        return tuple(self.model_fields.keys())
 
     def __setattr__(self, name, value):
         # 1. 先执行默认的属性赋值逻辑
@@ -338,8 +223,8 @@ class DiagnosisStepData:
     def to_tuple(self) -> tuple:
         """返回所有数据属性的元组（枚举字段返回value，其他字段返回原值）"""
         tuple_values = []
-        for field in fields(self):
-            value = getattr(self, field.name)
+        for field_name in self.model_fields.keys():
+            value = getattr(self, field_name)
             # 对枚举类型字段，提取其value；其他字段直接用原值
             if isinstance(value, Enum):
                 tuple_values.append(value.value)
@@ -351,120 +236,12 @@ class DiagnosisStepData:
                 tuple_values.append(value)
         return tuple(tuple_values)
 
-    @staticmethod
-    def _json_default_converter(obj):
-        """数据类转换json时，不支持的类型转换规则"""
-        if isinstance(obj, bytes):
-            # 1. Base64 编码 (bytes -> bytes)
-            encoded_bytes = base64.b64encode(obj)
-            # 2. 转换为 UTF-8 字符串 (bytes -> str)
-            return encoded_bytes.decode('utf-8')
-
-        elif isinstance(obj, Enum):
-            return obj.value
-
-        # 对于其他无法序列化的对象（如 datetime 对象），可以抛出 TypeError
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
     def to_json(self) -> str:
-        """数据类转json字符串"""
-        data_dict = asdict(self)
-        data_json = json.dumps(data_dict, default=self._json_default_converter)
-        return data_json
+        return self.model_dump_json()
 
-    def to_dict(self) -> dict:
-        """转换为字典"""
-        data_dict = asdict(self)
-        for key, value in data_dict.items():
-            if isinstance(value, bytes):
-                encoded_bytes = base64.b64encode(value)
-                data_dict[key] = encoded_bytes.decode('utf-8')
-            elif isinstance(value, Enum):
-                data_dict[key] = value.value
-            elif isinstance(value, bool):
-                data_dict[key] = 'true' if value else 'false'
-
-        return data_dict
-
-    def _get_field_type(self, field_name: str) -> Optional[Type]:
-        """辅助方法：获取属性的类型"""
-        if not is_dataclass(self):
-            return None
-        cls = type(self)
-        return cls.__annotations__.get(field_name)
-
-    def update_by_value(self, attr_name: str, value: Any) -> bool:
-        if not hasattr(self, attr_name):
-            return False
-        field_type = self._get_field_type(attr_name)
-        try:
-            if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
-                _value = field_type(value)
-                setattr(self, attr_name, _value)
-            # 处理基础类型转换（如字符串转数字）
-            elif field_type in (int, float, bool, str) and value is not None:
-                # bool类型特殊处理（避免"False"被转成True）
-                if field_type == bool and isinstance(value, str):
-                    _value = value.lower() in ("true", "1", "yes")
-                    setattr(self, attr_name, _value)
-                else:
-                    _value = field_type(value)
-                    setattr(self, attr_name, _value)
-            elif field_type is bytes:
-                if isinstance(value, bytes):
-                    setattr(self, attr_name, value)
-                elif isinstance(value, str):
-                    try:
-                        setattr(self, attr_name, bytes.fromhex(value))
-                    except:
-                        setattr(self, attr_name, b'')
-        except Exception as e:
-            print(f"警告：属性{attr_name}赋值失败（{str(e)}）")
-            return False
-        return True
-
-    def update_from_dict(self, data_dict: dict):
-        """从dict更新数据类"""
-        for key, value in data_dict.items():
-            if not hasattr(self, key):
-                continue
-            field_type = self._get_field_type(key)
-            current_value = getattr(self, key, None)
-
-            try:
-                # 处理枚举类型（字符串/数字转枚举实例）
-                if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
-                    value = field_type(value)
-                # 处理基础类型转换（如字符串转数字）
-                elif field_type in (int, float, bool, str) and value is not None:
-                    # bool类型特殊处理（避免"False"被转成True）
-                    if field_type == bool and isinstance(value, str):
-                        value = value.lower() in ("true", "1", "yes")
-                    else:
-                        value = field_type(value)
-                elif field_type is bytes:
-                    if isinstance(value, bytes):
-                        pass
-                    elif isinstance(value, str):
-                        try:
-                            # 尝试Base64解码（失败则说明不是Base64字符串，跳过）
-                            value = base64.b64decode(value.encode('utf-8'))
-                        except (binascii.Error, ValueError):
-                            value = b''
-
-            except (ValueError, TypeError, enum.EnumError) as e:
-                # 类型转换失败时打印提示，保留原值（也可改为raise抛出异常）
-                print(f"警告：属性{key}赋值失败（{str(e)}），原值：{current_value}，待赋值：{value}")
-                continue
-
-                # 4. 最终赋值（仅当值有效时）
-            if value is not None:
-                setattr(self, key, value)
-
-    def update_from_json(self, json_str: str):
-        """从json更新数据类"""
-        data_dict = json.loads(json_str)
-        self.update_from_dict(data_dict)
+    @classmethod
+    def from_json(cls, json_str: str):
+        return cls.model_validate_json(json_str)
 
 
 class MessageDir(str, Enum):

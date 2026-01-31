@@ -68,7 +68,7 @@ class DiagProcessTableModel(QAbstractTableModel):
 
         self._data.clear()
         self._data_dict.clear()
-        self._data = self.db_manager.get_and_fix_steps_by_case_id(self.current_case_id)
+        self._data = self.db_manager.case_step_db.get_case_steps_by_case_id(self.current_case_id)
         for __data in self._data:
             self._data_dict[__data.id] = __data
         self.endResetModel()
@@ -158,7 +158,7 @@ class DiagProcessTableModel(QAbstractTableModel):
         self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
         self._data.append(test_step)
         self._data_dict[test_step.id] = test_step
-        self.db_manager.upsert_case_step(test_step)
+        self.db_manager.case_step_db.upsert_case_step(test_step)
         # 通知视图：插入操作完成
         self.endInsertRows()
 
@@ -169,7 +169,7 @@ class DiagProcessTableModel(QAbstractTableModel):
         self.beginInsertRows(QModelIndex(), insert_row_idx, insert_row_idx)
         self._data.append(step_data)
         self._data_dict[step_data.id] = step_data
-        self.db_manager.upsert_case_step(step_data)
+        self.db_manager.case_step_db.upsert_case_step(step_data)
         self.endInsertRows()
 
 
@@ -311,8 +311,7 @@ class DiagProcessTableView(QTableView):
         stream = QDataStream(byte_array, QIODevice.ReadOnly)
         json_str = stream.readQString()  # 读出JSON字符串
 
-        diagnosis_step_data = DiagnosisStepData()
-        diagnosis_step_data.update_from_json(json_str)
+        diagnosis_step_data = DiagnosisStepData.from_json(json_str)
 
         self.add_existing_step(diagnosis_step_data)
 
@@ -369,7 +368,8 @@ class DiagProcessCaseModel(QAbstractItemModel):
         self.root_node.children.clear()
 
         # 获取并排序案例
-        cases = self.db_manager.get_current_config_uds_cases()
+        config = self.db_manager.current_uds_config_db.get_active_config_name()
+        cases = self.db_manager.uds_case_db.get_case_list_by_config(config)
         if not cases:
             self.endResetModel()
             return
@@ -480,7 +480,7 @@ class DiagProcessCaseModel(QAbstractItemModel):
         if new_name and new_name != old_name:
             self.beginResetModel()
             node.case.case_name = new_name
-            self.db_manager.upsert_case(node.case)  # 更新数据库
+            self.db_manager.uds_case_db.upsert_case(node.case)  # 更新数据库
             self.endResetModel()
             self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
             return True
@@ -506,9 +506,9 @@ class DiagProcessCaseModel(QAbstractItemModel):
         new_case = DiagCase(
             type=1 if is_group else 0,
             level=0,
-            config_name=self.db_manager.get_active_config_name()
+            config_name=self.db_manager.current_uds_config_db.get_active_config_name()
         )
-        new_case.id = self.db_manager.upsert_case(new_case)
+        new_case.id = self.db_manager.uds_case_db.upsert_case(new_case)
         new_case.case_name = f"请输入名称_{new_case.id}"
 
         # 处理父节点
@@ -519,7 +519,7 @@ class DiagProcessCaseModel(QAbstractItemModel):
             new_case.level = self._get_node_level(parent_index) + 1
 
         # 更新数据库
-        self.db_manager.upsert_case(new_case)
+        self.db_manager.uds_case_db.upsert_case(new_case)
 
         # 添加到模型
         self.beginInsertRows(parent_index, parent_node.child_count(), parent_node.child_count())
@@ -545,14 +545,14 @@ class DiagProcessCaseModel(QAbstractItemModel):
         def _delete_children(child_node: DiagCaseNode):
             for child in child_node.children:
                 _delete_children(child)
-                self.db_manager.delete_case(child.case.id)
+                self.db_manager.uds_case_db.delete_case_by_id(child.case.id)
 
         _delete_children(node)
 
         # 删除当前节点
         self.beginRemoveRows(self.parent(index), node.row_index(), node.row_index())
         parent_node.remove_child(node)
-        self.db_manager.delete_case(node.case.id)
+        self.db_manager.uds_case_db.delete_case_by_id(node.case.id)
         self.endRemoveRows()
         return True
 

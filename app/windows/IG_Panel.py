@@ -484,7 +484,7 @@ class IgMessageDateTableModel(QAbstractTableModel):
             data_mutable[byte_offset] = new_byte
             msg.data = bytes(data_mutable)
             self.dataChanged.emit(index, index, [role])
-            self.db_manager.save_can_ig(msg)
+            self.db_manager.can_ig_db.save_can_ig(msg)
             return True
         except ValueError:
             return False
@@ -511,7 +511,7 @@ class IgTableModel(QAbstractTableModel):
         msg = CanIgMessages()
         msg.config = config
         self.beginInsertRows(QModelIndex(), row, row)
-        sql_id = self.db_manager.save_can_ig(msg)
+        sql_id = self.db_manager.can_ig_db.save_can_ig(msg)
         msg.sql_id = sql_id
         self.ig_messages.append(msg)
         self.endInsertRows()
@@ -519,8 +519,7 @@ class IgTableModel(QAbstractTableModel):
     def delete_message(self, row):
         if 0 <= row < self.rowCount():
             self.beginRemoveRows(QModelIndex(), row, row)
-            del_num = self.db_manager.delete_can_ig_by_sql_id(self.ig_messages[row].sql_id)
-            print(del_num)
+            self.db_manager.can_ig_db.delete_can_ig_by_sql_id(self.ig_messages[row].sql_id)
             self.ig_messages.pop(row)
             self.ig_messages_timer[row].stop()
             self.ig_messages_timer[row].deleteLater()
@@ -612,7 +611,7 @@ class IgTableModel(QAbstractTableModel):
             self.sig_length_changed.emit(row)
         else:
             setattr(self.ig_messages[row], field_name, value)
-        self.db_manager.save_can_ig(self.ig_messages[row])
+        self.db_manager.can_ig_db.save_can_ig(self.ig_messages[row])
         return True
 
     def flags(self, index: QModelIndex):
@@ -642,7 +641,7 @@ class CANIGPanel(Ui_IG, QWidget):
         self.can_controller_config: CANControllerConfig = CANControllerConfig()
         self.db_manager = db_manager
         self.config = config
-        self.ig_messages: List[CanIgMessages] = self.db_manager.get_can_ig_list_by_config(self.config)
+        self.ig_messages: List[CanIgMessages] = self.db_manager.can_ig_db.get_can_ig_list_by_config(self.config)
         self.ig_messages_timer: List[QTimer] = []
         self.ig_messages_timer.clear()
         for msg in self.ig_messages:
@@ -676,7 +675,7 @@ class CANIGPanel(Ui_IG, QWidget):
         self.signal_config_update.emit()
 
     def load_ig_messages(self):
-        self.ig_messages = self.db_manager.get_can_ig_list_by_config(self.config)
+        self.ig_messages = self.db_manager.can_ig_db.get_can_ig_list_by_config(self.config)
         self.messages_model.beginResetModel()
         self.messages_model.ig_messages = self.ig_messages
         self.messages_model.endResetModel()

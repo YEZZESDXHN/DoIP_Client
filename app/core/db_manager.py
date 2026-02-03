@@ -756,25 +756,31 @@ class UdsConfigDB(DBBase):
         if not uds_config.config_name.strip():
             logger.warning("Upsert uds config失败：config_name字段不能为空")
             return None
-        config_val = uds_config.config_name
 
+        config_val = uds_config.config_name
         json_str = uds_config.to_json()
 
-        sql = f"""
-                INSERT OR REPLACE INTO {self.safe_table} (
+        # 尝试更新 (Update)
+        update_sql = f"""
+            UPDATE {self.safe_table} 
+            SET json_data = ? 
+            WHERE config_name = ?
+        """
+        rowcount = self.execute_dml(update_sql, (json_str, config_val))
+
+        # 如果受影响行数为0，说明记录不存在，执行插入 (Insert)
+        if rowcount is None or rowcount == 0:
+            insert_sql = f"""
+                INSERT INTO {self.safe_table} (
                     config_name, json_data
                 ) VALUES (?, ?)
             """
-        rowcount = self.execute_dml(
-            sql=sql,
-            params=(
-                config_val,
-                json_str
-            ),
-        )
+            rowcount = self.execute_dml(insert_sql, (config_val, json_str))
+
         if rowcount is None or rowcount <= 0:
-            logger.error(f"Upsert uds config失败：config_name={uds_config.config_name}，受影响行数={rowcount}")
+            logger.error(f"Upsert uds config失败：config_name={config_val}")
             return None
+
         return rowcount
 
     def get_all_config_names(self) -> List[str]:

@@ -258,7 +258,7 @@ class ScriptAPI:
         """
         pass
 
-    def uds_send_and_wait_response(self, payload: bytes) -> Optional[Response]:
+    def uds_send_and_wait_response(self, payload: bytes, print_data: bool = True, print_data_len: int = 16) -> Optional[Response]:
         pass
 
     # 新增测速报告相关函数

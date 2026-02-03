@@ -675,10 +675,22 @@ class CANIGPanel(Ui_IG, QWidget):
         self.signal_config_update.emit()
 
     def load_ig_messages(self):
+        for timer in self.ig_messages_timer:
+            timer.stop()
+            timer.deleteLater()
+        self.ig_messages_timer.clear()
+
         self.ig_messages = self.db_manager.can_ig_db.get_can_ig_list_by_config(self.config)
         self.messages_model.beginResetModel()
         self.messages_model.ig_messages = self.ig_messages
         self.messages_model.endResetModel()
+
+        for msg in self.ig_messages:
+            msg.send = False
+            timer = QTimer()
+            timer.setInterval(msg.trigger)
+            timer.timeout.connect(self.send_message)
+            self.ig_messages_timer.append(timer)
 
     def _init_data_context_menu(self):
         """初始化数据区域右键菜单：复制、清空"""

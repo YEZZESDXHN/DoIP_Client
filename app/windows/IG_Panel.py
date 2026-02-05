@@ -725,7 +725,7 @@ class CANIGPanel(Ui_IG, QWidget):
         self.ig_messages_timer.append(timer)
 
     def _ui_init(self):
-        self.comboBox_NMHardwareType.addItems(list(CANInterfaceName))
+        self.comboBox_NMHardwareType.addItems(self.interface_manager.can_interface_manager.adapters.keys())
         self.tableView_messages.setModel(self.messages_model)
         self.tableView_messages.setItemDelegate(IgTableDelegate(self.tableView_messages))
 
@@ -854,15 +854,17 @@ class CANIGPanel(Ui_IG, QWidget):
         channels = []
         can_interface_name = self.comboBox_NMHardwareType.currentText()
         if can_interface_name in list(CANInterfaceName):
-            if can_interface_name == CANInterfaceName.vector:
-                for ch in self.can_interface_channels:
-                    channels.append(
-                        f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
-
-            elif can_interface_name == CANInterfaceName.tosun:
-                for ch in self.can_interface_channels:
-                    channels.append(
-                        f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
+            for ch in self.can_interface_channels:
+                channels.append(self.interface_manager.can_interface_manager.get_display_text(ch, can_interface_name))
+            # if can_interface_name == CANInterfaceName.vector:
+            #     for ch in self.can_interface_channels:
+            #         channels.append(
+            #             f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
+            #
+            # elif can_interface_name == CANInterfaceName.tosun:
+            #     for ch in self.can_interface_channels:
+            #         channels.append(
+            #             f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
         self.comboBox_NMHardwareChannel.addItems(channels)
         self.comboBox_NMHardwareChannel.blockSignals(False)
 

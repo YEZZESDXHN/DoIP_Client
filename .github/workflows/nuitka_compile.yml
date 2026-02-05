@@ -82,6 +82,7 @@ jobs:
             --include-data-files="${{ github.workspace }}/external_scripts/api.py=external_scripts/api.py" `
             --include-data-files="${{ github.workspace }}/external_scripts/external_script_demo.py=external_scripts/external_script_demo.py" `
             --include-data-files="${{ github.workspace }}/ExternalLib/__init__.py=ExternalLib/__init__.py" `
+            --include-data-files="${{ github.workspace }}/CanInterfacePlugins/TosunAdapter.py=CanInterfacePlugins/TosunAdapter.py" `
             --include-data-files="${{ github.workspace }}/CAN_Driver/tosun/x32/TSMaster.dll=CAN_Driver/tosun/x32/TSMaster.dll" `
             --include-data-files="${{ github.workspace }}/CAN_Driver/tosun/x64/TSMaster.dll=CAN_Driver/tosun/x64/TSMaster.dll" `
             --include-data-files="${{ github.workspace }}/README.md=README.md" `

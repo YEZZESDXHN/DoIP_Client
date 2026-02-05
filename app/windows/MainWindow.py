@@ -100,7 +100,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.interface_manager = InterfaceManager()
         self.interface_manager.is_can_interface = self.current_uds_config.is_can_uds
         self.interface_manager_thread = QThread()
-        self.interface_manager = InterfaceManager()
+        # self.interface_manager = InterfaceManager()
 
         self.interface_manager.moveToThread(self.interface_manager_thread)
         self.interface_manager.signal_interface_channels.connect(self.on_interface_update)
@@ -113,16 +113,18 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         channels = []
         can_interface_name = self.comboBox_HardwareType.currentText()
         if can_interface_name in list(CANInterfaceName):
-            if can_interface_name == CANInterfaceName.vector:
-                for ch in self.interface_channels:
-                    channels.append(
-                        f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
-
-            else:
-                if can_interface_name == CANInterfaceName.tosun:
-                    for ch in self.interface_channels:
-                        channels.append(
-                            f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
+            for ch in self.interface_channels:
+                channels.append(self.interface_manager.can_interface_manager.get_display_text(ch, can_interface_name))
+            # if can_interface_name == CANInterfaceName.vector:
+            #     for ch in self.interface_channels:
+            #         channels.append(
+            #             f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
+            #
+            # else:
+            #     if can_interface_name == CANInterfaceName.tosun:
+            #         for ch in self.interface_channels:
+            #             channels.append(
+            #                 f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
         self.comboBox_HardwareChannel.addItems(channels)
 
     def on_interface_update(self, interface_channels):
@@ -359,7 +361,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self._init_status_bar()
 
         self.comboBox_HardwareType.addItem('Windows Ethernet')
-        self.comboBox_HardwareType.addItems(list(CANInterfaceName))
+        self.comboBox_HardwareType.addItems(self.interface_manager.can_interface_manager.adapters.keys())
 
         self.theme_group = QActionGroup(self)
         self.theme_group.setExclusive(True)

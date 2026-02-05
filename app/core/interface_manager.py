@@ -1,6 +1,8 @@
 import logging
 import pprint
+import sys
 from enum import Enum
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import can
@@ -11,7 +13,6 @@ from can import BitTiming, BitTimingFd
 logger = logging.getLogger('UDSTool.' + __name__)
 
 DEFAULT_BIT_TIMING = BitTiming.from_sample_point(f_clock=16_000_000, bitrate=500_000)
-
 
 DEFAULT_BIT_TIMING_FD = BitTimingFd.from_sample_point(
     f_clock=80_000_000,
@@ -25,6 +26,41 @@ DEFAULT_BIT_TIMING_FD = BitTimingFd.from_sample_point(
 can.interfaces.BACKENDS['tosun'] = ('tosun', 'TSMasterApiBus')
 can.interfaces.VALID_INTERFACES = frozenset(sorted(can.interfaces.BACKENDS.keys()))
 can.util.VALID_INTERFACES = can.interfaces.VALID_INTERFACES
+
+
+class CANAdapter:
+    def __init__(self, name, name_in_python_can=None):
+        self.name = name
+        self.name_in_python_can = name_in_python_can if name_in_python_can else name
+
+        # self.interface_type = interface_type
+
+    def get_display_text(self, config) -> str:
+        """这个方法代替了你原来的字符串拼接逻辑"""
+        raise NotImplementedError
+
+    def scan_devices(self):
+        """
+        扫描可用通道。
+        """
+        # 传入 interfaces 参数进行过滤
+        available_configs = can.detect_available_configs(interfaces=self.name_in_python_can)
+        return available_configs
+
+
+class VectorAdapter(CANAdapter):
+    def __init__(self):
+        super().__init__("vector", "vector")
+
+    def get_display_text(self, config):
+        return f"{config['interface']} - {config['vector_channel_config'].name} - channel {config['channel']}  {config['serial']}"
+
+
+class TosunAdapter(CANAdapter):
+    def __init__(self): super().__init__("tosun", "tosun")
+
+    def get_display_text(self, config):
+        return f"{config['interface']} - {config['name']} - channel {config['channel']}  {config['sn']}"
 
 
 class CANInterfaceName(str, Enum):
@@ -83,6 +119,7 @@ class InterfaceManager(QObject):
                 logger.exception(e)
                 self.interface_channels = []
         self.signal_interface_channels.emit(self.interface_channels)
+
 
 class EthInterfaceManager:
     def __init__(self):
@@ -147,15 +184,50 @@ class EthInterfaceManager:
 
 
 class CanInterfaceManager(QObject):
-    """
-    CAN 管理器：负责设备扫描、连接建立以及数据发送。
-    """
     signal_interface_channels = Signal(object)
 
     def __init__(self):
         super().__init__()
         self.available_configs = []
-        self.bus = None  # 当前连接的 CAN 总线对象
+        # 初始化内置适配器
+        self.adapters: dict[str, CANAdapter] = {
+            "vector": VectorAdapter(),
+            # "tosun": TosunAdapter()
+        }
+        self._load_external_plugins()
+
+    def _load_external_plugins(self):
+        """动态加载外部 plugins 文件夹下的 .py 文件"""
+        import importlib.util
+
+        if getattr(sys, 'frozen', False):
+            # 打包后：exe所在目录
+            project_root = Path(sys.executable).parent
+        else:
+            # 源码运行：主程序脚本所在目录
+            project_root = Path(__file__).parent.parent.parent
+            # 插件文件夹绝对路径（不再用./）
+        plugin_path = project_root / "CanInterfacePlugins"
+        logger.info(f"插件目录（绝对路径）: {plugin_path.absolute()}")
+
+        if not plugin_path.exists():
+            logger.warning("插件目录不存在，跳过插件加载")
+            return
+
+        for file in plugin_path.glob("*.py"):
+            try:
+                spec = importlib.util.spec_from_file_location(file.stem, file)
+                module = importlib.util.module_from_spec(spec)
+                module.CANAdapter = CANAdapter
+                spec.loader.exec_module(module)
+
+
+                if hasattr(module, "CanPluginAdapter"):
+                    adapter = module.CanPluginAdapter()
+                    if isinstance(adapter, CANAdapter):
+                        self.adapters[adapter.name] = adapter
+            except Exception as e:
+                logger.error(f"加载插件 {file} 失败: {e}")
 
     def scan_devices(self, interfaces=None):
         """
@@ -163,110 +235,139 @@ class CanInterfaceManager(QObject):
         :param interfaces: 字符串列表，例如 ['vector', 'pcan']。
                                   如果为 None，则扫描所有支持的接口。
         """
-        # 传入 interfaces 参数进行过滤
-        self.available_configs = can.detect_available_configs(interfaces=interfaces)
+        self.available_configs = self.adapters[interfaces].scan_devices()
         self.signal_interface_channels.emit(self.available_configs)
         return self.available_configs
 
-    def print_devices(self):
-        """打印扫描到的设备列表"""
-        if not self.available_configs:
-            print("[-] 未发现可用设备。")
-            return
-
-        print(f"[+] 发现 {len(self.available_configs)} 个设备:")
-        for idx, cfg in enumerate(self.available_configs):
-            print(f"    ID {idx}: {cfg['interface']}  - channel {cfg['channel']}")
-
-    def init_can_bus(self, index: int, timing) -> can.Bus:
-        if not self.available_configs:
-            print("[-] 列表为空，请先执行扫描 (scan_devices)。")
+    def get_display_text(self, config, interface):
+        if not interface and interface not in self.adapters:
             return None
+        adapter = self.adapters.get(interface)
+        if adapter:
+            return adapter.get_display_text(config)
 
-        if index < 0 or index >= len(self.available_configs):
-            print(f"[-] 无效的索引: {index}")
-            return None
 
-        target_config = self.available_configs[index]
+# class CanInterfaceManager(QObject):
+#     """
+#     CAN 管理器：负责设备扫描、连接建立以及数据发送。
+#     """
+#     signal_interface_channels = Signal(object)
+#
+#     def __init__(self):
+#         super().__init__()
+#         self.available_configs = []
+#         self.bus = None  # 当前连接的 CAN 总线对象
+#
+#     def scan_devices(self, interfaces=None):
+#         """
+#         扫描可用通道。
+#         :param interfaces: 字符串列表，例如 ['vector', 'pcan']。
+#                                   如果为 None，则扫描所有支持的接口。
+#         """
+#         # 传入 interfaces 参数进行过滤
+#         self.available_configs = can.detect_available_configs(interfaces=interfaces)
+#         self.signal_interface_channels.emit(self.available_configs)
+#         return self.available_configs
 
-        try:
-            print(f"[*] 正在连接到 {target_config['interface']} (通道: {target_config['channel']}) ...")
+# def print_devices(self):
+#     """打印扫描到的设备列表"""
+#     if not self.available_configs:
+#         print("[-] 未发现可用设备。")
+#         return
+#
+#     print(f"[+] 发现 {len(self.available_configs)} 个设备:")
+#     for idx, cfg in enumerate(self.available_configs):
+#         print(f"    ID {idx}: {cfg['interface']}  - channel {cfg['channel']}")
+#
+# def init_can_bus(self, index: int, timing) -> can.Bus:
+#     if not self.available_configs:
+#         print("[-] 列表为空，请先执行扫描 (scan_devices)。")
+#         return None
+#
+#     if index < 0 or index >= len(self.available_configs):
+#         print(f"[-] 无效的索引: {index}")
+#         return None
+#
+#     target_config = self.available_configs[index]
+#
+#     try:
+#         print(f"[*] 正在连接到 {target_config['interface']} (通道: {target_config['channel']}) ...")
+#
+#         # 初始化 Bus 对象
+#         # **target_config 会将字典解包为关键字参数传入
+#         can_bus = can.Bus(**target_config, timing=timing)
+#
+#         print(f"[+] 连接成功！总线状态: {can_bus.state}")
+#         self.bus = can_bus
+#         return can_bus
+#     except Exception as e:
+#         print(f"[-] 连接失败: {e}")
+#         return None
 
-            # 初始化 Bus 对象
-            # **target_config 会将字典解包为关键字参数传入
-            can_bus = can.Bus(**target_config, timing=timing)
-
-            print(f"[+] 连接成功！总线状态: {can_bus.state}")
-            self.bus = can_bus
-            return can_bus
-        except Exception as e:
-            print(f"[-] 连接失败: {e}")
-            return None
-
-    def connect(self, device_index=0, timing=DEFAULT_BIT_TIMING_FD):
-        """
-        连接到指定索引的设备。
-        :param device_index: scan_devices 结果列表中的索引
-        :param bitrate: 波特率 (例如 250000, 500000)
-        :return: 成功返回 True，失败返回 False
-        """
-        if not self.available_configs:
-            print("[-] 列表为空，请先执行扫描 (scan_devices)。")
-            return False
-
-        if device_index < 0 or device_index >= len(self.available_configs):
-            print(f"[-] 无效的索引: {device_index}")
-            return False
-
-        # 获取配置字典 (如 {'interface': 'vector', 'channel': 0})
-        target_config = self.available_configs[device_index]
-
-        try:
-            print(f"[*] 正在连接到 {target_config['interface']} (通道: {target_config['channel']}) ...")
-
-            # 初始化 Bus 对象
-            # **target_config 会将字典解包为关键字参数传入
-            self.bus = can.Bus(**target_config, timing=timing)
-
-            print(f"[+] 连接成功！总线状态: {self.bus.state}")
-            return True
-        except Exception as e:
-            print(f"[-] 连接失败: {e}")
-            return False
-
-    def send_frame(self, arbitration_id, data, is_extended_id=False):
-        """
-        发送 CAN 帧。
-        :param arbitration_id: CAN ID (整数)
-        :param data: 数据列表 (例如 [0x01, 0x02])，最大 8 字节
-        :param is_extended_id: 是否为扩展帧 (29位 ID)
-        """
-        if self.bus is None:
-            print("[-] 发送失败: 未连接到总线。")
-            return
-
-        try:
-            # 构建消息
-            msg = can.Message(
-                arbitration_id=arbitration_id,
-                data=data,
-                is_extended_id=is_extended_id,
-                check=True  # 检查数据长度等参数是否合法
-            )
-
-            # 发送消息
-            self.bus.send(msg)
-            print(f"[>] 发送成功: ID=0x{arbitration_id:X} Data={data}")
-
-        except can.CanError as e:
-            print(f"[-] 发送错误: {e}")
-
-    def close(self):
-        """关闭总线连接"""
-        if self.bus:
-            self.bus.shutdown()
-            self.bus = None
-            print("[*] 连接已关闭。")
+# def connect(self, device_index=0, timing=DEFAULT_BIT_TIMING_FD):
+#     """
+#     连接到指定索引的设备。
+#     :param device_index: scan_devices 结果列表中的索引
+#     :param bitrate: 波特率 (例如 250000, 500000)
+#     :return: 成功返回 True，失败返回 False
+#     """
+#     if not self.available_configs:
+#         print("[-] 列表为空，请先执行扫描 (scan_devices)。")
+#         return False
+#
+#     if device_index < 0 or device_index >= len(self.available_configs):
+#         print(f"[-] 无效的索引: {device_index}")
+#         return False
+#
+#     # 获取配置字典 (如 {'interface': 'vector', 'channel': 0})
+#     target_config = self.available_configs[device_index]
+#
+#     try:
+#         print(f"[*] 正在连接到 {target_config['interface']} (通道: {target_config['channel']}) ...")
+#
+#         # 初始化 Bus 对象
+#         # **target_config 会将字典解包为关键字参数传入
+#         self.bus = can.Bus(**target_config, timing=timing)
+#
+#         print(f"[+] 连接成功！总线状态: {self.bus.state}")
+#         return True
+#     except Exception as e:
+#         print(f"[-] 连接失败: {e}")
+#         return False
+#
+# def send_frame(self, arbitration_id, data, is_extended_id=False):
+#     """
+#     发送 CAN 帧。
+#     :param arbitration_id: CAN ID (整数)
+#     :param data: 数据列表 (例如 [0x01, 0x02])，最大 8 字节
+#     :param is_extended_id: 是否为扩展帧 (29位 ID)
+#     """
+#     if self.bus is None:
+#         print("[-] 发送失败: 未连接到总线。")
+#         return
+#
+#     try:
+#         # 构建消息
+#         msg = can.Message(
+#             arbitration_id=arbitration_id,
+#             data=data,
+#             is_extended_id=is_extended_id,
+#             check=True  # 检查数据长度等参数是否合法
+#         )
+#
+#         # 发送消息
+#         self.bus.send(msg)
+#         print(f"[>] 发送成功: ID=0x{arbitration_id:X} Data={data}")
+#
+#     except can.CanError as e:
+#         print(f"[-] 发送错误: {e}")
+#
+# def close(self):
+#     """关闭总线连接"""
+#     if self.bus:
+#         self.bus.shutdown()
+#         self.bus = None
+#         print("[*] 连接已关闭。")
 
 
 if __name__ == "__main__":

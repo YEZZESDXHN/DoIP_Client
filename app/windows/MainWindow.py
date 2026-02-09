@@ -9,7 +9,7 @@ from typing import Optional, List
 from PySide6.QtCore import Signal, QTimer, QThread, Slot, Qt
 from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QMainWindow, QWidget, QAbstractItemView, QVBoxLayout, QSpacerItem, \
-    QSizePolicy, QHBoxLayout, QFileDialog, QDialog, QApplication
+    QSizePolicy, QHBoxLayout, QFileDialog, QDialog, QApplication, QToolButton, QFrame
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
@@ -284,8 +284,62 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_StopFlash.setIcon(IconEngine.get_icon("stop", 'red'))
         self.pushButton_FlashConfig.setIcon(IconEngine.get_icon("config"))
 
+    def _add_app_start_button_to_menu(self):
+        self.btn_widget = QWidget()
+        layout = QHBoxLayout(self.btn_widget)
+        layout.setContentsMargins(5, 0, 10, 0)
+        layout.setSpacing(5)
+
+        self.start_btn = QToolButton()
+        # self.start_btn.setText("⚡")
+        self.start_btn.setIcon(IconEngine.get_icon("flashlight", '#FFB900'))
+        self.start_btn.setFixedSize(28, 24)
+        self.start_btn.setStyleSheet("color: #FFD700; border: none; font-size: 16px; font-weight: bold;")
+        self.start_btn.clicked.connect(self.on_start_clicked)
+
+        # 3. 创建停止按钮 (Stop)
+        self.stop_btn = QToolButton()
+        # self.stop_btn.setText("⬢")
+        self.stop_btn.setIcon(IconEngine.get_icon("circle", 'red'))
+        self.stop_btn.setFixedSize(28, 24)
+        self.stop_btn.setEnabled(False)  # 初始禁用
+        self.stop_btn.setStyleSheet("color: #808080; border: none; font-size: 16px;")
+        self.stop_btn.clicked.connect(self.on_stop_clicked)
+
+        layout.addWidget(self.start_btn)
+        layout.addWidget(self.stop_btn)
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.VLine)  # 设置为垂直线
+        separator.setFrameShadow(QFrame.Plain)  # 设置为平实风格，避免多余阴影
+        separator.setFixedWidth(1)  # 线条宽度设为 1 像素
+        separator.setFixedHeight(16)  # 线条高度（根据你的菜单栏高度调整，通常 16-20 较好）
+        separator.setStyleSheet("background-color: #D0D0D0; border: none;")  # 设置线条颜色
+
+        layout.addSpacing(5)  # 分隔符前的留白
+        layout.addWidget(separator)
+        layout.addSpacing(5)  # 分隔符后的留白，确保离 File 菜单有间距
+
+        # 4. 关键：注入到你 Designer 生成的 menuBar 左侧
+        # 注意：self.menuBar 是从 QMainWindow 继承的方法，会自动获取 Designer 里的那个菜单栏
+        self.menuBar().setCornerWidget(self.btn_widget, Qt.TopLeftCorner)
+
+    def on_start_clicked(self):
+        print("工程启动")
+        self.start_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
+        # self.stop_btn.setStyleSheet("color: red; border: none; font-size: 16px;")
+
+    def on_stop_clicked(self):
+        print("工程停止")
+        self.start_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        # self.stop_btn.setStyleSheet("color: #808080; border: none; font-size: 16px;")
+
     def _init_ui(self):
         """初始化界面组件属性"""
+        self._add_app_start_button_to_menu()
+
         self.plainTextEdit_DataDisplay.setReadOnly(True)
 
         # 添加表格

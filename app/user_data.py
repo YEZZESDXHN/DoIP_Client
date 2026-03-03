@@ -7,13 +7,53 @@ import pprint
 from dataclasses import dataclass, asdict, fields, is_dataclass, field
 from enum import Enum
 from functools import cached_property
-from typing import Any, Optional, Type, get_args, get_origin
+from typing import Any, Optional, Type, get_args, get_origin, Union
 
+from can import BitTimingFd, BitTiming
 from doipclient.constants import TCP_DATA_UNSECURED, UDP_DISCOVERY
 from doipclient.messages import RoutingActivationRequest
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 APP_NAME = 'UDS_Client'
+
+
+class BitTimingFdSamplePoint(BaseModel):
+    f_clock: int = 80_000_000
+    nom_bitrate: int = 500_000
+    nom_sample_point: float = 80.0
+    data_bitrate: int = 2000_000
+    data_sample_point: float = 80.0
+
+
+class BitTimingSamplePoint(BaseModel):
+    f_clock: int = 16_000_000
+    bitrate: int = 16_000_000
+    sample_point: float = 69.0
+
+
+class CanChannelMappingBase(BaseModel):
+    channel: str = ''
+    timing: Union[BitTimingFdSamplePoint, BitTimingSamplePoint] = field(default_factory=BitTimingFdSamplePoint)
+
+
+class CanChannelMappings(BaseModel):
+    mappings: dict[str, CanChannelMappingBase] = field(default_factory=dict)
+
+
+class EthChannelMappings(BaseModel):
+    mappings: dict[str, str] = field(default_factory=dict)
+
+
+class ChannelMapping(BaseModel):
+    can: CanChannelMappings = field(default_factory=CanChannelMappings)
+    eth: EthChannelMappings = field(default_factory=EthChannelMappings)
+
+    def to_json(self) -> str:
+        return self.model_dump_json()
+
+    @classmethod
+    def from_json(cls, json_str: str):
+        return cls.model_validate_json(json_str)
 
 
 class DiagCase(BaseModel):
@@ -484,6 +524,7 @@ class CanIgMessages(BaseModel):
     trigger: int = 0
     name: str = ''
     id: int = 0
+    channel: str = ''
     type: MessageType = MessageType.CAN
     data_length: int = 8
     brs: bool = False

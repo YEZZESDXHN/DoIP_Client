@@ -3,12 +3,14 @@ import pprint
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import can
 import ifaddr
 from PySide6.QtCore import QObject, Signal
 from can import BitTiming, BitTimingFd
+
+from app.user_data import APP_NAME, ChannelMapping, BitTimingFdSamplePoint, BitTimingSamplePoint
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
@@ -29,9 +31,8 @@ can.util.VALID_INTERFACES = can.interfaces.VALID_INTERFACES
 
 
 class CANAdapter:
-    def __init__(self, name, name_in_python_can=None):
-        self.name = name
-        self.name_in_python_can = name_in_python_can if name_in_python_can else name
+    def __init__(self, name_in_python_can):
+        self.name_in_python_can = name_in_python_can
 
         # self.interface_type = interface_type
 
@@ -47,83 +48,193 @@ class CANAdapter:
         available_configs = can.detect_available_configs(interfaces=self.name_in_python_can)
         return available_configs
 
+    def open_bus(self, interface, timing: Union[BitTiming, BitTimingFd]):
+        raise NotImplementedError
+
+    def close_bus(self, bus):
+        raise NotImplementedError
+
 
 class VectorAdapter(CANAdapter):
     def __init__(self):
-        super().__init__("vector", "vector")
+        super().__init__("vector")
 
     def get_display_text(self, config):
         return f"{config['interface']} - {config['vector_channel_config'].name} - channel {config['channel']}  {config['serial']}"
 
+    def open_bus(self, interface, timing: Union[BitTiming, BitTimingFd]) -> can.Bus:
+        try:
+            # logger.debug(f"[*] 正在连接到 {interface['interface']} (通道: {interface['channel']}) ...")
+            can_bus = can.Bus(**interface, timing=timing, app_name=APP_NAME)
+            # if isinstance(timing, BitTimingFd):
+            #     self.info_signal.emit(f"CAN接口初始化成功(CANFD)，nom_bitrate：{timing.nom_bitrate},"
+            #                           f"nom_sample_point:{timing.nom_sample_point},"
+            #                           f"data_bitrate:{timing.data_bitrate},"
+            #                           f"data_sample_point:{timing.data_sample_point}")
+            # elif isinstance(timing, BitTiming):
+            #     self.info_signal.emit(
+            #         f"CAN接口初始化成功(CAN)，bitrate:{timing.bitrate},sample_point:{timing.sample_point}")
+            #
+            # logger.debug(f"[+] 连接成功！总线状态: {can_bus.state}")
+            return can_bus
+        except Exception as e:
+            try:
+                can_bus = can.Bus(**interface, app_name=APP_NAME)
+                return can_bus
+            except Exception as e:
+                logger.exception(f"[-] 连接失败: {str(e)}")
+                return None
+
+    def close_bus(self, bus):
+        bus.shutdown()
+
 
 class TosunAdapter(CANAdapter):
-    def __init__(self): super().__init__("tosun", "tosun")
+    def __init__(self): super().__init__("tosun")
 
     def get_display_text(self, config):
         return f"{config['interface']} - {config['name']} - channel {config['channel']}  {config['sn']}"
+
+    def open_bus(self, interface, timing: Union[BitTiming, BitTimingFd]) -> can.Bus:
+        try:
+            # logger.debug(f"[*] 正在连接到 {interface['interface']} (通道: {interface['channel']}) ...")
+            can_bus = can.Bus(**interface, timing=timing, app_name=APP_NAME)
+            # if isinstance(timing, BitTimingFd):
+            #     self.info_signal.emit(f"CAN接口初始化成功(CANFD)，nom_bitrate：{timing.nom_bitrate},"
+            #                           f"nom_sample_point:{timing.nom_sample_point},"
+            #                           f"data_bitrate:{timing.data_bitrate},"
+            #                           f"data_sample_point:{timing.data_sample_point}")
+            # elif isinstance(timing, BitTiming):
+            #     self.info_signal.emit(
+            #         f"CAN接口初始化成功(CAN)，bitrate:{timing.bitrate},sample_point:{timing.sample_point}")
+            #
+            # logger.debug(f"[+] 连接成功！总线状态: {can_bus.state}")
+            return can_bus
+        except Exception as e:
+            return None
+
+    def close_bus(self, bus):
+        bus.shutdown()
 
 
 class CANInterfaceName(str, Enum):
     vector = "vector"
     tosun = "tosun"
-    #
-    # kvaser = "kvaser"
-    # socketcan = "socketcan"
-    # serial = "serial"
-    # pcan = "pcan"
-    # usb2can = "usb2can"
-    # ixxat = "ixxat"
-    # nican = "nican"
-    # iscan = "iscan"
-    # virtual = "virtual"
-    # udp_multicast = "udp_multicast"
-    # neovi = "neovi"
-    # slcan = "slcan"
-    # robotell = "robotell"
-    # canalystii = "canalystii"
-    # systec = "systec"
-    # seeedstudio = "seeedstudio"
-    # cantact = "cantact"
-    # gs_usb = "gs_usb"
-    # nixnet = "nixnet"
-    # neousys = "neousys"
-    # etas = "etas"
-    # socketcand = "socketcand"
+    kvaser = "kvaser"
+    socketcan = "socketcan"
+    serial = "serial"
+    pcan = "pcan"
+    usb2can = "usb2can"
+    ixxat = "ixxat"
+    nican = "nican"
+    iscan = "iscan"
+    virtual = "virtual"
+    udp_multicast = "udp_multicast"
+    neovi = "neovi"
+    slcan = "slcan"
+    robotell = "robotell"
+    canalystii = "canalystii"
+    systec = "systec"
+    seeedstudio = "seeedstudio"
+    cantact = "cantact"
+    gs_usb = "gs_usb"
+    nixnet = "nixnet"
+    neousys = "neousys"
+    etas = "etas"
+    socketcand = "socketcand"
 
 
 class InterfaceManager(QObject):
-    signal_interface_channels = Signal(object)
+    signal_can_interface_channels = Signal(object)
+    signal_eth_interface_channels = Signal(object)
 
     def __init__(self):
         super().__init__()
         self.interface_channels = []
-        self.is_can_interface = False
+        # self.is_can_interface = False
         self.can_interface_name: Optional[CANInterfaceName] = None
         self.can_interface_manager = CanInterfaceManager()
         self.eth_interface_manager = EthInterfaceManager()
+        self.eth_interfaces = {}  # display_name: ip
+        self.can_interfaces = {}  # display_name: (interface_type, interface_param)
+
+        self.can_buss = {}  # display_name: Bus
+        # self.can_bus_timing = {}  # display_name: timing, 默认DEFAULT_BIT_TIMING_FD
+        # self.eth_buss = {}
+        # self.can_channel_mappings: dict[str, str] = {}  # bus_name: display_name
+        # self.eth_channel_mappings: dict[str, str] = {}  # bus_name: ip
+        self.channel_mappings: ChannelMapping = ChannelMapping()
+
+        self.scan_interfaces()
+
+    def close_buss(self):
+        for display_name, can_bus in self.can_buss.items():
+            self.can_interface_manager.close_bus(can_bus, self.can_interfaces[display_name][0])
+
+    DEFAULT_BIT_TIMING = BitTiming.from_sample_point(f_clock=16_000_000, bitrate=500_000)
+
+    def open_buss(self):
+        for bus_name, mapping in self.channel_mappings.can.mappings.items():
+            display_name = mapping.channel
+            timing_point = mapping.timing
+            if isinstance(timing_point, BitTimingFdSamplePoint):
+                timing = BitTimingFd.from_sample_point(
+                    f_clock=timing_point.f_clock,
+                    nom_bitrate=timing_point.nom_bitrate,
+                    nom_sample_point=timing_point.nom_sample_point,
+                    data_bitrate=timing_point.data_bitrate,
+                    data_sample_point=timing_point.data_sample_point,
+                )
+            elif isinstance(timing_point, BitTimingSamplePoint):
+                timing = BitTiming.from_sample_point(
+                    f_clock=timing_point.f_clock,
+                    bitrate=timing_point.bitrate,
+                    sample_point=timing_point.sample_point
+                )
+            else:
+                timing = DEFAULT_BIT_TIMING_FD
+            self.can_buss[display_name] = self.can_interface_manager.open_bus(
+                self.can_interfaces[display_name][1],
+                self.can_interfaces[display_name][0],
+                timing
+            )
 
     def scan_interfaces(self):
-        if self.is_can_interface:
-            try:
-                if self.can_interface_name:
-                    self.interface_channels = self.can_interface_manager.scan_devices(self.can_interface_name)
-                else:
-                    self.interface_channels = []
-            except Exception as e:
-                logger.exception(e)
-                self.interface_channels = []
-        else:
-            try:
-                self.interface_channels = self.eth_interface_manager.get_ethernet_ips()
-            except Exception as e:
-                logger.exception(e)
-                self.interface_channels = []
-        self.signal_interface_channels.emit(self.interface_channels)
+        self.can_interfaces.clear()
+        self.eth_interfaces.clear()
+        for can_interface_type in self.can_interface_manager.adapters.keys():
+            can_interfaces = self.can_interface_manager.scan_devices(can_interface_type)
+            for interface in can_interfaces:
+                display_text = self.can_interface_manager.get_display_text(interface, can_interface_type)
+                self.can_interfaces[display_text] = (can_interface_type, interface)
+        self.signal_can_interface_channels.emit(self.can_interfaces)
+        eth_interfaces = self.eth_interface_manager.get_ethernet_ips()
+        for eth_interface in eth_interfaces:
+            self.eth_interfaces[f'{eth_interface[0]} - {eth_interface[1]}'] = eth_interface[1]
+        self.signal_eth_interface_channels.emit(self.eth_interfaces)
+        # if self.is_can_interface:
+        #     try:
+        #         if self.can_interface_name:
+        #             self.interface_channels = self.can_interface_manager.scan_devices(self.can_interface_name)
+        #         else:
+        #             self.interface_channels = []
+        #     except Exception as e:
+        #         logger.exception(e)
+        #         self.interface_channels = []
+        # else:
+        #     try:
+        #         self.interface_channels = self.eth_interface_manager.get_ethernet_ips()
+        #     except Exception as e:
+        #         logger.exception(e)
+        #         self.interface_channels = []
+        # self.signal_interface_channels.emit(self.interface_channels)
 
 
-class EthInterfaceManager:
+class EthInterfaceManager(QObject):
+    # signal_ethernet_ips = Signal(object)
+
     def __init__(self):
-        pass
+        super().__init__()
 
     def get_ethernet_ips(self) -> List:
         """
@@ -179,12 +290,13 @@ class EthInterfaceManager:
         except Exception as e:
             print(f"获取网卡信息失败: {str(e)}")
             return []
-
-        return list(ethernet_ips.items())
+        ethernet_ips_list = list(ethernet_ips.items())
+        # self.signal_ethernet_ips.emit(ethernet_ips_list)
+        return ethernet_ips_list
 
 
 class CanInterfaceManager(QObject):
-    signal_interface_channels = Signal(object)
+    # signal_interface_channels = Signal(str, object)
 
     def __init__(self):
         super().__init__()
@@ -219,13 +331,16 @@ class CanInterfaceManager(QObject):
                 spec = importlib.util.spec_from_file_location(file.stem, file)
                 module = importlib.util.module_from_spec(spec)
                 module.CANAdapter = CANAdapter
+                module.can = can
+                module.BitTiming = BitTiming
+                module.BitTimingFd = BitTimingFd
                 spec.loader.exec_module(module)
 
 
                 if hasattr(module, "CanPluginAdapter"):
                     adapter = module.CanPluginAdapter()
                     if isinstance(adapter, CANAdapter):
-                        self.adapters[adapter.name] = adapter
+                        self.adapters[adapter.name_in_python_can] = adapter
             except Exception as e:
                 logger.error(f"加载插件 {file} 失败: {e}")
 
@@ -236,16 +351,29 @@ class CanInterfaceManager(QObject):
                                   如果为 None，则扫描所有支持的接口。
         """
         self.available_configs = self.adapters[interfaces].scan_devices()
-        self.signal_interface_channels.emit(self.available_configs)
+        # self.signal_interface_channels.emit(interfaces, self.available_configs)
         return self.available_configs
 
-    def get_display_text(self, config, interface):
-        if not interface and interface not in self.adapters:
+    def get_display_text(self, config, interface_name):
+        if not interface_name and interface_name not in self.adapters:
             return None
-        adapter = self.adapters.get(interface)
+        adapter = self.adapters.get(interface_name)
         if adapter:
             return adapter.get_display_text(config)
 
+    def open_bus(self, interface_param, interface_type, timing: Union[BitTiming, BitTimingFd] = None) -> can.Bus:
+        if not interface_type and interface_type not in self.adapters:
+            return None
+        adapter = self.adapters.get(interface_type)
+        if adapter:
+            return adapter.open_bus(interface_param, timing)
+
+    def close_bus(self, bus, interface_type):
+        if not interface_type and interface_type not in self.adapters:
+            return None
+        adapter = self.adapters.get(interface_type)
+        if adapter:
+            return adapter.close_bus(bus)
 
 # class CanInterfaceManager(QObject):
 #     """

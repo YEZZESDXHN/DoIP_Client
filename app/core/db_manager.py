@@ -3,7 +3,7 @@ import sqlite3
 from typing import Optional, List, Union, Any
 
 from app.user_data import DEFAULT_SERVICES, DiagCase, DiagnosisStepData, UdsConfig, CanIgMessages, ExternalScriptConfig, \
-    UdsService
+    UdsService, ChannelMapping
 from app.windows.FlashConfigPanel import FlashConfig
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -16,6 +16,7 @@ CASE_STEP_TABLE_NAME = 'uds_case_step'
 FLASH_CONFIG_TABLE_NAME = 'flash_config'
 CAN_IG_TABLE_NAME = 'can_ig_table'
 EXTERNAL_SCRIPT_TABLE_NAME = 'external_script'
+CHANNEL_MAPPINGS_TABLE_NAME = 'channel_mappings'
 
 
 class DBBase:
@@ -1072,6 +1073,101 @@ class ServicesConfigDB(DBBase):
             return False
 
 
+class ChannelMappingsDB(DBBase):
+    def __init__(self, db_path: str):
+        super().__init__(db_path)
+        self.table_name = CHANNEL_MAPPINGS_TABLE_NAME
+        self.safe_table = self._safe_table_name(self.table_name)  # 安全表名，规避关键字/空格问题
+        self.init_database()
+
+    def init_database(self):
+        """
+        初始化ChannelMapping表
+        :return: 初始化成功返回True，失败返回False
+        """
+        create_sql = f"""
+                                CREATE TABLE IF NOT EXISTS {self.safe_table} (
+                                    config_name TEXT PRIMARY KEY,
+                                    json_data TEXT NOT NULL,
+                                    FOREIGN KEY (config_name) REFERENCES {UDS_CONFIG_TABLE_NAME} (config_name) ON DELETE RESTRICT,
+                                    UNIQUE (config_name)
+                                )
+                            """
+
+        return self.execute_ddl(create_sql)
+
+    def get_mappings(self, config_name: str) -> ChannelMapping:
+        sql = f"""
+                SELECT config_name, json_data FROM {self.safe_table} WHERE config_name = ?
+            """
+        result_dicts = self.execute_dql(sql, (config_name,))
+        if not result_dicts:
+            logger.info(f"查询完成：config_name={config_name}，无相关记录")
+            return ChannelMapping()
+        if len(result_dicts) == 1:
+            for item in result_dicts:
+                external_script = ChannelMapping.from_json(item["json_data"])
+                return external_script
+        else:
+            logger.error(f"查询完成：config_name:{config_name}查询到{len(result_dicts)}个记录")
+
+    def save_mappings(self, config_name: str, channel_mappings: ChannelMapping) -> bool:
+        """
+        保存/更新flash_config配置
+        :param config_name: config_name
+        :param channel_mappings: channel_mappings
+        :return: 影响的行数
+        """
+        if not config_name.strip():
+            logger.warning("Upsert uds config失败：config_name字段不能为空")
+            return False
+
+        json_str = channel_mappings.to_json()
+
+        sql = f"""
+                INSERT OR REPLACE INTO {self.safe_table} (
+                    config_name, json_data
+                ) VALUES (?, ?)
+            """
+        rowcount = self.execute_dml(
+            sql=sql,
+            params=(
+                config_name,
+                json_str
+            ),
+        )
+        if rowcount is None or rowcount != 1:
+            logger.error(f"Upsert service_config失败：config_name={config_name}，受影响行数={rowcount}")
+            return False
+        elif rowcount == 1:
+            return True
+        else:
+            logger.error(f"Upsert service_config失败：config_name={config_name}，受影响行数={rowcount}")
+            return False
+
+    def delete_mappings(self, config_name: str) -> bool:
+        """
+        根据config_name删除记录
+        :param config_name: 要删除的config_name
+        :return: 删除成功返回True，记录不存在/入参无效/异常返回False
+        """
+        # 构造删除SQL：使用安全表名，参数化占位符
+        delete_sql = f"""
+               DELETE FROM {self.safe_table} 
+               WHERE config_name = ?
+           """
+
+        # 调用基类execute_dml通用方法：统一处理连接/异常，返回受影响行数
+        rowcount = self.execute_dml(delete_sql, (config_name,))
+
+        if rowcount == 1:
+            logger.info(f"删除config成功：config_name={config_name}")
+            return True
+        else:
+            logger.warning(f"删除config失败：config_name={config_name}（记录不存在或数据库异常），受影响行数={rowcount}")
+            return False
+
+
 class DBManager:
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -1085,6 +1181,7 @@ class DBManager:
         self.uds_case_db: UdsCaseDB = UdsCaseDB(self.db_path)
         self.flash_config_db: FlashConfigDB = FlashConfigDB(self.db_path)
         self.service_config_db: ServicesConfigDB = ServicesConfigDB(self.db_path)
+        self.channel_mappings_db: ChannelMappingsDB = ChannelMappingsDB(self.db_path)
 
         config_list = self.uds_config_db.get_all_config_names()
         active_config = self.current_uds_config_db.get_active_config_name()
@@ -1110,6 +1207,7 @@ class DBManager:
         self.uds_case_db.delete_cases_by_config(config_came)
 
         self.uds_config_db.delete_uds_config(config_came)
+        self.channel_mappings_db.delete_mappings(config_came)
 
 
 

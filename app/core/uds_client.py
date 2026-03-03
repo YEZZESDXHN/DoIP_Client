@@ -23,7 +23,7 @@ import importlib.util
 
 from udsoncan.connections import PythonIsoTpConnection
 
-from app.core.interface_manager import DEFAULT_BIT_TIMING, DEFAULT_BIT_TIMING_FD, CANInterfaceName
+from app.core.interface_manager import CANInterfaceName
 from app.user_data import DoIPMessageStruct, MessageDir, DoIPConfig, UdsOnCANConfig, APP_NAME
 
 logger = logging.getLogger('UDSTool.' + __name__)
@@ -128,7 +128,7 @@ class QUDSClient(QObject):
         # self.protocol_version = 0x02
         # self.client_logical_address = 0x0E00
         self.client_ip_address = None
-        self.can_interface = None
+        # self.can_interface = None
         # self.use_secure = False
         self.auto_reconnect_tcp = False
         # self.vm_specific = None
@@ -267,7 +267,7 @@ class QUDSClient(QObject):
             self.conn.close()
             self.cantp_stack.stop()
             self.can_notifier.stop(2)
-            self.can_bus.shutdown()
+            # self.can_bus.shutdown()
         else:
             self.uds_on_ip_client.close()
             self.conn.close()
@@ -277,7 +277,7 @@ class QUDSClient(QObject):
         self.uds_on_ip_client = None
         self.cantp_stack = None
         self.can_notifier = None
-        self.can_bus = None
+        # self.can_bus = None
         self.uds_connect_state.emit(False)
         info_message = f'DoIP断开连接'
         logger.info(info_message)
@@ -285,35 +285,35 @@ class QUDSClient(QObject):
     def isotp_error_handler(self, error):
         print(f"isotp error:{error}")
 
-    def init_can_bus(self, can_channel, timing=DEFAULT_BIT_TIMING_FD) -> can.Bus:
-        try:
-            logger.debug(f"[*] 正在连接到 {can_channel['interface']} (通道: {can_channel['channel']}) ...")
-
-            # 初始化 Bus 对象
-            # **target_config 会将字典解包为关键字参数传入
-            can_bus = can.Bus(**can_channel, timing=timing, app_name=APP_NAME)
-            if isinstance(timing, BitTimingFd):
-                self.info_signal.emit(f"CAN接口初始化成功(CANFD)，nom_bitrate：{timing.nom_bitrate},"
-                                      f"nom_sample_point:{timing.nom_sample_point},"
-                                      f"data_bitrate:{timing.data_bitrate},"
-                                      f"data_sample_point:{timing.data_sample_point}")
-            elif isinstance(timing, BitTiming):
-                self.info_signal.emit(f"CAN接口初始化成功(CAN)，bitrate:{timing.bitrate},sample_point:{timing.sample_point}")
-
-            logger.debug(f"[+] 连接成功！总线状态: {can_bus.state}")
-            return can_bus
-        except Exception as e:
-            if can_channel['interface'] == CANInterfaceName.vector:
-                try:
-                    can_bus = can.Bus(**can_channel, app_name=APP_NAME)
-                    self.info_signal.emit(f"{str(e)}")
-                    return can_bus
-                except Exception as e:
-                    logger.exception(f"[-] 连接失败: {str(e)}")
-                    self.error_signal.emit(f"{str(e)}")
-                    return None
-            else:
-                self.error_signal.emit(f"{str(e)}")
+    # def init_can_bus(self, can_channel, timing=DEFAULT_BIT_TIMING_FD) -> can.Bus:
+    #     try:
+    #         logger.debug(f"[*] 正在连接到 {can_channel['interface']} (通道: {can_channel['channel']}) ...")
+    #
+    #         # 初始化 Bus 对象
+    #         # **target_config 会将字典解包为关键字参数传入
+    #         can_bus = can.Bus(**can_channel, timing=timing, app_name=APP_NAME)
+    #         if isinstance(timing, BitTimingFd):
+    #             self.info_signal.emit(f"CAN接口初始化成功(CANFD)，nom_bitrate：{timing.nom_bitrate},"
+    #                                   f"nom_sample_point:{timing.nom_sample_point},"
+    #                                   f"data_bitrate:{timing.data_bitrate},"
+    #                                   f"data_sample_point:{timing.data_sample_point}")
+    #         elif isinstance(timing, BitTiming):
+    #             self.info_signal.emit(f"CAN接口初始化成功(CAN)，bitrate:{timing.bitrate},sample_point:{timing.sample_point}")
+    #
+    #         logger.debug(f"[+] 连接成功！总线状态: {can_bus.state}")
+    #         return can_bus
+    #     except Exception as e:
+    #         if can_channel['interface'] == CANInterfaceName.vector:
+    #             try:
+    #                 can_bus = can.Bus(**can_channel, app_name=APP_NAME)
+    #                 self.info_signal.emit(f"{str(e)}")
+    #                 return can_bus
+    #             except Exception as e:
+    #                 logger.exception(f"[-] 连接失败: {str(e)}")
+    #                 self.error_signal.emit(f"{str(e)}")
+    #                 return None
+    #         else:
+    #             self.error_signal.emit(f"{str(e)}")
 
     def connect_uds(self):
         if self.is_can_uds:
@@ -366,7 +366,7 @@ class QUDSClient(QObject):
                         bitrate=self.uds_on_can_config.nom_bitrate,
                         sample_point=self.uds_on_can_config.nom_sample_point,
                     )
-                self.can_bus = self.init_can_bus(self.can_interface, timing)
+                # self.can_bus = self.init_can_bus(self.can_interface, timing)
                 # self.can_notifier = can.Notifier(self.can_bus, [can.Printer()])
                 self.can_notifier = can.Notifier(self.can_bus, [])
                 self.tp_addr = isotp.Address(
@@ -395,7 +395,7 @@ class QUDSClient(QObject):
                 self.uds_on_ip_client = None
                 self.cantp_stack = None
                 self.can_notifier = None
-                self.can_bus = None
+                # self.can_bus = None
                 self.conn = None
                 return
         else:
@@ -435,7 +435,7 @@ class QUDSClient(QObject):
                 self.uds_on_ip_client = None
                 self.cantp_stack = None
                 self.can_notifier = None
-                self.can_bus = None
+                # self.can_bus = None
                 self.conn = None
                 return
 

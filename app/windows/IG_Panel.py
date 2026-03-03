@@ -16,20 +16,20 @@ from app.core.interface_manager import CANInterfaceName, InterfaceManager
 from app.resources.resources import IconEngine
 from app.ui.IGPanelUI import Ui_IG
 from app.ui.IgBusConfigPanel_ui import Ui_IgBusConfig
-from app.user_data import MessageType, CanIgMessages, APP_NAME
+from app.user_data import MessageType, CanIgMessages, APP_NAME, ChannelMapping
 
 logger = logging.getLogger('UDSTool.' + __name__)
 
-CAN_IG_DEFAULT_BIT_TIMING = BitTiming.from_sample_point(f_clock=16_000_000, bitrate=500_000)
-
-CAN_IG_DEFAULT_BIT_TIMING_FD = BitTimingFd.from_sample_point(
-    f_clock=80_000_000,
-    nom_bitrate=500_000,
-    nom_sample_point=80.0,
-    data_bitrate=2000_000,
-    data_sample_point=80.0,
-
-)
+# CAN_IG_DEFAULT_BIT_TIMING = BitTiming.from_sample_point(f_clock=16_000_000, bitrate=500_000)
+#
+# CAN_IG_DEFAULT_BIT_TIMING_FD = BitTimingFd.from_sample_point(
+#     f_clock=80_000_000,
+#     nom_bitrate=500_000,
+#     nom_sample_point=80.0,
+#     data_bitrate=2000_000,
+#     data_sample_point=80.0,
+#
+# )
 
 
 class CANControllerConfig(BaseModel):
@@ -165,9 +165,10 @@ class IgTableCol(IntEnum):
     trigger = 1
     name = 2
     id = 3
-    type = 4
-    data_length = 5
-    brs = 6
+    channel = 4
+    type = 5
+    data_length = 6
+    brs = 7
 
 
 class IgTableDelegate(QStyledItemDelegate):
@@ -294,9 +295,16 @@ class IgTableDelegate(QStyledItemDelegate):
 
             editor.textChanged.connect(lambda text: self.check_input(editor, text))
 
+        elif index.column() == IgTableCol.channel:
+            editor = QComboBox(parent)
+            # editor.setEditable(True)
+            channel_mappings = index.model().channel_mappings
+            editor.addItems(list(channel_mappings.can.mappings.keys()))
+            return editor
+
         elif index.column() == IgTableCol.type:
             editor = QComboBox(parent)
-            editor.setEditable(True)
+            # editor.setEditable(True)
             editor.addItems(list(MessageType))
             return editor
         return super().createEditor(parent, option, index)
@@ -500,6 +508,7 @@ class IgTableModel(QAbstractTableModel):
         self.ig_messages = ig_messages
         self.ig_messages_timer = ig_messages_timer
         self._headers = CanIgMessages().get_attr_names()[2:-1]
+        # self.channel_mappings: ChannelMapping = ChannelMapping()
 
     def clear(self):
         self.beginResetModel()
@@ -552,6 +561,9 @@ class IgTableModel(QAbstractTableModel):
         if role in (Qt.DisplayRole, Qt.EditRole):
             if col == IgTableCol.id:
                 return f"{msg_tuple[col]:02X}"
+            if col == IgTableCol.channel:
+                if role == Qt.DisplayRole:
+                    return f"{msg_tuple[col]}({self.channel_mappings.can.mappings[msg_tuple[col]].channel})"
             return msg_tuple[col]
         return None
 
@@ -578,7 +590,7 @@ class IgTableModel(QAbstractTableModel):
                     else:
                         self.ig_messages_timer[row].stop()
         elif col == IgTableCol.type:
-            setattr(self.ig_messages[row], field_name, value)
+            setattr(self.ig_messages[row], field_name, MessageType(value))
         elif col == IgTableCol.id:
             msg_id = int(value, 16)
             setattr(self.ig_messages[row], field_name, msg_id)
@@ -631,7 +643,7 @@ class IgTableModel(QAbstractTableModel):
 
 
 class CANIGPanel(Ui_IG, QWidget):
-    signal_scan_can_devices = Signal(str)
+    # signal_scan_can_devices = Signal(str)
     signal_config_update = Signal()
 
     def __init__(self, interface_manager: InterfaceManager, db_manager: DBManager, config, parent=None):
@@ -641,6 +653,7 @@ class CANIGPanel(Ui_IG, QWidget):
         self.can_controller_config: CANControllerConfig = CANControllerConfig()
         self.db_manager = db_manager
         self.config = config
+        self.is_bus_open: bool = False
         self.ig_messages: List[CanIgMessages] = self.db_manager.can_ig_db.get_can_ig_list_by_config(self.config)
         self.ig_messages_timer: List[QTimer] = []
         self.ig_messages_timer.clear()
@@ -651,10 +664,9 @@ class CANIGPanel(Ui_IG, QWidget):
             timer.timeout.connect(self.send_message)
             self.ig_messages_timer.append(timer)
 
-        self.can_bus: Optional[can.Bus] = None
+        # self.can_bus: Optional[can.Bus] = None
         self.current_can_interface = None
         self.can_interface_channels = None
-        self.bus_connect_state: bool = False
 
         self.interface_manager = interface_manager
         self.messages_model = IgTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages,
@@ -669,6 +681,9 @@ class CANIGPanel(Ui_IG, QWidget):
         self._ui_init()
         self._init_data_context_menu()
         self._signal_init()
+
+    def update_channel_mappings(self):
+        self.messages_model.channel_mappings = self.interface_manager.channel_mappings
 
     def set_config(self, config):
         self.config = config
@@ -725,32 +740,33 @@ class CANIGPanel(Ui_IG, QWidget):
         self.ig_messages_timer.append(timer)
 
     def _ui_init(self):
-        self.comboBox_NMHardwareType.addItems(self.interface_manager.can_interface_manager.adapters.keys())
+        # self.comboBox_NMHardwareType.addItems(self.interface_manager.can_interface_manager.adapters.keys())
         self.tableView_messages.setModel(self.messages_model)
         self.tableView_messages.setItemDelegate(IgTableDelegate(self.tableView_messages))
+        self.tableView_messages.setColumnWidth(IgTableCol.channel, 150)
 
         self.tableView_data.setModel(self.messages_date_model)
         for i in range(8):
             self.tableView_data.setColumnWidth(i, 50)
 
-        self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
+        # self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
 
     def _signal_init(self):
-        self.pushButton_NMRefreshCANChannel.clicked.connect(self.scan_can_devices)
-        self.signal_scan_can_devices.connect(self.interface_manager.can_interface_manager.scan_devices)
-        self.interface_manager.can_interface_manager.signal_interface_channels.connect(self.update_channels)
-        self.pushButton_NMConnectCANBus.clicked.connect(self.change_bus_connect_state)
-        self.pushButton_NMCANbusConfig.clicked.connect(self.open_can_bus_config_panel)
+        # self.pushButton_NMRefreshCANChannel.clicked.connect(self.scan_can_devices)
+        # self.signal_scan_can_devices.connect(self.interface_manager.can_interface_manager.scan_devices)
+        # self.interface_manager.can_interface_manager.signal_interface_channels.connect(self.update_channels)
+        # self.pushButton_NMConnectCANBus.clicked.connect(self.change_bus_connect_state)
+        # self.pushButton_NMCANbusConfig.clicked.connect(self.open_can_bus_config_panel)
 
-        self.comboBox_NMHardwareChannel.currentIndexChanged.connect(self.set_current_can_interface)
-        self.comboBox_NMHardwareType.currentIndexChanged.connect(self.scan_can_devices)
+        # self.comboBox_NMHardwareChannel.currentIndexChanged.connect(self.set_current_can_interface)
+        # self.comboBox_NMHardwareType.currentIndexChanged.connect(self.scan_can_devices)
 
         # 当主表的选择发生变化时，通知数据表切换显示的 Index
         self.tableView_messages.selectionModel().currentRowChanged.connect(self.on_main_row_changed)
         # 监听主表的数据变化
         self.messages_model.sig_length_changed.connect(self.on_data_len_changed)
 
-        self.pushButton_NMRefreshCANChannel.clicked.emit()
+        # self.pushButton_NMRefreshCANChannel.clicked.emit()
         self.signal_config_update.connect(self.load_ig_messages)
 
     def set_current_can_interface(self, index):
@@ -775,138 +791,126 @@ class CANIGPanel(Ui_IG, QWidget):
         else:
             self.messages_date_model.set_current_msg_index(-1)
 
-    def open_can_bus_config_panel(self):
-        config_panel = IgBusConfigPanel(self)
-        config_panel.setWindowTitle('设置can控制器')
+    # def open_can_bus_config_panel(self):
+    #     config_panel = IgBusConfigPanel(self)
+    #     config_panel.setWindowTitle('设置can控制器')
+    #
+    #     config_panel.comboBox_CANControllerMode.setCurrentText(self.can_controller_config.controller_mode)
+    #     config_panel.comboBox_CANControllerMode.currentIndexChanged.emit(
+    #         config_panel.comboBox_CANControllerMode.currentIndex())
+    #     config_panel.lineEdit_DataBitrate.setText(str(self.can_controller_config.data_bitrate))
+    #     config_panel.lineEdit_NormalBitrate.setText(str(self.can_controller_config.nom_bitrate))
+    #     config_panel.lineEdit_CANControllerClockFrequency.setText(str(self.can_controller_config.f_clock))
+    #     config_panel.lineEdit_DataSamplePoint.setText(str(self.can_controller_config.data_sample_point))
+    #     config_panel.lineEdit_NormalSamplePoint.setText(str(self.can_controller_config.nom_sample_point))
+    #
+    #     if config_panel.exec() == QDialog.Accepted:
+    #         self.can_controller_config = config_panel.can_controller_config
 
-        config_panel.comboBox_CANControllerMode.setCurrentText(self.can_controller_config.controller_mode)
-        config_panel.comboBox_CANControllerMode.currentIndexChanged.emit(
-            config_panel.comboBox_CANControllerMode.currentIndex())
-        config_panel.lineEdit_DataBitrate.setText(str(self.can_controller_config.data_bitrate))
-        config_panel.lineEdit_NormalBitrate.setText(str(self.can_controller_config.nom_bitrate))
-        config_panel.lineEdit_CANControllerClockFrequency.setText(str(self.can_controller_config.f_clock))
-        config_panel.lineEdit_DataSamplePoint.setText(str(self.can_controller_config.data_sample_point))
-        config_panel.lineEdit_NormalSamplePoint.setText(str(self.can_controller_config.nom_sample_point))
+    # def scan_can_devices(self):
+    #     current_text = self.comboBox_NMHardwareType.currentText()
+    #     self.signal_scan_can_devices.emit(current_text)
 
-        if config_panel.exec() == QDialog.Accepted:
-            self.can_controller_config = config_panel.can_controller_config
+    # def change_ui_state_disabled(self, state: bool):
+    #     self.comboBox_NMHardwareType.setDisabled(state)
+    #     # self.comboBox_NMHardwareChannel.setDisabled(state)
+    #     self.pushButton_NMRefreshCANChannel.setDisabled(state)
+    #     self.pushButton_NMCANbusConfig.setDisabled(state)
 
-    def scan_can_devices(self):
-        current_text = self.comboBox_NMHardwareType.currentText()
-        self.signal_scan_can_devices.emit(current_text)
+    # def change_bus_connect_state(self):
+    #     if self.bus_connect_state:
+    #         self.can_bus.shutdown()
+    #         self.bus_connect_state = False
+    #         self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
+    #         self.change_ui_state_disabled(False)
+    #     else:
+    #         self.init_can_bus()
 
-    def change_ui_state_disabled(self, state: bool):
-        self.comboBox_NMHardwareType.setDisabled(state)
-        self.comboBox_NMHardwareChannel.setDisabled(state)
-        self.pushButton_NMRefreshCANChannel.setDisabled(state)
-        self.pushButton_NMCANbusConfig.setDisabled(state)
+    # def init_can_bus(self):
+    #     try:
+    #         if self.can_controller_config.controller_mode == "CANFD":
+    #             timing = BitTimingFd.from_sample_point(
+    #                 f_clock=self.can_controller_config.f_clock,
+    #                 nom_bitrate=self.can_controller_config.nom_bitrate,
+    #                 nom_sample_point=self.can_controller_config.nom_sample_point,
+    #                 data_bitrate=self.can_controller_config.data_bitrate,
+    #                 data_sample_point=self.can_controller_config.data_sample_point,
+    #             )
+    #         else:
+    #             timing = BitTiming.from_sample_point(
+    #                 f_clock=self.can_controller_config.f_clock,
+    #                 bitrate=self.can_controller_config.nom_bitrate,
+    #                 sample_point=self.can_controller_config.nom_sample_point,
+    #             )
+    #
+    #         # 初始化 Bus 对象
+    #         # **target_config 会将字典解包为关键字参数传入
+    #         self.can_bus = can.Bus(**self.current_can_interface, timing=timing, app_name=APP_NAME)
+    #         self.bus_connect_state = True
+    #         self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("link", 'green'))
+    #         self.change_ui_state_disabled(True)
+    #         logger.debug(f"[+] 连接成功！总线状态: {self.can_bus.state}")
+    #     except Exception as e:
+    #         try:
+    #             self.can_bus = can.Bus(**self.current_can_interface, app_name=APP_NAME)
+    #             self.bus_connect_state = True
+    #             self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("link", 'green'))
+    #             self.change_ui_state_disabled(True)
+    #         except Exception as e:
+    #             self.bus_connect_state = False
+    #             self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
+    #             logger.exception(f"[-] 连接失败: {str(e)}")
 
-    def change_bus_connect_state(self):
-        if self.bus_connect_state:
-            self.can_bus.shutdown()
-            self.bus_connect_state = False
-            self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
-            self.change_ui_state_disabled(False)
-        else:
-            self.init_can_bus()
+    # def update_can_interface(self, interface_channels):
+    #     if self.bus_connect_state:
+    #         return
+    #     self.comboBox_NMHardwareChannel.blockSignals(True)
+    #     self.comboBox_NMHardwareChannel.clear()
+    #     self.can_interface_channels = interface_channels
+    #     channels = []
+    #     can_interface_name = self.comboBox_NMHardwareType.currentText()
+    #     if can_interface_name in list(CANInterfaceName):
+    #         for ch in self.can_interface_channels:
+    #             channels.append(self.interface_manager.can_interface_manager.get_display_text(ch, can_interface_name))
+    #         # if can_interface_name == CANInterfaceName.vector:
+    #         #     for ch in self.can_interface_channels:
+    #         #         channels.append(
+    #         #             f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
+    #         #
+    #         # elif can_interface_name == CANInterfaceName.tosun:
+    #         #     for ch in self.can_interface_channels:
+    #         #         channels.append(
+    #         #             f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
+    #     self.comboBox_NMHardwareChannel.addItems(channels)
+    #     self.comboBox_NMHardwareChannel.blockSignals(False)
 
-    def init_can_bus(self):
-        try:
-            if self.can_controller_config.controller_mode == "CANFD":
-                timing = BitTimingFd.from_sample_point(
-                    f_clock=self.can_controller_config.f_clock,
-                    nom_bitrate=self.can_controller_config.nom_bitrate,
-                    nom_sample_point=self.can_controller_config.nom_sample_point,
-                    data_bitrate=self.can_controller_config.data_bitrate,
-                    data_sample_point=self.can_controller_config.data_sample_point,
-                )
-            else:
-                timing = BitTiming.from_sample_point(
-                    f_clock=self.can_controller_config.f_clock,
-                    bitrate=self.can_controller_config.nom_bitrate,
-                    sample_point=self.can_controller_config.nom_sample_point,
-                )
-
-            # 初始化 Bus 对象
-            # **target_config 会将字典解包为关键字参数传入
-            self.can_bus = can.Bus(**self.current_can_interface, timing=timing, app_name=APP_NAME)
-            self.bus_connect_state = True
-            self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("link", 'green'))
-            self.change_ui_state_disabled(True)
-            logger.debug(f"[+] 连接成功！总线状态: {self.can_bus.state}")
-        except Exception as e:
-            try:
-                self.can_bus = can.Bus(**self.current_can_interface, app_name=APP_NAME)
-                self.bus_connect_state = True
-                self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("link", 'green'))
-                self.change_ui_state_disabled(True)
-            except Exception as e:
-                self.bus_connect_state = False
-                self.pushButton_NMConnectCANBus.setIcon(IconEngine.get_icon("unlink", 'red'))
-                logger.exception(f"[-] 连接失败: {str(e)}")
-
-    def update_can_interface(self, interface_channels):
-        if self.bus_connect_state:
-            return
-        self.comboBox_NMHardwareChannel.blockSignals(True)
-        self.comboBox_NMHardwareChannel.clear()
-        self.can_interface_channels = interface_channels
-        channels = []
-        can_interface_name = self.comboBox_NMHardwareType.currentText()
-        if can_interface_name in list(CANInterfaceName):
-            for ch in self.can_interface_channels:
-                channels.append(self.interface_manager.can_interface_manager.get_display_text(ch, can_interface_name))
-            # if can_interface_name == CANInterfaceName.vector:
-            #     for ch in self.can_interface_channels:
-            #         channels.append(
-            #             f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
-            #
-            # elif can_interface_name == CANInterfaceName.tosun:
-            #     for ch in self.can_interface_channels:
-            #         channels.append(
-            #             f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
-        self.comboBox_NMHardwareChannel.addItems(channels)
-        self.comboBox_NMHardwareChannel.blockSignals(False)
-
-    def update_channels(self, interface_channels):
-        if not interface_channels:
-            return
-        can_interface_name = self.comboBox_NMHardwareType.currentText()
-        if interface_channels[0]['interface'] != can_interface_name:
-            return
-        try:
-            self.update_can_interface(interface_channels)
-
-            if self.can_interface_channels:
-                self.current_can_interface = self.can_interface_channels[0]
-        except Exception as e:
-            logger.exception(f'更新channel失败，{e}')
+    # def update_channels(self, interface_channels):
+    #     if not interface_channels:
+    #         return
+    #     can_interface_name = self.comboBox_NMHardwareType.currentText()
+    #     if interface_channels[0]['interface'] != can_interface_name:
+    #         return
+    #     try:
+    #         self.update_can_interface(interface_channels)
+    #
+    #         if self.can_interface_channels:
+    #             self.current_can_interface = self.can_interface_channels[0]
+    #     except Exception as e:
+    #         logger.exception(f'更新channel失败，{e}')
 
     def send_message(self):
-        if not self.bus_connect_state:
+        if not self.is_bus_open:
             return
         timer = self.sender()
 
         # 2. 在列表中查找它的索引
         if timer in self.ig_messages_timer:
             index = self.ig_messages_timer.index(timer)
-
-            '''
-            timestamp: float = 0.0,
-            arbitration_id: int = 0,
-            is_extended_id: bool = True,
-            is_remote_frame: bool = False,
-            is_error_frame: bool = False,
-            channel: Optional[typechecking.Channel] = None,
-            dlc: Optional[int] = None,
-            data: Optional[typechecking.CanData] = None,
-            is_fd: bool = False,
-            is_rx: bool = True,
-            bitrate_switch: bool = False,
-            error_state_indicator: bool = False,
-            check: bool = False,
-            '''
             ig_messages = self.ig_messages[index]
+            channel_mappings = self.interface_manager.channel_mappings.can.mappings
+            can_bus = self.interface_manager.can_buss[channel_mappings[ig_messages.channel].channel]
+            if not can_bus:
+                return
 
             if ig_messages.type == MessageType.CAN:
                 is_fd = False
@@ -945,4 +949,7 @@ class CANIGPanel(Ui_IG, QWidget):
                 dlc=ig_messages.data_length,
                 check=True  # 检查数据长度等参数是否合法
             )
-            self.can_bus.send(msg)
+            try:
+                can_bus.send(msg)
+            except Exception as e:
+                logger.error(f"ig 发送{ig_messages.id}失败: {e}")

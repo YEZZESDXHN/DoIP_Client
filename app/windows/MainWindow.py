@@ -9,7 +9,8 @@ from typing import Optional, List
 from PySide6.QtCore import Signal, QTimer, QThread, Slot, Qt
 from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QMainWindow, QWidget, QAbstractItemView, QVBoxLayout, QSpacerItem, \
-    QSizePolicy, QHBoxLayout, QFileDialog, QDialog, QApplication
+    QSizePolicy, QHBoxLayout, QFileDialog, QDialog, QApplication, QToolButton, QFrame, QPushButton
+from can import BitTiming, BitTimingFd
 from udsoncan import ClientConfig
 from udsoncan.configs import default_client_config
 
@@ -21,8 +22,9 @@ from app.flash.flash_executor import QFlashExecutor, FlashFinishType
 from app.global_variables import gFlashVars, FlashFileVars
 from app.resources.resources import IconEngine
 from app.ui.UDSToolMainUI import Ui_UDSToolMainWindow
-from app.user_data import UdsService, UdsConfig, UdsOnCANConfig, DoIPConfig
+from app.user_data import UdsService, UdsConfig, UdsOnCANConfig, DoIPConfig, CanChannelMappingBase, ChannelMapping
 from app.windows.AutomaticDiagnosisProcess_ui import DiagProcessCaseTreeView, DiagProcessTableView
+from app.windows.ChannelMappingPanel import ChannelMappingPanel
 from app.windows.DoIPConfigPanel_ui import DoIPConfigPanel
 from app.windows.DoIPTraceTable_ui import DoIPTraceTableView
 from app.windows.ExternalScript_Panel import ExternalScriptPanel
@@ -98,51 +100,54 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     def _init_interface_manager(self):
         self.interface_manager = InterfaceManager()
-        self.interface_manager.is_can_interface = self.current_uds_config.is_can_uds
+        channel_mappings = self.db_manager.channel_mappings_db.get_mappings(self.current_uds_config.config_name)
+        self.update_hardware_channel_items(channel_mappings)
+        self.interface_manager.channel_mappings = channel_mappings
+        # self.interface_manager.is_can_interface = self.current_uds_config.is_can_uds
         self.interface_manager_thread = QThread()
         # self.interface_manager = InterfaceManager()
 
         self.interface_manager.moveToThread(self.interface_manager_thread)
-        self.interface_manager.signal_interface_channels.connect(self.on_interface_update)
+        # self.interface_manager.signal_interface_channels.connect(self.on_interface_update)
 
         # 启动线程
         self.interface_manager_thread.start()
         logger.info("InterfaceManager线程线程已启动")
 
-    def update_can_interface(self):
-        channels = []
-        can_interface_name = self.comboBox_HardwareType.currentText()
-        if can_interface_name in list(CANInterfaceName):
-            for ch in self.interface_channels:
-                channels.append(self.interface_manager.can_interface_manager.get_display_text(ch, can_interface_name))
-            # if can_interface_name == CANInterfaceName.vector:
-            #     for ch in self.interface_channels:
-            #         channels.append(
-            #             f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
-            #
-            # else:
-            #     if can_interface_name == CANInterfaceName.tosun:
-            #         for ch in self.interface_channels:
-            #             channels.append(
-            #                 f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
-        self.comboBox_HardwareChannel.addItems(channels)
+    # def update_can_interface(self):
+    #     channels = []
+    #     can_interface_name = self.comboBox_HardwareType.currentText()
+    #     if can_interface_name in list(CANInterfaceName):
+    #         for ch in self.interface_channels:
+    #             channels.append(self.interface_manager.can_interface_manager.get_display_text(ch, can_interface_name))
+    #         # if can_interface_name == CANInterfaceName.vector:
+    #         #     for ch in self.interface_channels:
+    #         #         channels.append(
+    #         #             f"{ch['interface']} - {ch['vector_channel_config'].name} - channel {ch['channel']}  {ch['serial']}")
+    #         #
+    #         # else:
+    #         #     if can_interface_name == CANInterfaceName.tosun:
+    #         #         for ch in self.interface_channels:
+    #         #             channels.append(
+    #         #                 f"{ch['interface']} - {ch['name']} - channel {ch['channel']}  {ch['sn']}")
+    #     self.comboBox_HardwareChannel.addItems(channels)
 
-    def on_interface_update(self, interface_channels):
-        try:
-            self.comboBox_HardwareChannel.clear()
-            self.interface_channels = interface_channels
-            if self.current_uds_config.is_can_uds:
-                self.update_can_interface()
-            else:
-
-                ips = []
-                for _, ip in self.interface_channels:
-                    ips.append(ip)
-                self.comboBox_HardwareChannel.addItems(ips)
-            if self.interface_channels:
-                self.current_can_interface = self.interface_channels[0]
-        except Exception as e:
-            logger.exception(f'更新channel失败，{e}')
+    # def on_interface_update(self, interface_channels):
+    #     try:
+    #         self.comboBox_HardwareChannel.clear()
+    #         self.interface_channels = interface_channels
+    #         if self.current_uds_config.is_can_uds:
+    #             self.update_can_interface()
+    #         else:
+    #
+    #             ips = []
+    #             for _, ip in self.interface_channels:
+    #                 ips.append(ip)
+    #             self.comboBox_HardwareChannel.addItems(ips)
+    #         if self.interface_channels:
+    #             self.current_can_interface = self.interface_channels[0]
+    #     except Exception as e:
+    #         logger.exception(f'更新channel失败，{e}')
 
     def add_external_lib(self):
         # ExternalLib sys.path
@@ -278,11 +283,98 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_SendDoIP.setIcon(IconEngine.get_icon("send", 'blue'))
         self.pushButton_CreateConfig.setIcon(IconEngine.get_icon("circles_add"))
         self.pushButton_EditConfig.setIcon(IconEngine.get_icon("pencil"))
-        self.pushButton_RefreshIP.setIcon(IconEngine.get_icon("refresh"))
+        # self.pushButton_RefreshIP.setIcon(IconEngine.get_icon("refresh"))
         # self.checkBox_AotuReconnect.setIcon(IconEngine.get_icon("auto_start"))
         self.pushButton_StartFlash.setIcon(IconEngine.get_icon("start", 'blue'))
         self.pushButton_StopFlash.setIcon(IconEngine.get_icon("stop", 'red'))
         self.pushButton_FlashConfig.setIcon(IconEngine.get_icon("config"))
+
+    def _add_app_start_button_to_menu(self):
+        self.btn_widget = QWidget()
+        layout = QHBoxLayout(self.btn_widget)
+        layout.setContentsMargins(5, 0, 10, 0)
+        layout.setSpacing(5)
+
+        self.start_btn = QToolButton()
+        # self.start_btn.setText("⚡")
+        self.start_btn.setIcon(IconEngine.get_icon("flashlight", '#FFB900'))
+        self.start_btn.setFixedSize(28, 24)
+        self.start_btn.setStyleSheet("color: #FFD700; border: none; font-size: 16px; font-weight: bold;")
+        self.start_btn.clicked.connect(self.on_start_clicked)
+        self.start_btn.clicked.connect(self.interface_manager.open_buss)
+
+        # 3. 创建停止按钮 (Stop)
+        self.stop_btn = QToolButton()
+        # self.stop_btn.setText("⬢")
+        self.stop_btn.setIcon(IconEngine.get_icon("circle", 'red'))
+        self.stop_btn.setFixedSize(28, 24)
+        self.stop_btn.setEnabled(False)  # 初始禁用
+        self.stop_btn.setStyleSheet("color: #808080; border: none; font-size: 16px;")
+        self.stop_btn.clicked.connect(self.on_stop_clicked)
+        self.stop_btn.clicked.connect(self.interface_manager.close_buss)
+
+        self.channel_mapping_btn = QPushButton()
+        # self.stop_btn.setText("⬢")
+        self.channel_mapping_btn.setIcon(IconEngine.get_icon("mapping", 'green'))
+        self.channel_mapping_btn.setText("通道映射")
+        # self.channel_mapping_btn.setFixedSize(28, 24)
+        self.channel_mapping_btn.setEnabled(True)  # 初始禁用
+        self.channel_mapping_btn.setStyleSheet("""
+    QPushButton {
+        color: #808080; 
+        border: none; 
+        font-size: 16px;
+        background: transparent;
+    }
+
+    /* 鼠标悬停：改变颜色 */
+    QPushButton:hover {
+        color: #404040;
+    }
+
+    /* 鼠标按下：通过内边距实现“下沉”效果 */
+    QPushButton:pressed {
+        padding-left: 2px;
+        padding-top: 2px;
+        color: #000000;
+    }
+""")
+        # self.channel_mapping_btn.clicked.connect(self.on_stop_clicked)
+
+        layout.addWidget(self.start_btn)
+        layout.addWidget(self.stop_btn)
+        layout.addWidget(self.channel_mapping_btn)
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.VLine)  # 设置为垂直线
+        separator.setFrameShadow(QFrame.Plain)  # 设置为平实风格，避免多余阴影
+        separator.setFixedWidth(1)  # 线条宽度设为 1 像素
+        separator.setFixedHeight(16)  # 线条高度（根据你的菜单栏高度调整，通常 16-20 较好）
+        separator.setStyleSheet("background-color: #D0D0D0; border: none;")  # 设置线条颜色
+
+        layout.addSpacing(5)  # 分隔符前的留白
+        layout.addWidget(separator)
+        layout.addSpacing(5)  # 分隔符后的留白，确保离 File 菜单有间距
+
+        # 4. 关键：注入到你 Designer 生成的 menuBar 左侧
+        # 注意：self.menuBar 是从 QMainWindow 继承的方法，会自动获取 Designer 里的那个菜单栏
+        self.menuBar().setCornerWidget(self.btn_widget, Qt.TopLeftCorner)
+
+    def on_start_clicked(self):
+        # print("工程启动")
+        self.start_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
+        self.channel_mapping_btn.setEnabled(False)
+        self.can_ig_panel.is_bus_open = True
+        # self.stop_btn.setStyleSheet("color: red; border: none; font-size: 16px;")
+
+    def on_stop_clicked(self):
+        # print("工程停止")
+        self.start_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        self.channel_mapping_btn.setEnabled(True)
+        self.can_ig_panel.is_bus_open = False
+        # self.stop_btn.setStyleSheet("color: #808080; border: none; font-size: 16px;")
 
     def _init_ui(self):
         """初始化界面组件属性"""
@@ -360,8 +452,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self._init_status_bar()
 
-        self.comboBox_HardwareType.addItem('Windows Ethernet')
-        self.comboBox_HardwareType.addItems(self.interface_manager.can_interface_manager.adapters.keys())
+        # self.comboBox_HardwareType.addItem('Windows Ethernet')
+        # self.comboBox_HardwareType.addItems(self.interface_manager.can_interface_manager.adapters.keys())
 
         self.theme_group = QActionGroup(self)
         self.theme_group.setExclusive(True)
@@ -371,6 +463,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.setup_ig_panel()
         self.setup_external_script_panel()
+        self._add_app_start_button_to_menu()
 
     def set_theme_to_default(self):
         app = QApplication.instance()
@@ -380,19 +473,19 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         app = QApplication.instance()
         app.setStyle("Fusion")
 
-    def on_hardware_type_change(self, index: int):
-        current_text = self.comboBox_HardwareType.currentText()
-        if current_text in list(CANInterfaceName):
-            self.current_uds_config.is_can_uds = True
-            self.interface_manager.is_can_interface = True
-            self.interface_manager.can_interface_name = current_text
-
-            # self.interface_channels
-
-        else:
-            self.current_uds_config.is_can_uds = False
-            self.interface_manager.is_can_interface = False
-        self.pushButton_RefreshIP.clicked.emit()
+    # def on_hardware_type_change(self, index: int):
+    #     current_text = self.comboBox_HardwareType.currentText()
+    #     if current_text in list(CANInterfaceName):
+    #         self.current_uds_config.is_can_uds = True
+    #         self.interface_manager.is_can_interface = True
+    #         self.interface_manager.can_interface_name = current_text
+    #
+    #         # self.interface_channels
+    #
+    #     else:
+    #         self.current_uds_config.is_can_uds = False
+    #         self.interface_manager.is_can_interface = False
+    #     self.pushButton_RefreshIP.clicked.emit()
 
     def _init_status_bar(self):
         self.custom_status_bar = CustomStatusBar(self)
@@ -411,6 +504,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.can_ig_panel = CANIGPanel(interface_manager=self.interface_manager, db_manager=self.db_manager,
                                        config=self.current_uds_config.config_name, parent=self)
+        self.can_ig_panel.update_channel_mappings()
         layout.addWidget(self.can_ig_panel)
 
     def setup_external_script_panel(self):
@@ -596,7 +690,7 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.pushButton_SendDoIP.clicked.connect(self._get_input_hex_and_send_raw_uds_payload)
         self.pushButton_EditConfig.clicked.connect(self.open_edit_config_panel)
         self.pushButton_CreateConfig.clicked.connect(self.open_create_config_panel)
-        self.pushButton_RefreshIP.clicked.connect(self.interface_manager.scan_interfaces)
+        # self.pushButton_RefreshIP.clicked.connect(self.interface_manager.scan_interfaces)
 
         # self.pushButton_RefreshIP.clicked.emit()
         self.pushButton_StartFlash.clicked.connect(self.flash_executor.start_flash)
@@ -621,9 +715,10 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.checkBox_AotuReconnect.stateChanged.connect(self.set_auto_reconnect_tcp)
         self.checkBox_TesterPresent.stateChanged.connect(self.uds_client.set_tester_present_timer)
         self.comboBox_HardwareChannel.currentIndexChanged.connect(self.set_interface_channel)
-        self.comboBox_HardwareType.currentIndexChanged.connect(self.on_hardware_type_change)
-        self.comboBox_HardwareType.currentIndexChanged.emit(-1)
-        self.comboBox_HardwareType.currentIndexChanged.connect(self.setup_flash_control)
+        self.comboBox_HardwareChannel.currentIndexChanged.emit(0)
+        # self.comboBox_HardwareType.currentIndexChanged.connect(self.on_hardware_type_change)
+        # self.comboBox_HardwareType.currentIndexChanged.emit(-1)
+        # self.comboBox_HardwareType.currentIndexChanged.connect(self.setup_flash_control)
         self.comboBox_ChooseConfig.currentIndexChanged.connect(self._on_uds_config_chaneged)
 
         # 自定义信号（传递给DoIP客户端）
@@ -642,6 +737,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.treeView_DoIPTraceService.data_change_signal.connect(self._save_services_to_db)
 
         self.pushButton_FlashConfig.clicked.connect(self.open_flash_config_panel)
+
+        self.channel_mapping_btn.clicked.connect(self.open_channel_mapping_panel)
 
     def stop_run_external_scripts(self):
         self.external_scripts_executor.stop_run_external_scripts()
@@ -768,6 +865,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.treeView_uds_case.refresh()
         self.diag_process_table_view.clear()
         self.update_flash_config()
+        self.interface_manager.channel_mappings = self.db_manager.channel_mappings_db.get_mappings(config_name)
+        self.can_ig_panel.update_channel_mappings()
 
     def update_flash_config(self):
         self.flash_config = self.db_manager.flash_config_db.get_flash_config(self.current_uds_config.config_name)
@@ -776,13 +875,28 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.flash_executor.flash_config = self.flash_config
         self.flash_executor.flash_file_paths = self.flash_file_paths
 
+    def update_hardware_channel_items(self, channel_mappings: ChannelMapping):
+        """根据通道映射里激活的通道，设置UDS客户端可选的通道列表"""
+        channel_mappings = [item.channel for item in channel_mappings.can.mappings.values()] + list(channel_mappings.eth.mappings.values())
+        self.comboBox_HardwareChannel.blockSignals(True)
+        self.comboBox_HardwareChannel.clear()
+        self.comboBox_HardwareChannel.addItems(channel_mappings)
+        self.comboBox_HardwareChannel.blockSignals(False)
+        self.comboBox_HardwareChannel.setCurrentIndex(0)
+        self.comboBox_HardwareChannel.currentIndexChanged.emit(0)
+
     def set_interface_channel(self, index: int):
-        """设置测试机IP"""
-        if self.current_uds_config.is_can_uds:
-            self.current_can_interface = self.interface_channels[index]
+        """设置测试机通道"""
+        self.current_can_interface = self.comboBox_HardwareChannel.currentText()
+        if self.current_can_interface in self.interface_manager.can_interfaces:
+            self.current_uds_config.is_can_uds = True
         else:
-            self.tester_ip_address = self.comboBox_HardwareChannel.currentText()
-            logger.debug(f"测试机IP已设置为：{self.tester_ip_address}")
+            self.current_uds_config.is_can_uds = False
+        # if self.current_uds_config.is_can_uds:
+        #     self.current_can_interface = self.interface_channels[index]
+        # else:
+        #     self.tester_ip_address = self.comboBox_HardwareChannel.currentText()
+        #     logger.debug(f"测试机IP已设置为：{self.tester_ip_address}")
 
     @Slot()
     def set_auto_reconnect_tcp(self, state):
@@ -833,10 +947,10 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
     def _change_ui_state(self, set_disabled: bool):
         self.pushButton_ConnectDoIP.setDisabled(set_disabled)
-        self.comboBox_HardwareType.setDisabled(set_disabled)
+        # self.comboBox_HardwareType.setDisabled(set_disabled)
         self.comboBox_ChooseConfig.setDisabled(set_disabled)
         self.comboBox_HardwareChannel.setDisabled(set_disabled)
-        self.pushButton_RefreshIP.setDisabled(set_disabled)
+        # self.pushButton_RefreshIP.setDisabled(set_disabled)
         self.pushButton_EditConfig.setDisabled(set_disabled)
         self.pushButton_CreateConfig.setDisabled(set_disabled)
         self.checkBox_AotuReconnect.setDisabled(set_disabled)
@@ -865,8 +979,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         client.client_ip_address = self.tester_ip_address
         client.auto_reconnect_tcp = self.auto_reconnect_tcp
-
-        client.can_interface = self.current_can_interface
+        if client.is_can_uds:
+            client.can_bus = self.interface_manager.can_buss[self.current_can_interface]
 
         client.uds_request_timeout = self.uds_request_timeout
         client.uds_config = self.uds_config
@@ -883,6 +997,30 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
 
         self.sql_table_panel = SQLTablePanel(self.db_path)
         self.sql_table_panel.show()
+
+    @Slot()
+    def open_channel_mapping_panel(self):
+        """打开channel配置面板"""
+        config_panel = ChannelMappingPanel(interface_manager=self.interface_manager, db_manager=self.db_manager, parent=self)
+        config_panel.setWindowTitle('通道配置')
+
+        if config_panel.exec() == QDialog.Accepted:
+            can_mappings_dict = self.interface_manager.channel_mappings.can.mappings
+            eth_mappings_dict = self.interface_manager.channel_mappings.eth.mappings
+            can_mappings_dict.clear()
+            eth_mappings_dict.clear()
+            for channel in config_panel.can_channel_table_model.table_data:
+                can_channel_mapping_base = CanChannelMappingBase()
+                can_channel_mapping_base.channel = channel[1]
+                can_mappings_dict[channel[0]] = can_channel_mapping_base
+                # self.interface_manager.can_bus_timing[channel[1]] = DEFAULT_BIT_TIMING_FD
+            for channel in config_panel.eth_channel_table_model.table_data:
+                eth_mappings_dict[channel[0]] = channel[1]
+            self.db_manager.channel_mappings_db.save_mappings(self.current_uds_config.config_name, self.interface_manager.channel_mappings)
+            self.can_ig_panel.update_channel_mappings()
+            self.update_hardware_channel_items(self.interface_manager.channel_mappings)
+
+
 
     @Slot()
     def open_create_config_panel(self):

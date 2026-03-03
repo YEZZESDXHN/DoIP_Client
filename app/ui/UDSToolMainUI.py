@@ -159,7 +159,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_FlashFiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 98, 28))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 24, 16))
         self.scrollArea_FlashFiles.setWidget(self.scrollAreaWidgetContents_2)
 
         self.horizontalLayout_6.addWidget(self.scrollArea_FlashFiles)
@@ -242,7 +242,7 @@ class Ui_UDSToolMainWindow(object):
         UDSToolMainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(UDSToolMainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1387, 22))
+        self.menubar.setGeometry(QRect(0, 0, 1387, 33))
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
         self.menu_set = QMenu(self.menubar)
@@ -260,17 +260,22 @@ class Ui_UDSToolMainWindow(object):
         self.dockWidget.setAllowedAreas(Qt.DockWidgetArea.TopDockWidgetArea)
         self.dockWidgetContents_3 = QWidget()
         self.dockWidgetContents_3.setObjectName(u"dockWidgetContents_3")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.dockWidgetContents_3.sizePolicy().hasHeightForWidth())
+        self.dockWidgetContents_3.setSizePolicy(sizePolicy2)
         self.verticalLayout_5 = QVBoxLayout(self.dockWidgetContents_3)
         self.verticalLayout_5.setObjectName(u"verticalLayout_5")
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.comboBox_ChooseConfig = QComboBox(self.dockWidgetContents_3)
         self.comboBox_ChooseConfig.setObjectName(u"comboBox_ChooseConfig")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.comboBox_ChooseConfig.sizePolicy().hasHeightForWidth())
-        self.comboBox_ChooseConfig.setSizePolicy(sizePolicy2)
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy3.setHorizontalStretch(0)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.comboBox_ChooseConfig.sizePolicy().hasHeightForWidth())
+        self.comboBox_ChooseConfig.setSizePolicy(sizePolicy3)
         self.comboBox_ChooseConfig.setMinimumSize(QSize(150, 0))
         self.comboBox_ChooseConfig.setFont(font)
 
@@ -284,15 +289,6 @@ class Ui_UDSToolMainWindow(object):
         self.label_5.setFont(font)
 
         self.gridLayout_2.addWidget(self.label_5, 1, 0, 1, 1)
-
-        self.pushButton_RefreshIP = QPushButton(self.dockWidgetContents_3)
-        self.pushButton_RefreshIP.setObjectName(u"pushButton_RefreshIP")
-        sizePolicy.setHeightForWidth(self.pushButton_RefreshIP.sizePolicy().hasHeightForWidth())
-        self.pushButton_RefreshIP.setSizePolicy(sizePolicy)
-        self.pushButton_RefreshIP.setMaximumSize(QSize(16777215, 16777215))
-        self.pushButton_RefreshIP.setFont(font)
-
-        self.gridLayout_2.addWidget(self.pushButton_RefreshIP, 1, 2, 1, 1)
 
         self.label_6 = QLabel(self.dockWidgetContents_3)
         self.label_6.setObjectName(u"label_6")
@@ -318,8 +314,8 @@ class Ui_UDSToolMainWindow(object):
 
         self.comboBox_HardwareChannel = QComboBox(self.dockWidgetContents_3)
         self.comboBox_HardwareChannel.setObjectName(u"comboBox_HardwareChannel")
-        sizePolicy2.setHeightForWidth(self.comboBox_HardwareChannel.sizePolicy().hasHeightForWidth())
-        self.comboBox_HardwareChannel.setSizePolicy(sizePolicy2)
+        sizePolicy3.setHeightForWidth(self.comboBox_HardwareChannel.sizePolicy().hasHeightForWidth())
+        self.comboBox_HardwareChannel.setSizePolicy(sizePolicy3)
         self.comboBox_HardwareChannel.setMinimumSize(QSize(150, 0))
         self.comboBox_HardwareChannel.setFont(font)
         self.comboBox_HardwareChannel.setLabelDrawingMode(QComboBox.LabelDrawingMode.UseStyle)
@@ -334,34 +330,6 @@ class Ui_UDSToolMainWindow(object):
 
         self.gridLayout_2.addWidget(self.pushButton_CreateConfig, 2, 3, 1, 1)
 
-        self.checkBox_AotuReconnect = QCheckBox(self.dockWidgetContents_3)
-        self.checkBox_AotuReconnect.setObjectName(u"checkBox_AotuReconnect")
-        sizePolicy.setHeightForWidth(self.checkBox_AotuReconnect.sizePolicy().hasHeightForWidth())
-        self.checkBox_AotuReconnect.setSizePolicy(sizePolicy)
-        self.checkBox_AotuReconnect.setChecked(True)
-        self.checkBox_AotuReconnect.setAutoRepeat(False)
-
-        self.gridLayout_2.addWidget(self.checkBox_AotuReconnect, 1, 3, 1, 1)
-
-        self.label_7 = QLabel(self.dockWidgetContents_3)
-        self.label_7.setObjectName(u"label_7")
-        sizePolicy.setHeightForWidth(self.label_7.sizePolicy().hasHeightForWidth())
-        self.label_7.setSizePolicy(sizePolicy)
-        self.label_7.setMinimumSize(QSize(60, 0))
-        self.label_7.setFont(font)
-
-        self.gridLayout_2.addWidget(self.label_7, 0, 0, 1, 1)
-
-        self.comboBox_HardwareType = QComboBox(self.dockWidgetContents_3)
-        self.comboBox_HardwareType.setObjectName(u"comboBox_HardwareType")
-        sizePolicy2.setHeightForWidth(self.comboBox_HardwareType.sizePolicy().hasHeightForWidth())
-        self.comboBox_HardwareType.setSizePolicy(sizePolicy2)
-        self.comboBox_HardwareType.setMinimumSize(QSize(150, 0))
-        self.comboBox_HardwareType.setFont(font)
-        self.comboBox_HardwareType.setLabelDrawingMode(QComboBox.LabelDrawingMode.UseStyle)
-
-        self.gridLayout_2.addWidget(self.comboBox_HardwareType, 0, 1, 1, 1)
-
         self.pushButton_ConnectDoIP = QPushButton(self.dockWidgetContents_3)
         self.pushButton_ConnectDoIP.setObjectName(u"pushButton_ConnectDoIP")
         sizePolicy.setHeightForWidth(self.pushButton_ConnectDoIP.sizePolicy().hasHeightForWidth())
@@ -369,7 +337,16 @@ class Ui_UDSToolMainWindow(object):
         self.pushButton_ConnectDoIP.setMaximumSize(QSize(16777215, 16777215))
         self.pushButton_ConnectDoIP.setFont(font)
 
-        self.gridLayout_2.addWidget(self.pushButton_ConnectDoIP, 0, 5, 1, 1)
+        self.gridLayout_2.addWidget(self.pushButton_ConnectDoIP, 1, 5, 1, 1)
+
+        self.checkBox_AotuReconnect = QCheckBox(self.dockWidgetContents_3)
+        self.checkBox_AotuReconnect.setObjectName(u"checkBox_AotuReconnect")
+        sizePolicy.setHeightForWidth(self.checkBox_AotuReconnect.sizePolicy().hasHeightForWidth())
+        self.checkBox_AotuReconnect.setSizePolicy(sizePolicy)
+        self.checkBox_AotuReconnect.setChecked(True)
+        self.checkBox_AotuReconnect.setAutoRepeat(False)
+
+        self.gridLayout_2.addWidget(self.checkBox_AotuReconnect, 1, 2, 1, 1)
 
         self.gridLayout_2.setColumnStretch(0, 1)
 
@@ -434,7 +411,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_DiagTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 77, 425))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 80, 412))
         self.scrollArea_DiagTree.setWidget(self.scrollAreaWidgetContents)
 
         self.verticalLayout_8.addWidget(self.scrollArea_DiagTree)
@@ -455,7 +432,7 @@ class Ui_UDSToolMainWindow(object):
         self.scrollArea_UdsCaseTree.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 77, 425))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 80, 412))
         self.scrollArea_UdsCaseTree.setWidget(self.scrollAreaWidgetContents_3)
 
         self.verticalLayout_9.addWidget(self.scrollArea_UdsCaseTree)
@@ -538,13 +515,11 @@ class Ui_UDSToolMainWindow(object):
         self.menu_tool.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u5de5\u5177", None))
         self.menu_view.setTitle(QCoreApplication.translate("UDSToolMainWindow", u"\u89c6\u56fe", None))
         self.label_5.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u901a\u9053", None))
-        self.pushButton_RefreshIP.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u5237\u65b0", None))
         self.label_6.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u914d\u7f6e", None))
         self.pushButton_EditConfig.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u7f16\u8f91", None))
         self.pushButton_CreateConfig.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u65b0\u5efa\u914d\u7f6e", None))
-        self.checkBox_AotuReconnect.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
-        self.label_7.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u8bbe\u5907\u63a5\u53e3", None))
         self.pushButton_ConnectDoIP.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u8fde\u63a5", None))
+        self.checkBox_AotuReconnect.setText(QCoreApplication.translate("UDSToolMainWindow", u"\u81ea\u52a8\u91cd\u8fde", None))
         self.pushButton_SendDoIP.setText(QCoreApplication.translate("UDSToolMainWindow", u"Send", None))
         self.checkBox_TesterPresent.setText(QCoreApplication.translate("UDSToolMainWindow", u"Tester Present", None))
         self.dockWidget_DiagTree.setWindowTitle(QCoreApplication.translate("UDSToolMainWindow", u"UDS Services", None))

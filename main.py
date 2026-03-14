@@ -78,7 +78,7 @@ if __name__ == "__main__":
     app.setStyle("WindowsVista")
     # app.setStyle("Fusion")
     w = MainWindow()
-    version = 'v0.1.9'
+    version = 'v0.2.0'
     w.custom_status_bar.label_Version.setText(version)
     w.show()
     sys.exit(app.exec())

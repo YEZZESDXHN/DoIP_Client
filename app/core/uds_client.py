@@ -262,15 +262,16 @@ class QUDSClient(QObject):
             self.connect_uds()
 
     def disconnect_uds(self):
-        if self.is_can_uds:
-            self.uds_on_ip_client.close()
-            self.conn.close()
-            self.cantp_stack.stop()
-            self.can_notifier.stop(2)
-            # self.can_bus.shutdown()
-        else:
-            self.uds_on_ip_client.close()
-            self.conn.close()
+        if self.uds_on_ip_client:
+            if self.is_can_uds:
+                self.uds_on_ip_client.close()
+                self.conn.close()
+                self.cantp_stack.stop()
+                self.can_notifier.stop(2)
+                # self.can_bus.shutdown()
+            else:
+                self.uds_on_ip_client.close()
+                self.conn.close()
 
         self._uds_client = None
         self.conn = None

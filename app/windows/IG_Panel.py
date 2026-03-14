@@ -508,7 +508,7 @@ class IgTableModel(QAbstractTableModel):
         self.ig_messages = ig_messages
         self.ig_messages_timer = ig_messages_timer
         self._headers = CanIgMessages().get_attr_names()[2:-1]
-        # self.channel_mappings: ChannelMapping = ChannelMapping()
+        self.channel_mappings: ChannelMapping = ChannelMapping()
 
     def clear(self):
         self.beginResetModel()
@@ -563,7 +563,17 @@ class IgTableModel(QAbstractTableModel):
                 return f"{msg_tuple[col]:02X}"
             if col == IgTableCol.channel:
                 if role == Qt.DisplayRole:
-                    return f"{msg_tuple[col]}({self.channel_mappings.can.mappings[msg_tuple[col]].channel})"
+                    if msg_tuple[col] in self.channel_mappings.can.mappings:
+                        return f"{msg_tuple[col]}({self.channel_mappings.can.mappings[msg_tuple[col]].channel})"
+                    else:
+                        self.ig_messages[row].channel = ''
+                        self.dataChanged.emit(
+                            self.index(row, col),  # 起始索引
+                            self.index(row, col),  # 结束索引
+                            [Qt.DisplayRole, Qt.EditRole]  # 受影响的角色
+                        )
+                        self.db_manager.can_ig_db.save_can_ig(self.ig_messages[row])
+                        return ''
             return msg_tuple[col]
         return None
 

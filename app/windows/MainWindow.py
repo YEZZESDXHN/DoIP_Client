@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from PySide6.QtCore import Signal, QTimer, QThread, Slot, Qt
-from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtGui import QAction, QActionGroup, QFont
 from PySide6.QtWidgets import QMainWindow, QWidget, QAbstractItemView, QVBoxLayout, QSpacerItem, \
     QSizePolicy, QHBoxLayout, QFileDialog, QDialog, QApplication, QToolButton, QFrame, QPushButton
 from can import BitTiming, BitTimingFd
@@ -108,6 +108,8 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         # self.interface_manager = InterfaceManager()
 
         self.interface_manager.moveToThread(self.interface_manager_thread)
+        self.interface_manager.signal_bus_closed.connect(self.on_bus_stopped)
+        self.interface_manager.signal_close_uds_client.connect(self.uds_client.disconnect_uds)
         # self.interface_manager.signal_interface_channels.connect(self.on_interface_update)
 
         # 启动线程
@@ -310,34 +312,50 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.stop_btn.setFixedSize(28, 24)
         self.stop_btn.setEnabled(False)  # 初始禁用
         self.stop_btn.setStyleSheet("color: #808080; border: none; font-size: 16px;")
-        self.stop_btn.clicked.connect(self.on_stop_clicked)
+        # self.stop_btn.clicked.connect(self.on_stop_clicked)
         self.stop_btn.clicked.connect(self.interface_manager.close_buss)
 
         self.channel_mapping_btn = QPushButton()
         # self.stop_btn.setText("⬢")
         self.channel_mapping_btn.setIcon(IconEngine.get_icon("mapping", 'green'))
         self.channel_mapping_btn.setText("通道映射")
+        TARGET_FONT_FAMILY = "Microsoft YaHei UI"  # 其他菜单项的字体（如“宋体”/“Arial”）
+        TARGET_FONT_SIZE = 10  # 其他菜单项的字号（如14/16）
+        TARGET_NORMAL_COLOR = "#808080"  # 正常态颜色
+        TARGET_HOVER_COLOR = "#404040"  # 悬停态颜色
+        TARGET_PRESSED_COLOR = "#000000"  # 按下态颜色
+        btn_font = QFont(TARGET_FONT_FAMILY, TARGET_FONT_SIZE)
+        self.channel_mapping_btn.setFont(btn_font)
         # self.channel_mapping_btn.setFixedSize(28, 24)
         self.channel_mapping_btn.setEnabled(True)  # 初始禁用
-        self.channel_mapping_btn.setStyleSheet("""
-    QPushButton {
-        color: #808080; 
+        self.channel_mapping_btn.setStyleSheet(f"""
+    QPushButton {{
+        color: {TARGET_NORMAL_COLOR}; 
         border: none; 
-        font-size: 16px;
         background: transparent;
-    }
+        /* 字体已通过代码设置，这里不再重复 */
+        padding: 4px 10px;          /* 和其他菜单项一致的内边距 */
+        icon-size: {TARGET_FONT_SIZE + 2}px;  /* 图标尺寸=字号+2，视觉协调 */
+        spacing: 8px;               /* 图标文字间距，可微调 */
+        text-align: left;           /* 和其他菜单项对齐方式一致 */
+    }}
 
-    /* 鼠标悬停：改变颜色 */
-    QPushButton:hover {
-        color: #404040;
-    }
+    QPushButton:hover {{
+        color: {TARGET_HOVER_COLOR};
+        background-color: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+    }}
 
-    /* 鼠标按下：通过内边距实现“下沉”效果 */
-    QPushButton:pressed {
-        padding-left: 2px;
-        padding-top: 2px;
-        color: #000000;
-    }
+    QPushButton:pressed {{
+        color: {TARGET_PRESSED_COLOR};
+        background-color: rgba(0, 0, 0, 0.1);
+        padding-left: 10px;
+        padding-top: 4px;
+    }}
+
+    QPushButton:disabled {{
+        color: #b0b0b0;
+    }}
 """)
         # self.channel_mapping_btn.clicked.connect(self.on_stop_clicked)
 
@@ -366,18 +384,23 @@ class MainWindow(QMainWindow, Ui_UDSToolMainWindow):
         self.stop_btn.setEnabled(True)
         self.channel_mapping_btn.setEnabled(False)
         self.can_ig_panel.is_bus_open = True
+        self.pushButton_ConnectDoIP.setDisabled(False)
         # self.stop_btn.setStyleSheet("color: red; border: none; font-size: 16px;")
 
-    def on_stop_clicked(self):
+    def on_bus_stopped(self):
         # print("工程停止")
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.channel_mapping_btn.setEnabled(True)
         self.can_ig_panel.is_bus_open = False
+
+        self._change_ui_state(False)
+        self.pushButton_ConnectDoIP.setDisabled(True)
         # self.stop_btn.setStyleSheet("color: #808080; border: none; font-size: 16px;")
 
     def _init_ui(self):
         """初始化界面组件属性"""
+        self.pushButton_ConnectDoIP.setDisabled(True)
         self.plainTextEdit_DataDisplay.setReadOnly(True)
 
         # 添加表格

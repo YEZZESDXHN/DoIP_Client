@@ -3,6 +3,7 @@ import pprint
 import sys
 from enum import Enum
 from pathlib import Path
+from time import sleep
 from typing import Dict, List, Optional, Union
 
 import can
@@ -147,6 +148,8 @@ class CANInterfaceName(str, Enum):
 class InterfaceManager(QObject):
     signal_can_interface_channels = Signal(object)
     signal_eth_interface_channels = Signal(object)
+    signal_close_uds_client = Signal()
+    signal_bus_closed = Signal()
 
     def __init__(self):
         super().__init__()
@@ -168,10 +171,13 @@ class InterfaceManager(QObject):
         self.scan_interfaces()
 
     def close_buss(self):
+        self.signal_close_uds_client.emit()
+        sleep(1)
         for display_name, can_bus in self.can_buss.items():
             self.can_interface_manager.close_bus(can_bus, self.can_interfaces[display_name][0])
+        self.signal_bus_closed.emit()
 
-    DEFAULT_BIT_TIMING = BitTiming.from_sample_point(f_clock=16_000_000, bitrate=500_000)
+    # DEFAULT_BIT_TIMING = BitTiming.from_sample_point(f_clock=16_000_000, bitrate=500_000)
 
     def open_buss(self):
         for bus_name, mapping in self.channel_mappings.can.mappings.items():

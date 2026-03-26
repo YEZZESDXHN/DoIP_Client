@@ -338,6 +338,7 @@ class CanInterfaceManager(QObject):
                 module = importlib.util.module_from_spec(spec)
                 module.CANAdapter = CANAdapter
                 module.can = can
+                module.APP_NAME = APP_NAME
                 module.BitTiming = BitTiming
                 module.BitTimingFd = BitTimingFd
                 spec.loader.exec_module(module)

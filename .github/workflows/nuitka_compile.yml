@@ -1,10 +1,17 @@
 name: Build Application
 
+#on:
+#  push:
+#    tags:
+#      - 'v*.*'
+#  workflow_dispatch:
+
 on:
-  push:
-    tags:
-      - 'v*.*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'The tag to release'
+        required: true
 
 permissions:
   contents: write
@@ -33,6 +40,30 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VER }}
           cache: 'pip'
+
+      # ===========================
+      # 安装 ccache（C 编译缓存）
+      # ===========================
+      - name: Install ccache
+        run: |
+          choco install ccache -y
+          ccache --set-config=max_size=10G
+          ccache --set-config=compression=true
+
+      # ===========================
+      # GitHub 缓存（Nuitka + ccache）
+      # ===========================
+      - name: Cache Nuitka & ccache
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\Users\runneradmin\AppData\Local\nuitka
+            C:\Users\runneradmin\.ccache
+          # 加入 github.sha 保证每次构建完能保存最新状态
+          key: ${{ runner.os }}-nuitka-${{ env.PYTHON_VER }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nuitka-${{ env.PYTHON_VER }}-
+            ${{ runner.os }}-nuitka-
 
       - name: Install dependencies
         shell: pwsh
@@ -92,54 +123,87 @@ jobs:
 #            --windows-disable-console `
 #             --windows-icon-from-ico=${{ env.ICON_PATH }} `
 
-      
-
       - name: Prepare Artifacts
         id: prepare_artifact
         shell: pwsh
         run: |
-          # 获取 Tag 或构建标识
-          $tag = "${{ github.ref_name }}"
-          if ($tag -match "^v") { Write-Host "Tag detected: $tag" } else { $tag = "manual-build" }
+          # 直接获取通过 workflow_dispatch 传进来的 tag 参数
+          $tag = "${{ inputs.release_tag }}"
+          Write-Host "Current building tag: $tag"
           
-          # 使用环境变量构建文件名
+          # 使用环境变量和 tag 构建文件名
           $appName = "${{ env.APP_NAME }}"
-          $releaseName = "${{ env.APP_NAME }}_$tag"
-          $zipName = "${{ env.APP_NAME }}-$tag.7z"
-          
-          # 整理 Nuitka 输出
-          # Nuitka Action standalone 模式通常在 build 目录下生成 xxx.dist 文件夹
-          # 我们将其重命名为带版本号的文件夹名
+          $releaseName = "${appName}_$tag"
+          $zipName = "${appName}-${tag}.7z"
           
           New-Item -ItemType Directory -Force -Path $releaseName
           
-          # 注意：Nuitka-Action 生成的 dist 文件夹名称通常是 main.dist (取决于入口文件名)
+          # 移动 Nuitka 生成的产物
           Move-Item -Path "dist\*.dist\*" -Destination $releaseName
           
-          # 压缩文件夹
+          # 压缩
           7z a -t7z $zipName $releaseName
           
-          # 将生成的 Zip 文件名传给后续步骤
+          # 将参数传给发布步骤
           echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
           echo "TAG_NAME=$tag" >> $env:GITHUB_ENV
 
-      # - name: Upload Artifact (Actions Tab)
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ env.APP_NAME }}-Build
-      #     path: ${{ env.ZIP_NAME }}
+          - name: Create Release and Upload Asset
+            uses: softprops/action-gh-release@v2
+            with:
+              tag_name: ${{ env.TAG_NAME }}         # 比如这里就会是传进来的 v1.2
+              name: Release ${{ env.TAG_NAME }}     # Release 的标题
+              files: ${{ env.ZIP_NAME }}
+              draft: false
+              prerelease: false
+              generate_release_notes: true
 
-      - name: Create Release and Upload Asset
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ env.ZIP_NAME }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-
-      # - name: Delete artifact with error handling
-      #   uses: geekyeggo/delete-artifact@v5
-      #   with:
-      #     name: ${{ env.APP_NAME }}-Build
-      #     failOnError: false
+#      - name: Prepare Artifacts
+#        id: prepare_artifact
+#        shell: pwsh
+#        run: |
+#          # 获取 Tag 或构建标识
+#          $tag = "${{ github.ref_name }}"
+#          if ($tag -match "^v") { Write-Host "Tag detected: $tag" } else { $tag = "manual-build" }
+#
+#          # 使用环境变量构建文件名
+#          $appName = "${{ env.APP_NAME }}"
+#          $releaseName = "${{ env.APP_NAME }}_$tag"
+#          $zipName = "${{ env.APP_NAME }}-$tag.7z"
+#
+#          # 整理 Nuitka 输出
+#          # Nuitka Action standalone 模式通常在 build 目录下生成 xxx.dist 文件夹
+#          # 我们将其重命名为带版本号的文件夹名
+#
+#          New-Item -ItemType Directory -Force -Path $releaseName
+#
+#          # 注意：Nuitka-Action 生成的 dist 文件夹名称通常是 main.dist (取决于入口文件名)
+#          Move-Item -Path "dist\*.dist\*" -Destination $releaseName
+#
+#          # 压缩文件夹
+#          7z a -t7z $zipName $releaseName
+#
+#          # 将生成的 Zip 文件名传给后续步骤
+#          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+#          echo "TAG_NAME=$tag" >> $env:GITHUB_ENV
+#
+#      # - name: Upload Artifact (Actions Tab)
+#      #   uses: actions/upload-artifact@v4
+#      #   with:
+#      #     name: ${{ env.APP_NAME }}-Build
+#      #     path: ${{ env.ZIP_NAME }}
+#
+#      - name: Create Release and Upload Asset
+#        if: startsWith(github.ref, 'refs/tags/')
+#        uses: softprops/action-gh-release@v2
+#        with:
+#          files: ${{ env.ZIP_NAME }}
+#          draft: false
+#          prerelease: false
+#          generate_release_notes: true
+#
+#      # - name: Delete artifact with error handling
+#      #   uses: geekyeggo/delete-artifact@v5
+#      #   with:
+#      #     name: ${{ env.APP_NAME }}-Build
+#      #     failOnError: false

@@ -371,10 +371,11 @@ class HexByteDelegate(QStyledItemDelegate):
 
 
 class IgMessageDateTableModel(QAbstractTableModel):
-    def __init__(self, db_manager: DBManager, ig_messages: list[CanIgMessages]):
+    # def __init__(self, db_manager: DBManager, ig_messages: list[CanIgMessages]):
+    def __init__(self, parent: "CANIGPanel"):
         super().__init__()
-        self.db_manager = db_manager
-        self.ig_messages = ig_messages
+        self.db_manager = parent.db_manager
+        self.parent = parent
         # 当前需要显示哪一条消息的数据，默认为 -1 (不显示)
         self._current_msg_index = -1
         self._columns = 8  # 固定8列
@@ -385,7 +386,7 @@ class IgMessageDateTableModel(QAbstractTableModel):
         通常连接到主表格的 selectionModel().currentRowChanged 信号。
         """
         self.beginResetModel()
-        if 0 <= index < len(self.ig_messages):
+        if 0 <= index < len(self.parent.ig_messages):
             self._current_msg_index = index
         else:
             self._current_msg_index = -1
@@ -393,7 +394,7 @@ class IgMessageDateTableModel(QAbstractTableModel):
 
     def _get_current_msg(self) -> Optional[CanIgMessages]:
         if self._current_msg_index != -1:
-            return self.ig_messages[self._current_msg_index]
+            return self.parent.ig_messages[self._current_msg_index]
         return None
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
@@ -502,17 +503,17 @@ class IgTableModel(QAbstractTableModel):
     # 参数: (行号)
     sig_length_changed = Signal(int)
 
-    def __init__(self, db_manager: DBManager, ig_messages: list[CanIgMessages], ig_messages_timer: List[QTimer]):
+    # def __init__(self, db_manager: DBManager, ig_messages: list[CanIgMessages], ig_messages_timer: List[QTimer]):
+    def __init__(self, parent: "CANIGPanel"):
         super().__init__()
-        self.db_manager = db_manager
-        self.ig_messages = ig_messages
-        self.ig_messages_timer = ig_messages_timer
+        self.db_manager = parent.db_manager
+        self.parent = parent
         self._headers = CanIgMessages().get_attr_names()[2:-1]
         self.channel_mappings: ChannelMapping = ChannelMapping()
 
     def clear(self):
         self.beginResetModel()
-        self.ig_messages.clear()
+        self.parent.ig_messages.clear()
         self.endResetModel()
 
     def add_message(self, config):
@@ -522,17 +523,17 @@ class IgTableModel(QAbstractTableModel):
         self.beginInsertRows(QModelIndex(), row, row)
         sql_id = self.db_manager.can_ig_db.save_can_ig(msg)
         msg.sql_id = sql_id
-        self.ig_messages.append(msg)
+        self.parent.ig_messages.append(msg)
         self.endInsertRows()
 
     def delete_message(self, row):
         if 0 <= row < self.rowCount():
             self.beginRemoveRows(QModelIndex(), row, row)
-            self.db_manager.can_ig_db.delete_can_ig_by_sql_id(self.ig_messages[row].sql_id)
-            self.ig_messages.pop(row)
-            self.ig_messages_timer[row].stop()
-            self.ig_messages_timer[row].deleteLater()
-            self.ig_messages_timer.pop(row)
+            self.db_manager.can_ig_db.delete_can_ig_by_sql_id(self.parent.ig_messages[row].sql_id)
+            self.parent.ig_messages.pop(row)
+            self.parent.ig_messages_timer[row].stop()
+            self.parent.ig_messages_timer[row].deleteLater()
+            self.parent.ig_messages_timer.pop(row)
             self.endRemoveRows()
 
     def headerData(self, section: int, orientation: Qt.Orientation,
@@ -544,7 +545,7 @@ class IgTableModel(QAbstractTableModel):
         return None
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
-        return len(self.ig_messages)
+        return len(self.parent.ig_messages)
 
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self._headers)
@@ -555,7 +556,7 @@ class IgTableModel(QAbstractTableModel):
 
         row = index.row()
         col = index.column()
-        msg_tuple = self.ig_messages[row].to_tuple[2:-1]
+        msg_tuple = self.parent.ig_messages[row].to_tuple[2:-1]
 
         # 显示数据
         if role in (Qt.DisplayRole, Qt.EditRole):
@@ -566,13 +567,13 @@ class IgTableModel(QAbstractTableModel):
                     if msg_tuple[col] in self.channel_mappings.can.mappings:
                         return f"{msg_tuple[col]}({self.channel_mappings.can.mappings[msg_tuple[col]].channel})"
                     else:
-                        self.ig_messages[row].channel = ''
+                        self.parent.ig_messages[row].channel = ''
                         self.dataChanged.emit(
                             self.index(row, col),  # 起始索引
                             self.index(row, col),  # 结束索引
                             [Qt.DisplayRole, Qt.EditRole]  # 受影响的角色
                         )
-                        self.db_manager.can_ig_db.save_can_ig(self.ig_messages[row])
+                        self.db_manager.can_ig_db.save_can_ig(self.parent.ig_messages[row])
                         return ''
             return msg_tuple[col]
         return None
@@ -587,31 +588,31 @@ class IgTableModel(QAbstractTableModel):
 
         if col == IgTableCol.brs:
             if isinstance(value, bool):
-                setattr(self.ig_messages[row], field_name, value)
+                setattr(self.parent.ig_messages[row], field_name, value)
         elif col == IgTableCol.send:
             if isinstance(value, bool):
-                trigger = self.ig_messages[row].trigger
+                trigger = self.parent.ig_messages[row].trigger
                 if trigger == 0:
-                    self.ig_messages_timer[row].timeout.emit()
+                    self.parent.ig_messages_timer[row].timeout.emit()
                 else:
-                    setattr(self.ig_messages[row], field_name, value)
+                    setattr(self.parent.ig_messages[row], field_name, value)
                     if value:
-                        self.ig_messages_timer[row].start()
+                        self.parent.ig_messages_timer[row].start()
                     else:
-                        self.ig_messages_timer[row].stop()
+                        self.parent.ig_messages_timer[row].stop()
         elif col == IgTableCol.type:
-            setattr(self.ig_messages[row], field_name, MessageType(value))
+            setattr(self.parent.ig_messages[row], field_name, MessageType(value))
         elif col == IgTableCol.id:
             msg_id = int(value, 16)
-            setattr(self.ig_messages[row], field_name, msg_id)
+            setattr(self.parent.ig_messages[row], field_name, msg_id)
         elif col == IgTableCol.trigger:
-            setattr(self.ig_messages[row], field_name, value)
-            self.ig_messages_timer[row].setInterval(value)
+            setattr(self.parent.ig_messages[row], field_name, value)
+            self.parent.ig_messages_timer[row].setInterval(value)
             if value == 0:
-                self.ig_messages_timer[row].stop()
-                setattr(self.ig_messages[row], 'send', False)
+                self.parent.ig_messages_timer[row].stop()
+                setattr(self.parent.ig_messages[row], 'send', False)
         elif col == IgTableCol.data_length:
-            msg_type = getattr(self.ig_messages[row], 'type', MessageType.CAN)
+            msg_type = getattr(self.parent.ig_messages[row], 'type', MessageType.CAN)
             if msg_type in (
             MessageType.CAN, MessageType.CAN_Remote, MessageType.Extended_CAN, MessageType.Extended_CAN_Remote):
                 if value > 8:
@@ -622,18 +623,18 @@ class IgTableModel(QAbstractTableModel):
             else:
                 if value > 8:
                     value = 8
-            setattr(self.ig_messages[row], field_name, value)
+            setattr(self.parent.ig_messages[row], field_name, value)
 
-            data = getattr(self.ig_messages[row], 'data', bytes([0] * value))
+            data = getattr(self.parent.ig_messages[row], 'data', bytes([0] * value))
             if len(data) < value:
                 data = data + bytes([0] * (value - len(data)))
             else:
                 data = data[:value]
-            setattr(self.ig_messages[row], 'data', data)
+            setattr(self.parent.ig_messages[row], 'data', data)
             self.sig_length_changed.emit(row)
         else:
-            setattr(self.ig_messages[row], field_name, value)
-        self.db_manager.can_ig_db.save_can_ig(self.ig_messages[row])
+            setattr(self.parent.ig_messages[row], field_name, value)
+        self.db_manager.can_ig_db.save_can_ig(self.parent.ig_messages[row])
         return True
 
     def flags(self, index: QModelIndex):
@@ -644,7 +645,7 @@ class IgTableModel(QAbstractTableModel):
         default_flags = super().flags(index)
         flags = default_flags | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
-        # current_obj = self.ig_messages[index.row()]
+        # current_obj = self.parent.ig_messages[index.row()]
         # value = getattr(current_obj, self._headers[index.column()])
         # if isinstance(value, bool):
         #     return flags | Qt.ItemFlag.ItemIsUserCheckable
@@ -679,9 +680,8 @@ class CANIGPanel(Ui_IG, QWidget):
         self.can_interface_channels = None
 
         self.interface_manager = interface_manager
-        self.messages_model = IgTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages,
-                                           ig_messages_timer=self.ig_messages_timer)
-        self.messages_date_model = IgMessageDateTableModel(db_manager=self.db_manager, ig_messages=self.ig_messages)
+        self.messages_model = IgTableModel(self)
+        self.messages_date_model = IgMessageDateTableModel(self)
         self.tableView_data.setItemDelegate(HexByteDelegate(self.tableView_data))
         self.tableView_data.setEditTriggers(
             QAbstractItemView.EditTrigger.DoubleClicked |
@@ -707,7 +707,7 @@ class CANIGPanel(Ui_IG, QWidget):
 
         self.ig_messages = self.db_manager.can_ig_db.get_can_ig_list_by_config(self.config)
         self.messages_model.beginResetModel()
-        self.messages_model.ig_messages = self.ig_messages
+        # self.messages_model.ig_messages = self.ig_messages
         self.messages_model.endResetModel()
 
         for msg in self.ig_messages:

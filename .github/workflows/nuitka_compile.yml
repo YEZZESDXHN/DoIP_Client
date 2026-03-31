@@ -105,9 +105,7 @@ jobs:
             --output-filename=${{ env.APP_NAME }}.exe `
             --enable-plugin=pyside6 `
             --windows-console-mode=attach `
-            --show-progress `
             --windows-icon-from-ico=${{ github.workspace }}/app/resources/icons/app_icon.ico `
-            --show-memory `
             --include-data-files="${{ github.workspace }}/logging.conf=logging.conf" `
             --include-data-files="${{ github.workspace }}/GenerateKeyExOpt/GenerateKeyExOptDemo.py=GenerateKeyExOpt/GenerateKeyExOptDemo.py" `
             --include-data-files="${{ github.workspace }}/external_scripts/api.py=external_scripts/api.py" `
@@ -148,15 +146,15 @@ jobs:
           echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
           echo "TAG_NAME=$tag" >> $env:GITHUB_ENV
 
-          - name: Create Release and Upload Asset
-            uses: softprops/action-gh-release@v2
-            with:
-              tag_name: ${{ env.TAG_NAME }}         # 比如这里就会是传进来的 v1.2
-              name: Release ${{ env.TAG_NAME }}     # Release 的标题
-              files: ${{ env.ZIP_NAME }}
-              draft: false
-              prerelease: false
-              generate_release_notes: true
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}         # 比如这里就会是传进来的 v1.2
+          name: Release ${{ env.TAG_NAME }}     # Release 的标题
+          files: ${{ env.ZIP_NAME }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
 
 #      - name: Prepare Artifacts
 #        id: prepare_artifact

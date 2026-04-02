@@ -40,31 +40,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VER }}
           cache: 'pip'
-
-      # ===========================
-      # 安装 ccache（C 编译缓存）
-      # ===========================
-      - name: Install ccache
-        run: |
-          choco install ccache -y
-          ccache --set-config=max_size=10G
-          ccache --set-config=compression=true
-
-      # ===========================
-      # GitHub 缓存（Nuitka + ccache）
-      # ===========================
-      - name: Cache Nuitka & ccache
-        uses: actions/cache@v4
-        with:
-          path: |
-            C:\Users\runneradmin\AppData\Local\nuitka
-            C:\Users\runneradmin\.ccache
-          # 加入 github.sha 保证每次构建完能保存最新状态
-          key: ${{ runner.os }}-nuitka-${{ env.PYTHON_VER }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-nuitka-${{ env.PYTHON_VER }}-
-            ${{ runner.os }}-nuitka-
-
+      
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -77,6 +53,25 @@ jobs:
             # 如果没有 requirements.txt，可以在这里作为备用手动安装
             pip install pyside6 openpyxl pandas udsoncan ifaddr doipclient
           }
+      
+      - name: 设置 Nuitka 自定义缓存目录
+        shell: pwsh
+        run: |
+          echo "NUITKA_CACHE_DIR=${{ github.workspace }}\nuitka_cache" >> $env:GITHUB_ENV
+
+      # ===========================
+      # 缓存Nuitka到GitHub
+      # ===========================
+      - name: Cache Nuitka
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.NUITKA_CACHE_DIR }}
+          # 加入 github.sha 保证每次构建完能保存最新状态
+          key: ${{ runner.os }}-nuitka-${{ env.PYTHON_VER }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nuitka-${{ env.PYTHON_VER }}-
+            ${{ runner.os }}-nuitka-
 
       - name: Build with Nuitka (Command Line)
         shell: pwsh
@@ -155,53 +150,3 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-
-#      - name: Prepare Artifacts
-#        id: prepare_artifact
-#        shell: pwsh
-#        run: |
-#          # 获取 Tag 或构建标识
-#          $tag = "${{ github.ref_name }}"
-#          if ($tag -match "^v") { Write-Host "Tag detected: $tag" } else { $tag = "manual-build" }
-#
-#          # 使用环境变量构建文件名
-#          $appName = "${{ env.APP_NAME }}"
-#          $releaseName = "${{ env.APP_NAME }}_$tag"
-#          $zipName = "${{ env.APP_NAME }}-$tag.7z"
-#
-#          # 整理 Nuitka 输出
-#          # Nuitka Action standalone 模式通常在 build 目录下生成 xxx.dist 文件夹
-#          # 我们将其重命名为带版本号的文件夹名
-#
-#          New-Item -ItemType Directory -Force -Path $releaseName
-#
-#          # 注意：Nuitka-Action 生成的 dist 文件夹名称通常是 main.dist (取决于入口文件名)
-#          Move-Item -Path "dist\*.dist\*" -Destination $releaseName
-#
-#          # 压缩文件夹
-#          7z a -t7z $zipName $releaseName
-#
-#          # 将生成的 Zip 文件名传给后续步骤
-#          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
-#          echo "TAG_NAME=$tag" >> $env:GITHUB_ENV
-#
-#      # - name: Upload Artifact (Actions Tab)
-#      #   uses: actions/upload-artifact@v4
-#      #   with:
-#      #     name: ${{ env.APP_NAME }}-Build
-#      #     path: ${{ env.ZIP_NAME }}
-#
-#      - name: Create Release and Upload Asset
-#        if: startsWith(github.ref, 'refs/tags/')
-#        uses: softprops/action-gh-release@v2
-#        with:
-#          files: ${{ env.ZIP_NAME }}
-#          draft: false
-#          prerelease: false
-#          generate_release_notes: true
-#
-#      # - name: Delete artifact with error handling
-#      #   uses: geekyeggo/delete-artifact@v5
-#      #   with:
-#      #     name: ${{ env.APP_NAME }}-Build
-#      #     failOnError: false

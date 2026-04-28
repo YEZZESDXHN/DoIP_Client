@@ -90,7 +90,7 @@ class TSMasterApiBus(BusABC):
             data_bitrate: int = 2000000,
             receive_own_messages: bool = False,
             can_filters: List[int] = None,
-            m120: bool = False,  # 是否开启120欧姆终端电阻
+            m120: bool = True,  # 是否开启120欧姆终端电阻
             fifo_mode: bool = True, # 默认fifo模式
             **kwargs,
     ):

@@ -27,6 +27,7 @@ DEFAULT_BIT_TIMING_FD = BitTimingFd.from_sample_point(
 )
 
 can.interfaces.BACKENDS['tosun'] = ('tosun', 'TSMasterApiBus')
+can.interfaces.BACKENDS['hhs'] = ('hhs', 'HhsBus')
 can.interfaces.VALID_INTERFACES = frozenset(sorted(can.interfaces.BACKENDS.keys()))
 can.util.VALID_INTERFACES = can.interfaces.VALID_INTERFACES
 
